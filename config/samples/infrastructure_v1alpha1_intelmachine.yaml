@@ -1,0 +1,9 @@
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: IntelMachine
+metadata:
+  labels:
+    app.kubernetes.io/name: cluster-api-provider-intel
+    app.kubernetes.io/managed-by: kustomize
+  name: intelmachine-sample
+spec:
+  nodeGUID: 12345678-1234-1234-1234-123456789012

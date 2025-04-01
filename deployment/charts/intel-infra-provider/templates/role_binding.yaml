@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    {{- include "intel-infra-provider.roleLabels" . | nindent 4 }}
+  name: {{ include "intel-infra-provider.fullname" . }}-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "intel-infra-provider.fullname" . }}-controller
+subjects:
+- kind: ServiceAccount
+  name: {{ include "intel-infra-provider.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}

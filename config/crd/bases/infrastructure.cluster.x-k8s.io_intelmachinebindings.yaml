@@ -1,0 +1,84 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.4
+  name: intelmachinebindings.infrastructure.cluster.x-k8s.io
+spec:
+  group: infrastructure.cluster.x-k8s.io
+  names:
+    kind: IntelMachineBinding
+    listKind: IntelMachineBindingList
+    plural: intelmachinebindings
+    singular: intelmachinebinding
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.clusterName
+      name: Cluster Name
+      type: string
+    - jsonPath: .spec.nodeGUID
+      name: Node GUID
+      type: string
+    - jsonPath: .spec.intelMachineTemplateName
+      name: Template Name
+      type: string
+    - jsonPath: .status.allocated
+      name: Allocated
+      type: boolean
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: IntelMachineBinding is the Schema for the intelmachinebindings
+          API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: IntelMachineBindingSpec defines the desired state of IntelMachineBinding.
+            properties:
+              clusterName:
+                description: ClusterName contains the name of the cluster to which
+                  the node is bound
+                type: string
+              intelMachineTemplateName:
+                description: IntelMachineTemplateName contains the name of the IntelMachineTemplate
+                  for the node
+                type: string
+              nodeGUID:
+                description: NodeGUID contains the GUID of the node
+                type: string
+            required:
+            - clusterName
+            - intelMachineTemplateName
+            - nodeGUID
+            type: object
+          status:
+            description: IntelMachineBindingStatus defines the observed state of IntelMachineBinding.
+            properties:
+              allocated:
+                description: Allocated denotes that the node has been allocated to
+                  the cluster
+                type: boolean
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -1,0 +1,82 @@
+syntax = "proto3";
+package cluster_orchestrator_southbound_proto;
+
+import "validate/validate.proto";
+
+option go_package = ".;cluster_orchestrator_southbound";
+
+service ClusterOrchestratorSouthbound {
+  // RegisterCluster is called from Edge Node to receive LPKE installation script
+  rpc RegisterCluster(RegisterClusterRequest) returns (RegisterClusterResponse) {}
+
+  // UpdateClusterStatus is called from Edge Cluster to set the status cluster deployment
+  rpc UpdateClusterStatus(UpdateClusterStatusRequest) returns (UpdateClusterStatusResponse) {}
+
+  // GetClusterNumByTemplateIdentifier is called from CTM service
+  rpc GetClusterNumByTemplateIdentifier(GetClusterNumByTemplateIdentifierRequest) returns (GetClusterNumByTemplateIdentifierResponse) {}
+}
+
+// RegisterClusterRequest contains Edge Node identity assigned by Inventory
+message RegisterClusterRequest {
+  string node_guid = 1 [(validate.rules).string = { pattern: "^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$"}];
+}
+
+// RegisterClusterResponse contains shell script to be executed by Cluster Agent to install LPKE
+message RegisterClusterResponse {
+  ShellScriptCommand install_cmd = 1;
+  ShellScriptCommand uninstall_cmd = 2;
+  enum Result {
+    SUCCESS = 0;
+    ERROR = 1;
+  }
+  Result res = 3;
+}
+
+// ShellScriptCommand is a command to be executed by Cluster Agent to install/uninstall LKPE.
+// command is to be executed in shell, like this `sh -c command`
+message ShellScriptCommand {
+  // example1: "curl -fL https://DOMAIN.NAME/system-agent-install.sh | sudo  sh -s - --server https://DOMAIN.NAME --label 'cattle.io/os=linux' --token 86f9cqfnvvlmwmvvmsptmr5wqj9d6bqpxkmxbvjw2txklhbglcdtff --ca-checksum b50da8bfa2cbcc13e209b9ffbab4b39c699e0aa2b3fe50f44ec4477c54725ea3 --etcd --controlplane --worker"
+  // example2: "/usr/local/bin/rancher-system-agent-uninstall.sh; /usr/local/bin/rke2-uninstall.sh"
+  string command = 1;
+}
+
+// UpdateClusterStatusRequest is used by Cluster Agent to represent its internal state machine
+message UpdateClusterStatusRequest {
+  enum Code {
+    INACTIVE = 0;
+    REGISTERING = 1;
+    INSTALL_IN_PROGRESS = 2;
+    ACTIVE = 3;
+    DEREGISTERING = 4;
+    UNINSTALL_IN_PROGRESS = 5;
+    ERROR = 6;
+  }
+  Code code = 1;
+  string node_guid = 2 [(validate.rules).string = { pattern: "^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$"}];
+}
+
+// UpdateClusterStatusResponse is used to request Cluster Agent to transition to new internal state
+message UpdateClusterStatusResponse {
+   enum ActionRequest {
+    NONE = 0;
+    REGISTER = 1;
+    DEREGISTER = 2;
+  }
+  ActionRequest action_request = 1;
+}
+
+message GetClusterNumByTemplateIdentifierRequest {
+  //it's format is "template name" + "-" + "template version"
+  string templateIdentifier = 1;
+}
+
+message GetClusterNumByTemplateIdentifierResponse {
+  enum Result {
+    SUCCESS = 0;
+    ERROR = 1;
+  }
+  Result res = 1;  
+  
+  int32 clusterNum = 2;
+}
+

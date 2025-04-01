@@ -1,0 +1,56 @@
+# SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{template "intel-infra-provider.fullname" .}}-grpc
+  namespace: {{.Release.Namespace}}
+  labels:
+    {{- include "intel-infra-provider.southboundLabels" . | nindent 4 }}
+spec:
+  selector:
+    app: southbound-api
+  type: {{.Values.southboundApi.service.type}}
+  ports:
+    - name: "grpc"
+      port: {{.Values.southboundApi.service.grpc.port}}
+{{- if .Values.traefikReverseProxy.enabled }}
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: {{template "intel-infra-provider.fullname" .}}-grpc
+  namespace: "{{ .Values.traefikReverseProxy.gatewayNamespace }}"
+spec:
+  headers:
+    customRequestHeaders:
+      Host: "{{template "intel-infra-provider.fullname" .}}-southbound.{{ .Release.Namespace }}.svc"
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{template "intel-infra-provider.fullname" .}}-grpc
+  namespace: "{{ .Values.traefikReverseProxy.gatewayNamespace }}"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: "Host(`{{ .Values.traefikReverseProxy.host.grpc.name }}`) && PathPrefix(`/`)"
+      kind: Rule
+      middlewares:
+        - name: validate-jwt
+        - name: {{template "intel-infra-provider.fullname" .}}-grpc
+      services:
+      - name: {{template "intel-infra-provider.fullname" .}}-grpc
+        namespace: {{.Release.Namespace}}
+        port: {{.Values.southboundApi.service.grpc.port}}
+        scheme: h2c
+  tls:
+    secretName: "{{ .Values.traefikReverseProxy.host.grpc.secretName }}"
+{{- if .Values.traefikReverseProxy.host.grpc.tlsOption }}
+    options:
+      name: "{{ .Values.traefikReverseProxy.host.grpc.tlsOption }}"
+      namespace: "{{ .Values.traefikReverseProxy.gatewayNamespace }}"
+{{- end }}
+{{- end }}

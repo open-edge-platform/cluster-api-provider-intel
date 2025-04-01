@@ -1,0 +1,101 @@
+# SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+run:
+  timeout: 5m
+  allow-parallel-runners: true
+
+issues:
+  # don't skip warning about doc comments
+  # don't exclude the default set of lint
+  exclude-use-default: false
+  # restore some of the defaults
+  # (fill in the rest as needed)
+  exclude-rules:
+    - path: "api/*"
+      linters:
+        - lll
+    - path: "internal/*"
+      linters:
+        - dupl
+        - lll
+    # disable some lints for imported packages
+    - path: "pkg/secret_client/*"
+      linters:
+        - dupl
+        - revive
+        - lll
+    - path: "pkg/server-options/*"
+      linters:
+        - revive
+        - staticcheck
+        - lll
+    - path: "pkg/utils/*"
+      linters:
+        - unparam
+        - prealloc
+        - revive
+        - misspell
+        - goimports
+        - errcheck
+        - lll
+    - path: "pkg/auth/*"
+      linters:
+        - misspell
+        - errcheck
+        - lll
+    - path: "pkg/rbac/*"
+      linters:
+        - misspell
+        - lll
+    - path: "pkg/logging/*"
+      linters:
+        - lll
+        - errcheck
+    - path: "pkg/tenant/*"
+      linters:
+        - lll
+    - path: "pkg/data-migration/*"
+      linters:
+        - lll
+    - path: "pkg/inventory/*"
+      linters:
+        - lll
+    - path: "pkg/testing/*"
+      linters:
+        - lll
+linters:
+  disable-all: true
+  enable:
+    - dupl
+    - errcheck
+    - copyloopvar
+    - ginkgolinter
+    - goconst
+    - gocyclo
+    - gofmt
+    - goimports
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - nakedret
+    - prealloc
+    - revive
+    - staticcheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+
+linters-settings:
+  revive:
+    rules:
+      - name: comment-spacings
+  dupl:
+    # required by Get/Delete Workload, WorkloadMember as dupl
+    # identifies the unit tests there as duplicates. This is even
+    # though the testcase members and inventory client calls that
+    # are made in the unit tests are different
+    threshold: 200

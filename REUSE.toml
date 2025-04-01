@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+version = 1
+
+[[annotations]]
+path = [
+  "*.md", 
+  ".github/*", 
+  "VERSION", 
+  "go.mod", 
+  "go.sum", 
+  ".gitignore",
+  "api/*",  
+  ".dockerignore", 
+  ".devcontainer/*",
+  "pkg/logging/*.md",
+  "pkg/utils/testdata/*",
+  "bin", 
+  "test",
+  "config/**", 
+  "PROJECT", 
+  "mocks/**",
+  "hack/*"
+]
+SPDX-FileCopyrightText = "2025 Intel Corporation"
+SPDX-License-Identifier = "Apache-2.0"

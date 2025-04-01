@@ -1,0 +1,9 @@
+## Append samples of your project ##
+resources:
+- infrastructure_v1alpha1_intelmachine.yaml
+- infrastructure_v1alpha1_intelcluster.yaml
+- infrastructure_v1alpha1_intelmachinetemplate.yaml
+- infrastructure_v1alpha1_intelmachinebinding.yaml
+- infrastructure_v1alpha1_intelclustertemplate.yaml
+- infrastructure_v1alpha1_clusterconnection.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

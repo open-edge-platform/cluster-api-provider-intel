@@ -1,0 +1,189 @@
+# SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# Default values for intel-infra-provider.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+manager:
+  replicaCount: 1
+
+  image:
+    registry:
+      name: registry-rs.edgeorchestration.intel.com
+    repository: edge-orch/cluster/capi-provider-intel-manager
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    # tag: 0.1.0-dev
+
+  imagePullSecrets: []
+  nameOverride: ""
+  fullnameOverride: ""
+
+  extraArgs:
+    use-inv-stub: false
+
+  extraEnv: []
+
+  # Extra labels to add to the deployment
+  labels: {}
+
+  # Extra labels to add to the pods
+  podLabels: {}
+
+  # Extra annotations to add to the pods
+  podAnnotations: {}
+
+  podSecurityContext:
+    runAsNonRoot: true
+    # fsGroup: 2000
+
+  securityContext: 
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    seccompProfile:
+      type: RuntimeDefault
+    capabilities:
+      drop:
+      - ALL
+    # runAsUser: 1000
+
+  resources: 
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  terminationGracePeriodSeconds: 10
+
+  inventory:
+    endpoint: "mi-inventory.orch-infra.svc.cluster.local:50051"
+
+southboundApi:
+  replicaCount: 1
+
+  image:
+    registry:
+      name: registry-rs.edgeorchestration.intel.com
+    repository: edge-orch/cluster/capi-provider-intel-southbound
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    # tag: 0.1.0-dev
+
+  imagePullSecrets: []
+  nameOverride: ""
+  fullnameOverride: ""
+
+  service:
+    type: ClusterIP
+    grpc:
+      port: 50020
+
+  extraArgs:
+    useGrpcStubMiddleware: false
+
+  # Extra labels to add to the deployment
+  labels: {}
+
+  # Extra labels to add to the pods
+  podLabels: {}
+
+  # Extra annotations to add to the pods
+  podAnnotations: {}
+
+  podSecurityContext:
+    runAsNonRoot: true
+    # fsGroup: 2000
+
+  securityContext: 
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    seccompProfile:
+      type: RuntimeDefault
+    capabilities:
+      drop:
+      - ALL
+    # runAsUser: 1000
+
+  resources: 
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  terminationGracePeriodSeconds: 10
+
+  clientRateLimiter:
+    qps: 30
+    burst: 100
+
+ingress:
+  enabled: false
+
+oidc:
+  oidc_server_url: "http://platform-keycloak.orch-platform.svc/realms/master"
+  oidc_client_id: "cluster-management-client"
+  oidc_tls_insecure_skip_verify: true
+
+traefikReverseProxy:
+  host:
+    grpc:
+      name: ""
+      # -- tlsOption is the name of the Traefik option for handling TLS or mTLS connections.
+      tlsOption: gateway-tls
+      # -- secretName is name of k8s secret containing TLS server cert.
+      secretName: tls-demo
+  # -- enabled is a switch to turn on/off the Traefik reverse proxy resource; Traefik MUST be deployed to gateway-system ns before enabling it here.
+  enabled: false
+  # -- gatewayNamespace specifies namespace of Traefik and related resources (e.g. k8s secret or tls option).
+  gatewayNamespace: orch-gateway
+
+rbac:
+  # Labels to add to roles
+  labels: {}
+  # Whether to install extra "Editor" and "Viewer" roles to aid in management
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: true
+    # Labels to add to the service account
+    labels: {}
+    # Annotations to add to the service account
+    annotations: {}
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: ""
+
+metrics:
+  service:
+    # Whether to create a service for scraping metrics
+    enabled: true
+    port: 8443
+    # Labels to add to the service
+    labels: {}
+  serviceMonitor:
+    # Whether to create a service monitor for scraping metrics
+    enabled: true
+    # Labels to add to the service monitor
+    labels: {}
+  networkPolicy:
+    # Whether to create a network policy for metrics endpoints
+    enabled: false
+    # Labels to add to the network policy
+    labels: {}
+  # Whether to install extra roles that protect the scraping of metrics with authn/authz
+  metricsRoles: true

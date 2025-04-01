@@ -1,0 +1,23 @@
+# permissions for end users to view intelmachinetemplates.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: cluster-api-provider-intel
+    app.kubernetes.io/managed-by: kustomize
+  name: intelmachinetemplate-viewer-role
+rules:
+- apiGroups:
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - intelmachinetemplates
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - intelmachinetemplates/status
+  verbs:
+  - get

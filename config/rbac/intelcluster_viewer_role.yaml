@@ -1,0 +1,23 @@
+# permissions for end users to view intelclusters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: cluster-api-provider-intel
+    app.kubernetes.io/managed-by: kustomize
+  name: intelcluster-viewer-role
+rules:
+- apiGroups:
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - intelclusters
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - intelclusters/status
+  verbs:
+  - get

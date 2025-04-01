@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if .Values.metrics.service.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "intel-infra-provider.fullname" . }}-metrics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "intel-infra-provider.metricsServiceLabels" . | nindent 4 }}
+spec:
+  ports:
+  - name: metrics
+    port: {{ .Values.metrics.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.metrics.service.port }}
+  selector:
+    {{- include "intel-infra-provider.selectorLabels" . | nindent 4 -}}
+{{- end -}}

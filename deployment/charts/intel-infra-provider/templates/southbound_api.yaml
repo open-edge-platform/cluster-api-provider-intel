@@ -1,0 +1,86 @@
+# SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "intel-infra-provider.fullname" . }}-southbound
+  labels:
+    {{- include "intel-infra-provider.southboundLabels" . | nindent 4 }}
+    app: southbound-api
+spec:
+  replicas: {{ .Values.southboundApi.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "intel-infra-provider.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.southboundApi.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app: southbound-api
+        {{- include "intel-infra-provider.southboundPodLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.southboundApi.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "intel-infra-provider.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.southboundApi.podSecurityContext | nindent 8 }}
+      containers:
+        - name: intel-infra-provider-southbound
+          securityContext:
+            {{- toYaml .Values.southboundApi.securityContext | nindent 12 }}
+          image: "{{ .Values.southboundApi.image.registry.name }}/{{ .Values.southboundApi.image.repository }}:{{ .Values.southboundApi.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.southboundApi.image.pullPolicy }}
+          command:
+            - /southbound_handler
+          args:
+            {{- range $key, $value := .Values.southboundApi.extraArgs }}
+            - --{{ $key }}={{ $value }}
+            {{- end }}
+          # livenessProbe:
+          #   httpGet:
+          #     path: /healthz
+          #     port: 50020
+          #   initialDelaySeconds: 15
+          #   periodSeconds: 20
+          # readinessProbe:
+          #   httpGet:
+          #     path: /readyz
+          #     port: 50020
+          #   initialDelaySeconds: 5
+          #   periodSeconds: 10
+          env:
+            - name: OIDC_SERVER_URL
+              value: {{ .Values.oidc.oidc_server_url }}
+            - name: OIDC_CLIENT_ID
+              value: {{ .Values.oidc.oidc_client_id }}
+            - name: OIDC_TLS_INSECURE_SKIP_VERIFY
+              value: "{{ .Values.oidc.oidc_tls_insecure_skip_verify }}"
+            - name: RATE_LIMITER_QPS
+              value: "{{ .Values.southboundApi.clientRateLimiter.qps }}"
+            - name: RATE_LIMITER_BURST
+              value: "{{ .Values.southboundApi.clientRateLimiter.burst }}"
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.southboundApi.service.grpc.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.southboundApi.resources | nindent 12 }}
+      {{- with .Values.southboundApi.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.southboundApi.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.southboundApi.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.southboundApi.terminationGracePeriodSeconds }}
