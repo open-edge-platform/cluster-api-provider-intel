@@ -17,7 +17,7 @@ import (
 	"github.com/bnkamalesh/errors"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	grpcauth "github.com/open-edge-platform/orch-library/go/pkg/grpc/auth"
-	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/rego" //nolint: staticcheck
 	"k8s.io/utils/strings/slices"
 
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/logging"
