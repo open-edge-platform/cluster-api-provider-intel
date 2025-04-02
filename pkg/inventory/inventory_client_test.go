@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	computev1 "github.com/intel/infra-core/inventory/v2/pkg/api/compute/v1"
-	inventoryv1 "github.com/intel/infra-core/inventory/v2/pkg/api/inventory/v1"
-	osv1 "github.com/intel/infra-core/inventory/v2/pkg/api/os/v1"
 	"github.com/open-edge-platform/cluster-api-provider-intel/mocks/m_client"
+	computev1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/compute/v1"
+	inventoryv1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/inventory/v1"
+	osv1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/os/v1"
 )
 
 var (

@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"sync"
 
-	computev1 "github.com/intel/infra-core/inventory/v2/pkg/api/compute/v1"
+	computev1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/compute/v1"
 )
 
 type MachineProvider struct {
