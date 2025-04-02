@@ -466,8 +466,6 @@ github.com/aryann/difflib v0.0.0-20170710044230-e206f873d14a/go.mod h1:DAHtR1m6l
 github.com/asaskevich/govalidator v0.0.0-20180720115003-f9ffefc3facf/go.mod h1:lB+ZfQJz7igIIfQNfa7Ml4HSf2uFQQRzpGGRXenZAgY=
 github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a h1:idn718Q4B6AGu/h5Sxe66HYVdqdGu2l9Iebqhi/AEoA=
 github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a/go.mod h1:lB+ZfQJz7igIIfQNfa7Ml4HSf2uFQQRzpGGRXenZAgY=
-github.com/atomix/dazl v1.1.4 h1:UiaoRsL/6uUAME+7UrI2i6YFqgnRSqHbtOYGczgRSQo=
-github.com/atomix/dazl v1.1.4/go.mod h1:xP9dG2g+A58djKvKy8q1HmM3piFRcxUUZm4zSft4Wc4=
 github.com/aws/aws-lambda-go v1.13.3/go.mod h1:4UKl9IzQMoD+QF79YdCuzCwp8VbmG4VAQwij/eHl5CU=
 github.com/aws/aws-sdk-go v1.27.0/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
 github.com/aws/aws-sdk-go-v2 v0.18.0/go.mod h1:JWVYvqSMppoMJC0x5wdwiImzgXTI9FuZwxzkQq9wy+g=
@@ -1159,8 +1157,6 @@ github.com/open-edge-platform/cluster-connect-gateway v1.0.2 h1:e3eqNx+YKJk2CM6r
 github.com/open-edge-platform/cluster-connect-gateway v1.0.2/go.mod h1:EO8QC9qE9hm9OvFiqQ4wl4PCuDmtf0eX1Urw2RLKxvE=
 github.com/open-edge-platform/infra-core/inventory/v2 v2.23.0 h1:fq25w9Ky6gvE5pTtqf/N9DLrfvZRnIzAJB+VzsiFSnA=
 github.com/open-edge-platform/infra-core/inventory/v2 v2.23.0/go.mod h1:mpGYnChj0Z5SNYMy8IpuQ76OVcAmKfO384J7ZI5zxFE=
-github.com/open-edge-platform/orch-library/go v0.5.18 h1:0ZNrnB3nfUjgfTXVItCERL3OJQWaCxYtuSvOb+PA9D4=
-github.com/open-edge-platform/orch-library/go v0.5.18/go.mod h1:mhDHd+eVkt552hgtK8tvBrMp1jj8I6lnU0T6mcBHgg0=
 github.com/open-edge-platform/orch-library/go v0.5.29 h1:LfOaRcRYXpQdcyHrVwN4wC2l11wbdUnBLkc2P7vrZNY=
 github.com/open-edge-platform/orch-library/go v0.5.29/go.mod h1:Wm6A5AJx4DCIOi4u+y1IMJxgFZ4n27f5FLSqW0QPW9k=
 github.com/open-edge-platform/orch-library/go/dazl v0.5.2 h1:YajSGrup0GtzILvXOGL5slbZQMrge513ATBKtadQq38=

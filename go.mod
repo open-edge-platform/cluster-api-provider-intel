@@ -6,8 +6,6 @@ toolchain go1.24.2
 
 replace github.com/google/cel-go => github.com/google/cel-go v0.22.1
 
-replace github.com/intel/orch-library/go => github.com/open-edge-platform/orch-library/go v0.5.18
-
 require (
 	entgo.io/ent v0.14.4
 	github.com/bnkamalesh/errors v0.11.1
@@ -21,7 +19,6 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.1
 	github.com/hashicorp/vault/api v1.16.0
-	github.com/intel/orch-library/go v0.5.29
 	github.com/labstack/echo-jwt/v4 v4.3.0
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/lestrrat-go/jwx/v2 v2.1.3
@@ -31,6 +28,7 @@ require (
 	github.com/onsi/gomega v1.36.2
 	github.com/open-edge-platform/cluster-connect-gateway v1.0.2
 	github.com/open-edge-platform/infra-core/inventory/v2 v2.23.0
+	github.com/open-edge-platform/orch-library/go v0.5.29
 	github.com/open-policy-agent/opa v1.3.0
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.10.0
@@ -53,7 +51,6 @@ require (
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a // indirect
-	github.com/atomix/dazl v1.1.4 // indirect
 	github.com/bmatcuk/doublestar v1.3.4 // indirect
 	github.com/bufbuild/protovalidate-go v0.9.2 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
@@ -101,7 +98,6 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/mwitkow/go-proto-validators v0.3.0 // indirect
-	github.com/open-edge-platform/orch-library/go v0.5.29 // indirect
 	github.com/open-edge-platform/orch-library/go/dazl v0.5.2 // indirect
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect

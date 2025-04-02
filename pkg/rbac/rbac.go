@@ -12,11 +12,11 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	"github.com/intel/orch-library/go/pkg/auth"
+	"github.com/open-edge-platform/orch-library/go/pkg/auth"
 
 	"github.com/bnkamalesh/errors"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
-	grpcauth "github.com/intel/orch-library/go/pkg/grpc/auth"
+	grpcauth "github.com/open-edge-platform/orch-library/go/pkg/grpc/auth"
 	"github.com/open-policy-agent/opa/rego"
 	"k8s.io/utils/strings/slices"
 
