@@ -4,6 +4,7 @@ go 1.24.1
 
 toolchain go1.24.2
 
+replace github.com/google/cel-go => github.com/google/cel-go v0.22.1
 replace github.com/intel/orch-library/go => github.com/open-edge-platform/orch-library/go v0.5.18
 
 require (
