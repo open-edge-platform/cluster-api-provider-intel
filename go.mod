@@ -5,6 +5,7 @@ go 1.24.1
 toolchain go1.24.2
 
 replace github.com/google/cel-go => github.com/google/cel-go v0.22.1
+
 replace github.com/intel/orch-library/go => github.com/open-edge-platform/orch-library/go v0.5.18
 
 require (
@@ -20,7 +21,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.1
 	github.com/hashicorp/vault/api v1.16.0
-	github.com/intel/orch-library/go v0.5.18
+	github.com/intel/orch-library/go v0.5.29
 	github.com/labstack/echo-jwt/v4 v4.3.0
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/lestrrat-go/jwx/v2 v2.1.3
