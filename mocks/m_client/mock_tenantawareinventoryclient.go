@@ -3,15 +3,15 @@
 package m_client
 
 import (
-	cache "github.com/intel/infra-core/inventory/v2/pkg/client/cache"
+	cache "github.com/open-edge-platform/infra-core/inventory/v2/pkg/client/cache"
 
-	computev1 "github.com/intel/infra-core/inventory/v2/pkg/api/compute/v1"
+	computev1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/compute/v1"
 
 	context "context"
 
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 
-	inventoryv1 "github.com/intel/infra-core/inventory/v2/pkg/api/inventory/v1"
+	inventoryv1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/inventory/v1"
 
 	mock "github.com/stretchr/testify/mock"
 )

@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	computev1 "github.com/intel/infra-core/inventory/v2/pkg/api/compute/v1"
-	inv_v1 "github.com/intel/infra-core/inventory/v2/pkg/api/inventory/v1"
+	computev1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/compute/v1"
+	inv_v1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/inventory/v1"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 

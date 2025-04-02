@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	computev1 "github.com/intel/infra-core/inventory/v2/pkg/api/compute/v1"
-	inventoryv1 "github.com/intel/infra-core/inventory/v2/pkg/api/inventory/v1"
-	"github.com/intel/infra-core/inventory/v2/pkg/client"
-	"github.com/intel/infra-core/inventory/v2/pkg/validator"
 	invStub "github.com/open-edge-platform/cluster-api-provider-intel/test/inventory-stub"
+	computev1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/compute/v1"
+	inventoryv1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/inventory/v1"
+	"github.com/open-edge-platform/infra-core/inventory/v2/pkg/client"
+	"github.com/open-edge-platform/infra-core/inventory/v2/pkg/validator"
 )
 
 const (

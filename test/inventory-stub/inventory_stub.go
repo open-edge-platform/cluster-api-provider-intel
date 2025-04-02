@@ -12,11 +12,11 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	computev1 "github.com/intel/infra-core/inventory/v2/pkg/api/compute/v1"
-	inv_v1 "github.com/intel/infra-core/inventory/v2/pkg/api/inventory/v1"
-	osv1 "github.com/intel/infra-core/inventory/v2/pkg/api/os/v1"
-	"github.com/intel/infra-core/inventory/v2/pkg/client"
-	"github.com/intel/infra-core/inventory/v2/pkg/client/cache"
+	computev1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/compute/v1"
+	inv_v1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/inventory/v1"
+	osv1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/os/v1"
+	"github.com/open-edge-platform/infra-core/inventory/v2/pkg/client"
+	"github.com/open-edge-platform/infra-core/inventory/v2/pkg/client/cache"
 )
 
 const (
