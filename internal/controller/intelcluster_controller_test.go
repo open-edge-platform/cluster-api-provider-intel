@@ -91,7 +91,7 @@ var _ = Describe("IntelCluster Controller", func() {
 				Once()
 
 			Expect(kerrors.IsNotFound(k8sClient.Get(ctx, clusterConnectionFilter, &ccgv1.ClusterConnect{}))).To(BeTrue())
-			clusterConnection = getClusterConnectionManifest(intelCluster, cluster)
+			clusterConnection = getClusterConnectionManifest(cluster)
 			Expect(k8sClient.Create(ctx, clusterConnection)).To(Succeed())
 		})
 
@@ -218,7 +218,7 @@ var _ = Describe("IntelCluster Controller", func() {
 				Return(inventory.CreateWorkloadOutput{WorkloadId: "", Err: errors.New("test")})
 
 			Expect(kerrors.IsNotFound(k8sClient.Get(ctx, clusterConnectionFilter, &ccgv1.ClusterConnect{}))).To(BeTrue())
-			clusterConnection = getClusterConnectionManifest(intelCluster, cluster)
+			clusterConnection = getClusterConnectionManifest(cluster)
 			Expect(k8sClient.Create(ctx, clusterConnection)).To(Succeed())
 		})
 
