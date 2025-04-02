@@ -15,14 +15,14 @@ on:
 jobs:
   integration-smoke-test:
     runs-on: ubuntu-24.04-16core-64GB
-    if: false
+    if: true
     env:
       VERSION: ${{ github.head_ref }}  # Use the component branch that triggered the action for the test
     steps:
       - name: Checkout orch ci
         uses: actions/checkout@v4
         with:
-          repository: intel/orch-ci
+          repository: open-edge-platform/orch-ci
           path: ci
           ref: "main"
           token: ${{ secrets.SYS_ORCH_GITHUB }}
@@ -30,7 +30,7 @@ jobs:
       - name: Checkout cluster-tests for integration tests
         uses: actions/checkout@v4
         with:
-          repository: intel/cluster-tests
+          repository: open-edge-platform/cluster-tests
           path: cluster-tests
           ref: "main"
           token: ${{ secrets.SYS_ORCH_GITHUB }}
