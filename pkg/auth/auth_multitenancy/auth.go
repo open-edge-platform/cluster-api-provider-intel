@@ -18,7 +18,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/tenant"
-	"github.com/open-policy-agent/opa/rego" //nolint: staticcheck
+	"github.com/open-policy-agent/opa/rego" // nolint: staticcheck
 )
 
 const (
