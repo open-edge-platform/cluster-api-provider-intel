@@ -21,6 +21,7 @@ import (
 	"k8s.io/utils/strings/slices"
 
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/logging"
+	"github.com/rs/zerolog"
 )
 
 const (
@@ -195,7 +196,7 @@ func clientCanBypassAuthN(ctx context.Context) bool {
 		}
 	}
 	if foundMissingAuthClient {
-		log.Warn().Msgf("Allowing unauthenticated gRPC request from client: %s", niceMd.Get("client"))
+		CustomLog(zerolog.WarnLevel, fmt.Sprintf("Allowing unauthenticated gRPC request from client: %s", niceMd.Get("client")))
 		return true
 	}
 
@@ -330,4 +331,11 @@ func getRancherResourceRole(resourceAccessMap interface{}) (string, error) {
 
 	return role, nil
 
+}
+
+// CustomLog logs messages based on the global log level
+func CustomLog(level zerolog.Level, msg string) {
+	if level == zerolog.GlobalLevel() {
+		log.WithLevel(level).Msg(msg)
+	}
 }
