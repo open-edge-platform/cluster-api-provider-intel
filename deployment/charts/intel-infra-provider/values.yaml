@@ -172,7 +172,7 @@ metrics:
   service:
     # Whether to create a service for scraping metrics
     enabled: true
-    port: 8443
+    port: 8080
     # Labels to add to the service
     labels: {}
   serviceMonitor:
