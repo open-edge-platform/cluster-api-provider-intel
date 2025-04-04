@@ -21,6 +21,7 @@ import (
 	"k8s.io/utils/strings/slices"
 
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/logging"
+	"github.com/rs/zerolog"
 )
 
 const (
@@ -88,7 +89,7 @@ func loadQuery(ctx context.Context, policies *Policy, ruleDirectory, queryName, 
 	if err != nil {
 		return errors.InternalErr(err, fmt.Sprintf("can't load %s query", queryName))
 	}
-	log.Debug().Msgf("loadQuery queryName is %s, query is %v, query module is %v", queryName, query, query.Modules())
+	customLog(zerolog.DebugLevel, fmt.Sprintf("loadQuery queryName is %s, query is %v, query module is %v", queryName, query, query.Modules()))
 	policies.queries[queryName] = &query
 	return nil
 }
@@ -195,7 +196,7 @@ func clientCanBypassAuthN(ctx context.Context) bool {
 		}
 	}
 	if foundMissingAuthClient {
-		log.Warn().Msgf("Allowing unauthenticated gRPC request from client: %s", niceMd.Get("client"))
+		customLog(zerolog.WarnLevel, fmt.Sprintf("Allowing unauthenticated gRPC request from client: %s", niceMd.Get("client")))
 		return true
 	}
 
@@ -330,4 +331,11 @@ func getRancherResourceRole(resourceAccessMap interface{}) (string, error) {
 
 	return role, nil
 
+}
+
+// customLog logs messages based on the global log level
+func customLog(level zerolog.Level, msg string) {
+	if level == zerolog.GlobalLevel() {
+		log.WithLevel(level).Msg(msg)
+	}
 }
