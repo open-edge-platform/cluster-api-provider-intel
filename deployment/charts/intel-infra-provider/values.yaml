@@ -88,6 +88,7 @@ southboundApi:
 
   extraArgs:
     useGrpcStubMiddleware: false
+    globalLogLevel: info
 
   # Extra labels to add to the deployment
   labels: {}
