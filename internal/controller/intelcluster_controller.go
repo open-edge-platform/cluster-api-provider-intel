@@ -284,7 +284,6 @@ func getClusterConnectionManifest(intelCluster *infrav1.IntelCluster, cluster *c
 			Namespace: intelCluster.Namespace,
 		},
 		Spec: ccgv1.ClusterConnectSpec{
-			ControlPlaneRef: cluster.Spec.ControlPlaneRef,
 			ServerCertRef: &corev1.ObjectReference{
 				Name:      cluster.Name + "-ca",
 				Namespace: cluster.Namespace,
