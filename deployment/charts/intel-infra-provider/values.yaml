@@ -176,7 +176,8 @@ metrics:
     enabled: true
     port: 8080
     # Labels to add to the service
-    labels: {}
+    labels:
+      app: "intel-infra-provider-manager-metrics-svc"
   serviceMonitor:
     # Whether to create a service monitor for scraping metrics
     enabled: true

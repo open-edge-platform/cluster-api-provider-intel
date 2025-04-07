@@ -25,5 +25,5 @@ spec:
       values:
       - "false"
     matchLabels:
-      {{- include "intel-infra-provider.labels" . | nindent 6 }}
+      {{- include "intel-infra-provider.metricsServiceLabels" . | nindent 6 }}
 {{- end -}}
