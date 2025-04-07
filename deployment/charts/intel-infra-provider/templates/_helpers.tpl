@@ -68,7 +68,7 @@ manager pod labels
 */}}
 {{- define "intel-infra-provider.managerPodLabels" -}}
 {{ include "intel-infra-provider.selectorLabels" . }}
-{{- with .Values.manager.podLabels }}
+{{ with .Values.manager.podLabels }}
 {{- toYaml . }}
 {{- end }}
 {{- end }}

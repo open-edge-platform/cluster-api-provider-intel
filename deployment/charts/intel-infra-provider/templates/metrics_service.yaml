@@ -16,5 +16,5 @@ spec:
     protocol: TCP
     targetPort: {{ .Values.metrics.service.port }}
   selector:
-    {{- include "intel-infra-provider.selectorLabels" . | nindent 4 -}}
+    {{- include "intel-infra-provider.managerPodLabels" . | nindent 4 -}}
 {{- end -}}
