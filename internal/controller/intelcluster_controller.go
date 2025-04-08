@@ -127,11 +127,12 @@ func (r *IntelClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *IntelClusterReconciler) reconcileWorkloadCreate(clusterScope *scope.ClusterReconcileScope) bool {
 	intelCluster := clusterScope.IntelCluster
+	cluster := clusterScope.Cluster
 	if intelCluster.Spec.ProviderId != "" {
 		return false
 	}
 
-	req := inventory.CreateWorkloadInput{TenantId: intelCluster.Namespace, ClusterName: intelCluster.Name}
+	req := inventory.CreateWorkloadInput{TenantId: cluster.Namespace, ClusterName: cluster.Name}
 	res := r.InventoryClient.CreateWorkload(req)
 	if res.Err != nil {
 		// all inventory errors (4xx, 5xx types) are handled generically under just one CR condition. this can be made more granular if needed
@@ -158,7 +159,7 @@ func (r *IntelClusterReconciler) reconcileControlPlaneEndpoint(scope *scope.Clus
 
 	clusterConnect := &ccgv1.ClusterConnect{}
 	if err := r.Client.Get(scope.Ctx, client.ObjectKey{
-		Name:      fmt.Sprintf("%s-%s", scope.IntelCluster.Namespace, scope.IntelCluster.Name),
+		Name:      fmt.Sprintf("%s-%s", scope.Cluster.Namespace, scope.Cluster.Name),
 		Namespace: scope.IntelCluster.Namespace,
 	}, clusterConnect); err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -167,7 +168,7 @@ func (r *IntelClusterReconciler) reconcileControlPlaneEndpoint(scope *scope.Clus
 			return true
 		}
 
-		clusterConnectionItem := getClusterConnectionManifest(scope.IntelCluster, scope.Cluster)
+		clusterConnectionItem := getClusterConnectionManifest(scope.Cluster)
 		if err := controllerutil.SetControllerReference(scope.IntelCluster, clusterConnectionItem, r.Scheme); err != nil {
 			scope.Log.Info("failed to set owner reference")
 			conditions.MarkFalse(intelCluster, infrav1.ControlPlaneEndpointReadyCondition, infrav1.WaitingForControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "%v", err)
@@ -231,11 +232,11 @@ func (r *IntelClusterReconciler) reconcileWorkloadDelete(clusterScope *scope.Clu
 
 func (r *IntelClusterReconciler) reconcileClusterConnectDelete(clusterScope *scope.ClusterReconcileScope) error {
 	clusterConnect := &ccgv1.ClusterConnect{}
-	clusterConnectName := fmt.Sprintf("%s-%s", clusterScope.IntelCluster.Namespace, clusterScope.IntelCluster.Name)
+	clusterConnectName := fmt.Sprintf("%s-%s", clusterScope.Cluster.Namespace, clusterScope.Cluster.Name)
 
 	if err := r.Client.Get(clusterScope.Ctx, client.ObjectKey{
 		Name:      clusterConnectName,
-		Namespace: clusterScope.IntelCluster.Namespace,
+		Namespace: clusterScope.Cluster.Namespace,
 	}, clusterConnect); err != nil {
 		if !apierrors.IsNotFound(err) {
 			clusterScope.Log.Info("clusterconnect not found during intel-cluster delete", "name", clusterConnectName)
@@ -273,15 +274,15 @@ func (r *IntelClusterReconciler) reconcileDelete(clusterScope *scope.ClusterReco
 	return nil
 }
 
-func getClusterConnectionManifest(intelCluster *infrav1.IntelCluster, cluster *clusterv1.Cluster) *ccgv1.ClusterConnect {
+func getClusterConnectionManifest(cluster *clusterv1.Cluster) *ccgv1.ClusterConnect {
 	return &ccgv1.ClusterConnect{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
 			Kind:       "ClusterConnection",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", intelCluster.Namespace, intelCluster.Name),
-			Namespace: intelCluster.Namespace,
+			Name:      fmt.Sprintf("%s-%s", cluster.Namespace, cluster.Name),
+			Namespace: cluster.Namespace,
 		},
 		Spec: ccgv1.ClusterConnectSpec{
 			ServerCertRef: &corev1.ObjectReference{
