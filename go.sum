@@ -2204,8 +2204,8 @@ sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.15/go.mod h1:LEScyz
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.0 h1:CPT0ExVicCzcpeN4baWEV2ko2Z/AsiZgEdwgcfwLgMo=
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.0/go.mod h1:Ve9uj1L+deCXFrPOk1LpFXqTg7LCFzFso6PA48q/XZw=
 sigs.k8s.io/cluster-api v0.3.3/go.mod h1:lgztyeCWCve8YB4DN6QeLR0blNYBvFX9+ATHrxs+zKU=
-sigs.k8s.io/cluster-api v1.9.5 h1:68164Q201Y5ANVkhyrOZenoMbfL2SEBjVYZs/ihhSro=
-sigs.k8s.io/cluster-api v1.9.5/go.mod h1:DyqyZ4jRvKGKewDRn1Q4OCHaVjsdTogymbO6mrgHEDI=
+sigs.k8s.io/cluster-api v1.9.6 h1:2jZ434qC0bzrPQzmRDm4/b0PZWVMnOocoCjsAonQN5Q=
+sigs.k8s.io/cluster-api v1.9.6/go.mod h1:DyqyZ4jRvKGKewDRn1Q4OCHaVjsdTogymbO6mrgHEDI=
 sigs.k8s.io/cluster-api/test/infrastructure/docker v0.0.0-20210602185643-40841d9837b8 h1:+yplJ4GcrQJM2iN0PykTG/WFs8butJW4w2u+2a8t0E4=
 sigs.k8s.io/cluster-api/test/infrastructure/docker v0.0.0-20210602185643-40841d9837b8/go.mod h1:cffgBDf5ElK/ovu19Ae6tQxs7SyiSd7SZ9LTdik8M6o=
 sigs.k8s.io/controller-runtime v0.5.2/go.mod h1:JZUwSMVbxDupo0lTJSSFP5pimEyxGynROImSsqIOx1A=
