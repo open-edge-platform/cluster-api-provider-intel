@@ -512,7 +512,7 @@ CODER_DIR ?= ~/orch-deploy
 CHART_NS  := orch-cluster
 
 .PHONY: coder-redeploy
-coder-redeploy: helm-build ## Redeploy local charts in the Coder KinD cluster
+coder-redeploy: helm-build kind-load ## Redeploy local charts in the Coder KinD cluster
 	kubectl config use-context kind-kind
 	kubectl patch application -n dev root-app --type=merge -p '{"spec":{"syncPolicy":{"automated":{"selfHeal":false}}}}'
 	kubectl delete application -n dev intel-infra-provider --ignore-not-found=true
@@ -524,7 +524,7 @@ coder-redeploy: helm-build ## Redeploy local charts in the Coder KinD cluster
 	kubectl delete crd intelclustertemplates.infrastructure.cluster.x-k8s.io --ignore-not-found=true
 	helm upgrade --install -n ${CHART_NS} intel-infra-provider-crds intel-infra-provider-crds-${HELM_VERSION}.tgz
 	helm upgrade --install -n ${CHART_NS} intel-infra-provider intel-infra-provider-${HELM_VERSION}.tgz \
-		--set metrics.serviceMonitor.enabled=false \
+		--set metrics.serviceMonitor.enabled=true \
 		--set manager.extraArgs.use-inv-stub=${USE_INV_STUB} \
 		--set manager.extraEnv[0].name=TENANT_ID \
 		--set manager.extraEnv[0].value=${PROJECTID} \

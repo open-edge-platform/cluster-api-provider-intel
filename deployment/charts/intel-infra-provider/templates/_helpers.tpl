@@ -69,7 +69,7 @@ manager pod labels
 {{- define "intel-infra-provider.managerPodLabels" -}}
 {{ include "intel-infra-provider.selectorLabels" . }}
 {{- with .Values.manager.podLabels }}
-{{- toYaml . }}
+{{ toYaml . }}
 {{- end }}
 {{- end }}
 
@@ -139,7 +139,7 @@ Metrics service labels
 {{- define "intel-infra-provider.metricsServiceLabels" -}}
 {{ include "intel-infra-provider.selectorLabels" . }}
 {{- with .Values.metrics.service.labels }}
-{{- toYaml . }}
+{{ toYaml . }}
 {{- end }}
 {{- end }}
 
