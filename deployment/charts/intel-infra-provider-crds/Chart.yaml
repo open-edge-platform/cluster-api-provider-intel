@@ -5,8 +5,8 @@ apiVersion: v2
 name: intel-infra-provider-crds
 description: Custom Resource Definitions for Intel Cluster API Provider
 type: application
-version: 1.0.3-dev
-appVersion: 1.0.3-dev-d65a3ad7
+version: 1.0.3
+appVersion: 1.0.3
 annotations:
-  revision: d65a3ad7b870c4ad92f7a2eaeebf467f34b9a194
-  created: "2025-04-08T15:42:45Z"
+  revision: a8db588c2af1980584e859a4f57edf0e4daac230
+  created: "2025-04-08T16:36:11Z"
