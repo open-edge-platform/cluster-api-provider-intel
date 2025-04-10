@@ -1153,8 +1153,8 @@ github.com/onsi/gomega v1.12.0/go.mod h1:lRk9szgn8TxENtWd0Tp4c3wjlRfMTMH27I+3Je4
 github.com/onsi/gomega v1.36.2 h1:koNYke6TVk6ZmnyHrCXba/T/MoLBXFjeC1PtvYgw0A8=
 github.com/onsi/gomega v1.36.2/go.mod h1:DdwyADRjrc825LhMEkD76cHR5+pUnjhUN8GlHlRPHzY=
 github.com/op/go-logging v0.0.0-20160315200505-970db520ece7/go.mod h1:HzydrMdWErDVzsI23lYNej1Htcns9BCg93Dk0bBINWk=
-github.com/open-edge-platform/cluster-connect-gateway v1.0.6-0.20250410121504-27ec02105ec7 h1:KTlxkbGjDSLzYCPEs9yphjWTC9KHamwcqusVFWFOS+o=
-github.com/open-edge-platform/cluster-connect-gateway v1.0.6-0.20250410121504-27ec02105ec7/go.mod h1:EO8QC9qE9hm9OvFiqQ4wl4PCuDmtf0eX1Urw2RLKxvE=
+github.com/open-edge-platform/cluster-connect-gateway v1.0.5 h1:4/F0Sgne0Lv42pB/uxgTrb6tCDvJVI8gB9SZ8/U+jfg=
+github.com/open-edge-platform/cluster-connect-gateway v1.0.5/go.mod h1:EO8QC9qE9hm9OvFiqQ4wl4PCuDmtf0eX1Urw2RLKxvE=
 github.com/open-edge-platform/infra-core/inventory/v2 v2.23.0 h1:fq25w9Ky6gvE5pTtqf/N9DLrfvZRnIzAJB+VzsiFSnA=
 github.com/open-edge-platform/infra-core/inventory/v2 v2.23.0/go.mod h1:mpGYnChj0Z5SNYMy8IpuQ76OVcAmKfO384J7ZI5zxFE=
 github.com/open-edge-platform/orch-library/go v0.5.29 h1:LfOaRcRYXpQdcyHrVwN4wC2l11wbdUnBLkc2P7vrZNY=
