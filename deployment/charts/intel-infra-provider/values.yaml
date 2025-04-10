@@ -28,7 +28,8 @@ manager:
   labels: {}
 
   # Extra labels to add to the pods
-  podLabels: {}
+  podLabels:
+    app: "intel-infra-provider-manager"
 
   # Extra annotations to add to the pods
   podAnnotations: {}
@@ -173,9 +174,10 @@ metrics:
   service:
     # Whether to create a service for scraping metrics
     enabled: true
-    port: 8443
+    port: 8080
     # Labels to add to the service
-    labels: {}
+    labels:
+      app: "intel-infra-provider-manager-metrics-svc"
   serviceMonitor:
     # Whether to create a service monitor for scraping metrics
     enabled: true

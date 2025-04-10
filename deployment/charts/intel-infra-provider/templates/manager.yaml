@@ -41,6 +41,7 @@ spec:
             - --health-probe-bind-address=:8081
             {{- if .Values.metrics.service.enabled }}
             - --metrics-bind-address=:{{ .Values.metrics.service.port }}
+            - --metrics-secure=false
             {{- end }}
             - --inventory-endpoint={{ .Values.manager.inventory.endpoint }}
             {{- range $key, $value := .Values.manager.extraArgs }}
