@@ -26,7 +26,7 @@ require (
 	github.com/oapi-codegen/echo-middleware v1.0.1
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
-	github.com/open-edge-platform/cluster-connect-gateway v1.0.5
+	github.com/open-edge-platform/cluster-connect-gateway v1.0.6-0.20250410121504-27ec02105ec7
 	github.com/open-edge-platform/infra-core/inventory/v2 v2.23.0
 	github.com/open-edge-platform/orch-library/go v0.5.29
 	github.com/open-policy-agent/opa v1.3.0

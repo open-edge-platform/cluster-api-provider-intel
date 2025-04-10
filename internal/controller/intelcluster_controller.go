@@ -159,7 +159,7 @@ func (r *IntelClusterReconciler) reconcileControlPlaneEndpoint(scope *scope.Clus
 
 	clusterConnect := &ccgv1.ClusterConnect{}
 	if err := r.Client.Get(scope.Ctx, client.ObjectKey{
-		Name:      fmt.Sprintf("%s-%s", scope.Cluster.Namespace, scope.Cluster.Name),
+		Name:      fmt.Sprintf("%s-%s", scope.IntelCluster.Namespace, scope.IntelCluster.Name),
 		Namespace: scope.IntelCluster.Namespace,
 	}, clusterConnect); err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -168,7 +168,7 @@ func (r *IntelClusterReconciler) reconcileControlPlaneEndpoint(scope *scope.Clus
 			return true
 		}
 
-		clusterConnectionItem := getClusterConnectionManifest(scope.Cluster)
+		clusterConnectionItem := getClusterConnectionManifest(scope.Cluster, scope.IntelCluster)
 		if err := controllerutil.SetControllerReference(scope.IntelCluster, clusterConnectionItem, r.Scheme); err != nil {
 			scope.Log.Info("failed to set owner reference")
 			conditions.MarkFalse(intelCluster, infrav1.ControlPlaneEndpointReadyCondition, infrav1.WaitingForControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "%v", err)
@@ -232,7 +232,7 @@ func (r *IntelClusterReconciler) reconcileWorkloadDelete(clusterScope *scope.Clu
 
 func (r *IntelClusterReconciler) reconcileClusterConnectDelete(clusterScope *scope.ClusterReconcileScope) error {
 	clusterConnect := &ccgv1.ClusterConnect{}
-	clusterConnectName := fmt.Sprintf("%s-%s", clusterScope.Cluster.Namespace, clusterScope.Cluster.Name)
+	clusterConnectName := fmt.Sprintf("%s-%s", clusterScope.IntelCluster.Namespace, clusterScope.IntelCluster.Name)
 
 	if err := r.Client.Get(clusterScope.Ctx, client.ObjectKey{
 		Name:      clusterConnectName,
@@ -274,14 +274,14 @@ func (r *IntelClusterReconciler) reconcileDelete(clusterScope *scope.ClusterReco
 	return nil
 }
 
-func getClusterConnectionManifest(cluster *clusterv1.Cluster) *ccgv1.ClusterConnect {
+func getClusterConnectionManifest(cluster *clusterv1.Cluster, intelCluster *infrav1.IntelCluster) *ccgv1.ClusterConnect {
 	return &ccgv1.ClusterConnect{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
 			Kind:       "ClusterConnection",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", cluster.Namespace, cluster.Name),
+			Name:      fmt.Sprintf("%s-%s", intelCluster.Namespace, intelCluster.Name),
 			Namespace: cluster.Namespace,
 		},
 		Spec: ccgv1.ClusterConnectSpec{
