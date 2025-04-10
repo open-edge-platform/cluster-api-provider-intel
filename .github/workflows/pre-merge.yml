@@ -4,14 +4,14 @@
 ---
 
 name: Pre-Merge CI Pipeline
-  
+
 on:
   pull_request:
     branches:
       - main
       - release-*
   workflow_dispatch: 
-  
+
 jobs:
   lint:
     runs-on: ubuntu-latest
