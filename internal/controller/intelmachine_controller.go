@@ -231,13 +231,105 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContext) bool {
 	rc.log.Info("Reconciling IntelMachine")
 
-	// Check if the infrastructure is ready, otherwise return and wait for the cluster object to be updated
+	// Define the reconciliation steps
+	steps := []func(IntelMachineReconcilerContext) (bool, error){
+		r.ensureClusterInfrastructureReady,
+		r.ensureBootstrapDataAvailable,
+		r.allocateNodeGUIDIfNeeded,
+		r.reserveHostInInventory,
+		r.finalizeProvisioning,
+	}
+
+	// Iterate over the steps and execute them
+	for _, step := range steps {
+		requeue, err := step(rc)
+		if err != nil {
+			rc.log.Error(err, "Error during reconciliation step")
+			return true
+		}
+		if requeue {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (r *IntelMachineReconciler) ensureClusterInfrastructureReady(rc IntelMachineReconcilerContext) (bool, error) {
 	if !rc.cluster.Status.InfrastructureReady {
 		rc.log.Info("Waiting for IntelCluster Controller to create cluster infrastructure")
 		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForClusterInfrastructureReason, clusterv1.ConditionSeverityInfo, "")
-		return true
+		return true, nil
+	}
+	return false, nil
+}
+
+func (r *IntelMachineReconciler) ensureBootstrapDataAvailable(rc IntelMachineReconcilerContext) (bool, error) {
+	dataSecretName := rc.machine.Spec.Bootstrap.DataSecretName
+	if dataSecretName == nil {
+		if !util.IsControlPlaneMachine(rc.machine) && !conditions.IsTrue(rc.cluster, clusterv1.ControlPlaneInitializedCondition) {
+			rc.log.Info("Waiting for the control plane to be initialized")
+			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, clusterv1.WaitingForControlPlaneAvailableReason, clusterv1.ConditionSeverityInfo, "")
+			return true, nil
+		}
+		rc.log.Info("Waiting for the Bootstrap provider controller to set bootstrap data")
+		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForBootstrapDataReason, clusterv1.ConditionSeverityInfo, "")
+		return true, nil
+	}
+	return false, nil
+}
+
+func (r *IntelMachineReconciler) allocateNodeGUIDIfNeeded(rc IntelMachineReconcilerContext) (bool, error) {
+	// Get the NodeGUID for the host to reserve in Inventory.
+	if rc.intelMachine.Spec.NodeGUID == "" {
+		err := r.allocateNodeGUID(rc)
+		if err != nil {
+			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForMachineBindingReason, clusterv1.ConditionSeverityWarning, "%v", err)
+			rc.log.Info("Error allocating NodeGUID", "error", err)
+			return true, nil
+		}
+		rc.log.Info("Allocated NodeGUID to IntelMachine", "NodeGUID", rc.intelMachine.Spec.NodeGUID)
+	}
+	return false, nil
+}
+
+func (r *IntelMachineReconciler) reserveHostInInventory(rc IntelMachineReconcilerContext) (bool, error) {
+	// Reserve the host in Inventory
+	gmReq := inventory.GetInstanceByMachineIdInput{
+		TenantId:  rc.intelCluster.Namespace,
+		MachineId: rc.intelMachine.Spec.NodeGUID,
+	}
+	gmRes := r.InventoryClient.GetInstanceByMachineId(gmReq)
+	if gmRes.Err != nil {
+		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.HostProvisioningFailedReason, clusterv1.ConditionSeverityWarning, "%v", gmRes)
+		return true, nil
 	}
 
+	aiReq := inventory.AddInstanceToWorkloadInput{
+		TenantId:   rc.intelCluster.Namespace,
+		WorkloadId: rc.intelCluster.Spec.ProviderId,
+		InstanceId: gmRes.Instance.Id,
+	}
+
+	if aiRes := r.InventoryClient.AddInstanceToWorkload(aiReq); aiRes.Err != nil {
+		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.HostProvisioningFailedReason, clusterv1.ConditionSeverityWarning, "%v", aiRes.Err)
+		return true, nil
+	}
+
+	// Set ProviderID so the Cluster API Machine Controller can pull it
+	rc.intelMachine.Spec.ProviderID = &gmRes.Instance.Id
+	rc.intelMachine.Annotations[infrastructurev1alpha1.HostIdAnnotation] = gmRes.Host.Id
+	conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition)
+
+	// Add finalizers.  The HostCleanupFinalizer is removed by the SB Handler after it has cleaned up the host.
+	// The FreeInstanceFinalizer is removed by the IntelMachine Reconciler after the host is freed in Inventory.
+	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
+	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
+
+	return false, nil
+}
+
+func (r *IntelMachineReconciler) finalizeProvisioning(rc IntelMachineReconcilerContext) (bool, error) {
 	// if the machine is already provisioned, check host status and return
 	if rc.intelMachine.Spec.ProviderID != nil {
 		conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition)
@@ -249,7 +341,7 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 			rc.log.Info("Waiting on SB Handler to report host state")
 
 			// Adding Annotation will trigger a requeue, so we don't need to requeue.
-			return false
+			return false, nil
 		}
 
 		switch hostState {
@@ -267,68 +359,9 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 		}
 
 		// Updating Annotation will trigger a requeue, so we don't need to requeue.
-		return false
+		return false, nil
 	}
-
-	dataSecretName := rc.machine.Spec.Bootstrap.DataSecretName
-
-	// Make sure bootstrap data is available and populated.
-	if dataSecretName == nil {
-		if !util.IsControlPlaneMachine(rc.machine) && !conditions.IsTrue(rc.cluster, clusterv1.ControlPlaneInitializedCondition) {
-			rc.log.Info("Waiting for the control plane to be initialized")
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, clusterv1.WaitingForControlPlaneAvailableReason, clusterv1.ConditionSeverityInfo, "")
-			return true
-		}
-
-		rc.log.Info("Waiting for the Bootstrap provider controller to set bootstrap data")
-		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForBootstrapDataReason, clusterv1.ConditionSeverityInfo, "")
-		return true
-	}
-
-	// Get the NodeGUID for the host to reserve in Inventory.
-	if rc.intelMachine.Spec.NodeGUID == "" {
-		err := r.allocateNodeGUID(rc)
-		if err != nil {
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForMachineBindingReason, clusterv1.ConditionSeverityWarning, "%v", err)
-			rc.log.Info("Error allocating NodeGUID", "error", err)
-			return true
-		}
-		rc.log.Info("Allocated NodeGUID to IntelMachine", "NodeGUID", rc.intelMachine.Spec.NodeGUID)
-	}
-
-	// Reserve the host in Inventory
-	gmReq := inventory.GetInstanceByMachineIdInput{
-		TenantId:  rc.intelCluster.Namespace,
-		MachineId: rc.intelMachine.Spec.NodeGUID,
-	}
-	gmRes := r.InventoryClient.GetInstanceByMachineId(gmReq)
-	if gmRes.Err != nil {
-		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.HostProvisioningFailedReason, clusterv1.ConditionSeverityWarning, "%v", gmRes)
-		return true
-	}
-
-	aiReq := inventory.AddInstanceToWorkloadInput{
-		TenantId:   rc.intelCluster.Namespace,
-		WorkloadId: rc.intelCluster.Spec.ProviderId,
-		InstanceId: gmRes.Instance.Id,
-	}
-
-	if aiRes := r.InventoryClient.AddInstanceToWorkload(aiReq); aiRes.Err != nil {
-		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.HostProvisioningFailedReason, clusterv1.ConditionSeverityWarning, "%v", aiRes.Err)
-		return true
-	}
-
-	// Set ProviderID so the Cluster API Machine Controller can pull it
-	rc.intelMachine.Spec.ProviderID = &gmRes.Instance.Id
-	rc.intelMachine.Annotations[infrastructurev1alpha1.HostIdAnnotation] = gmRes.Host.Id
-	conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition)
-
-	// Add finalizers.  The HostCleanupFinalizer is removed by the SB Handler after it has cleaned up the host.
-	// The FreeInstanceFinalizer is removed by the IntelMachine Reconciler after the host is freed in Inventory.
-	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
-	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
-
-	return false
+	return false, nil
 }
 
 func (r *IntelMachineReconciler) getTemplateName(rc IntelMachineReconcilerContext) (string, error) {
