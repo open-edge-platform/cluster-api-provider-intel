@@ -232,7 +232,7 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	rc.log.Info("Reconciling IntelMachine")
 
 	// Define the reconciliation steps
-	steps := []func(IntelMachineReconcilerContext) (bool, error){
+	steps := []func(IntelMachineReconcilerContext) bool{
 		r.ensureClusterInfrastructureReady,
 		r.ensureBootstrapDataAvailable,
 		r.allocateNodeGUIDIfNeeded,
@@ -242,11 +242,7 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 
 	// Iterate over the steps and execute them
 	for _, step := range steps {
-		requeue, err := step(rc)
-		if err != nil {
-			rc.log.Error(err, "Error during reconciliation step")
-			return true
-		}
+		requeue := step(rc)
 		if requeue {
 			return true
 		}
@@ -255,41 +251,41 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	return false
 }
 
-func (r *IntelMachineReconciler) ensureClusterInfrastructureReady(rc IntelMachineReconcilerContext) (bool, error) {
+func (r *IntelMachineReconciler) ensureClusterInfrastructureReady(rc IntelMachineReconcilerContext) bool {
 	if rc.intelMachine.Spec.ProviderID != nil {
 		// IntelMachine is already provisioned, skip this step
-		return false, nil
+		return false
 	}
 	if !rc.cluster.Status.InfrastructureReady {
 		rc.log.Info("Waiting for IntelCluster Controller to create cluster infrastructure")
 		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForClusterInfrastructureReason, clusterv1.ConditionSeverityInfo, "")
-		return true, nil
+		return true
 	}
-	return false, nil
+	return false
 }
 
-func (r *IntelMachineReconciler) ensureBootstrapDataAvailable(rc IntelMachineReconcilerContext) (bool, error) {
+func (r *IntelMachineReconciler) ensureBootstrapDataAvailable(rc IntelMachineReconcilerContext) bool {
 	if rc.intelMachine.Spec.ProviderID != nil {
-		return false, nil
+		return false
 	}
 	dataSecretName := rc.machine.Spec.Bootstrap.DataSecretName
 	if dataSecretName == nil {
 		if !util.IsControlPlaneMachine(rc.machine) && !conditions.IsTrue(rc.cluster, clusterv1.ControlPlaneInitializedCondition) {
 			rc.log.Info("Waiting for the control plane to be initialized")
 			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, clusterv1.WaitingForControlPlaneAvailableReason, clusterv1.ConditionSeverityInfo, "")
-			return true, nil
+			return true
 		}
 		rc.log.Info("Waiting for the Bootstrap provider controller to set bootstrap data")
 		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForBootstrapDataReason, clusterv1.ConditionSeverityInfo, "")
-		return true, nil
+		return true
 	}
-	return false, nil
+	return false
 }
 
-func (r *IntelMachineReconciler) allocateNodeGUIDIfNeeded(rc IntelMachineReconcilerContext) (bool, error) {
+func (r *IntelMachineReconciler) allocateNodeGUIDIfNeeded(rc IntelMachineReconcilerContext) bool {
 	if rc.intelMachine.Spec.ProviderID != nil {
 		// IntelMachine is already provisioned, skip this step
-		return false, nil
+		return false
 	}
 	// Get the NodeGUID for the host to reserve in Inventory.
 	if rc.intelMachine.Spec.NodeGUID == "" {
@@ -297,17 +293,17 @@ func (r *IntelMachineReconciler) allocateNodeGUIDIfNeeded(rc IntelMachineReconci
 		if err != nil {
 			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForMachineBindingReason, clusterv1.ConditionSeverityWarning, "%v", err)
 			rc.log.Info("Error allocating NodeGUID", "error", err)
-			return true, nil
+			return true
 		}
 		rc.log.Info("Allocated NodeGUID to IntelMachine", "NodeGUID", rc.intelMachine.Spec.NodeGUID)
 	}
-	return false, nil
+	return false
 }
 
-func (r *IntelMachineReconciler) reserveHostInInventory(rc IntelMachineReconcilerContext) (bool, error) {
+func (r *IntelMachineReconciler) reserveHostInInventory(rc IntelMachineReconcilerContext) bool {
 	if rc.intelMachine.Spec.ProviderID != nil {
 		// IntelMachine is already provisioned, skip this step
-		return false, nil
+		return false
 	}
 	// Reserve the host in Inventory
 	gmReq := inventory.GetInstanceByMachineIdInput{
@@ -317,7 +313,7 @@ func (r *IntelMachineReconciler) reserveHostInInventory(rc IntelMachineReconcile
 	gmRes := r.InventoryClient.GetInstanceByMachineId(gmReq)
 	if gmRes.Err != nil {
 		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.HostProvisioningFailedReason, clusterv1.ConditionSeverityWarning, "%v", gmRes)
-		return true, nil
+		return true
 	}
 
 	aiReq := inventory.AddInstanceToWorkloadInput{
@@ -328,7 +324,7 @@ func (r *IntelMachineReconciler) reserveHostInInventory(rc IntelMachineReconcile
 
 	if aiRes := r.InventoryClient.AddInstanceToWorkload(aiReq); aiRes.Err != nil {
 		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.HostProvisioningFailedReason, clusterv1.ConditionSeverityWarning, "%v", aiRes.Err)
-		return true, nil
+		return true
 	}
 
 	// Set ProviderID so the Cluster API Machine Controller can pull it
@@ -341,10 +337,10 @@ func (r *IntelMachineReconciler) reserveHostInInventory(rc IntelMachineReconcile
 	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
 	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
 
-	return false, nil
+	return false
 }
 
-func (r *IntelMachineReconciler) finalizeProvisioning(rc IntelMachineReconcilerContext) (bool, error) {
+func (r *IntelMachineReconciler) finalizeProvisioning(rc IntelMachineReconcilerContext) bool {
 	// if the IntelMachine is already provisioned, check host status and return
 	if rc.intelMachine.Spec.ProviderID != nil {
 		conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition)
@@ -356,7 +352,7 @@ func (r *IntelMachineReconciler) finalizeProvisioning(rc IntelMachineReconcilerC
 			rc.log.Info("Waiting on SB Handler to report host state")
 
 			// Adding Annotation will trigger a requeue, so we don't need to requeue.
-			return false, nil
+			return false
 		}
 
 		switch hostState {
@@ -374,9 +370,9 @@ func (r *IntelMachineReconciler) finalizeProvisioning(rc IntelMachineReconcilerC
 		}
 
 		// Updating Annotation will trigger a requeue, so we don't need to requeue.
-		return false, nil
+		return false
 	}
-	return false, nil
+	return false
 }
 
 func (r *IntelMachineReconciler) getTemplateName(rc IntelMachineReconcilerContext) (string, error) {
