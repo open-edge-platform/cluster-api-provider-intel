@@ -203,14 +203,20 @@ func (r *IntelClusterReconciler) reconcileControlPlaneEndpoint(scope *scope.Clus
 func (r *IntelClusterReconciler) reconcileNormal(clusterScope *scope.ClusterReconcileScope) reconcile.Result {
 	clusterScope.Log.Info("running intelcluster reconciliation normal")
 
-	if shouldRequeue := r.reconcileControlPlaneEndpoint(clusterScope); shouldRequeue {
-		return reconcile.Result{RequeueAfter: requeueAfter}
+	// Define the reconciliation steps
+	steps := []func(*scope.ClusterReconcileScope) bool{
+		r.reconcileControlPlaneEndpoint,
+		r.reconcileWorkloadCreate,
 	}
 
-	if shouldRequeue := r.reconcileWorkloadCreate(clusterScope); shouldRequeue {
-		return reconcile.Result{RequeueAfter: requeueAfter}
+	// Iterate over the steps and execute them
+	for _, step := range steps {
+		if shouldRequeue := step(clusterScope); shouldRequeue {
+			return reconcile.Result{RequeueAfter: requeueAfter}
+		}
 	}
 
+	// Mark the IntelCluster as ready if all steps succeed
 	clusterScope.IntelCluster.Status.Ready = true
 	return reconcile.Result{}
 }

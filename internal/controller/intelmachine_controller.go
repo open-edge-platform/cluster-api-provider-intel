@@ -231,60 +231,62 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContext) bool {
 	rc.log.Info("Reconciling IntelMachine")
 
-	// Check if the infrastructure is ready, otherwise return and wait for the cluster object to be updated
+	// Define the reconciliation steps
+	steps := []func(IntelMachineReconcilerContext) bool{
+		r.ensureClusterInfrastructureReady,
+		r.ensureBootstrapDataAvailable,
+		r.allocateNodeGUIDIfNeeded,
+		r.reserveHostInInventory,
+		r.finalizeProvisioning,
+	}
+
+	// Iterate over the steps and execute them
+	for _, step := range steps {
+		requeue := step(rc)
+		if requeue {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (r *IntelMachineReconciler) ensureClusterInfrastructureReady(rc IntelMachineReconcilerContext) bool {
+	if rc.intelMachine.Spec.ProviderID != nil {
+		// IntelMachine is already provisioned, skip this step
+		return false
+	}
 	if !rc.cluster.Status.InfrastructureReady {
 		rc.log.Info("Waiting for IntelCluster Controller to create cluster infrastructure")
 		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForClusterInfrastructureReason, clusterv1.ConditionSeverityInfo, "")
 		return true
 	}
+	return false
+}
 
-	// if the machine is already provisioned, check host status and return
+func (r *IntelMachineReconciler) ensureBootstrapDataAvailable(rc IntelMachineReconcilerContext) bool {
 	if rc.intelMachine.Spec.ProviderID != nil {
-		conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition)
-
-		// SB handler will add the host state as reported by the Cluster Agent to the IntelMachine as an annotation.
-		hostState, ok := rc.intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
-		if !ok {
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrappingReason, clusterv1.ConditionSeverityInfo, "waiting for SB handler to report host state")
-			rc.log.Info("Waiting on SB Handler to report host state")
-
-			// Adding Annotation will trigger a requeue, so we don't need to requeue.
-			return false
-		}
-
-		switch hostState {
-		case infrastructurev1alpha1.HostStateActive:
-			rc.intelMachine.Status.Ready = true
-			conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition)
-		case infrastructurev1alpha1.HostStateError:
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrapFailedReason, clusterv1.ConditionSeverityWarning, "")
-		case infrastructurev1alpha1.HostStateInProgress:
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrappingReason, clusterv1.ConditionSeverityInfo, "")
-		case infrastructurev1alpha1.HostStateInactive:
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrapWaitingReason, clusterv1.ConditionSeverityInfo, "")
-		default:
-			rc.log.Info(fmt.Sprintf("Unexpected host state %q reported by SB Handler", hostState))
-		}
-
-		// Updating Annotation will trigger a requeue, so we don't need to requeue.
 		return false
 	}
-
 	dataSecretName := rc.machine.Spec.Bootstrap.DataSecretName
-
-	// Make sure bootstrap data is available and populated.
 	if dataSecretName == nil {
 		if !util.IsControlPlaneMachine(rc.machine) && !conditions.IsTrue(rc.cluster, clusterv1.ControlPlaneInitializedCondition) {
 			rc.log.Info("Waiting for the control plane to be initialized")
 			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, clusterv1.WaitingForControlPlaneAvailableReason, clusterv1.ConditionSeverityInfo, "")
 			return true
 		}
-
 		rc.log.Info("Waiting for the Bootstrap provider controller to set bootstrap data")
 		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForBootstrapDataReason, clusterv1.ConditionSeverityInfo, "")
 		return true
 	}
+	return false
+}
 
+func (r *IntelMachineReconciler) allocateNodeGUIDIfNeeded(rc IntelMachineReconcilerContext) bool {
+	if rc.intelMachine.Spec.ProviderID != nil {
+		// IntelMachine is already provisioned, skip this step
+		return false
+	}
 	// Get the NodeGUID for the host to reserve in Inventory.
 	if rc.intelMachine.Spec.NodeGUID == "" {
 		err := r.allocateNodeGUID(rc)
@@ -295,7 +297,14 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 		}
 		rc.log.Info("Allocated NodeGUID to IntelMachine", "NodeGUID", rc.intelMachine.Spec.NodeGUID)
 	}
+	return false
+}
 
+func (r *IntelMachineReconciler) reserveHostInInventory(rc IntelMachineReconcilerContext) bool {
+	if rc.intelMachine.Spec.ProviderID != nil {
+		// IntelMachine is already provisioned, skip this step
+		return false
+	}
 	// Reserve the host in Inventory
 	gmReq := inventory.GetInstanceByMachineIdInput{
 		TenantId:  rc.intelCluster.Namespace,
@@ -328,6 +337,41 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
 	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
 
+	return false
+}
+
+func (r *IntelMachineReconciler) finalizeProvisioning(rc IntelMachineReconcilerContext) bool {
+	// if the IntelMachine is already provisioned, check host status and return
+	if rc.intelMachine.Spec.ProviderID != nil {
+		conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition)
+
+		// SB handler will add the host state as reported by the Cluster Agent to the IntelMachine as an annotation.
+		hostState, ok := rc.intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
+		if !ok {
+			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrappingReason, clusterv1.ConditionSeverityInfo, "waiting for SB handler to report host state")
+			rc.log.Info("Waiting on SB Handler to report host state")
+
+			// Adding Annotation will trigger a requeue, so we don't need to requeue.
+			return false
+		}
+
+		switch hostState {
+		case infrastructurev1alpha1.HostStateActive:
+			rc.intelMachine.Status.Ready = true
+			conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition)
+		case infrastructurev1alpha1.HostStateError:
+			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrapFailedReason, clusterv1.ConditionSeverityWarning, "")
+		case infrastructurev1alpha1.HostStateInProgress:
+			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrappingReason, clusterv1.ConditionSeverityInfo, "")
+		case infrastructurev1alpha1.HostStateInactive:
+			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrapWaitingReason, clusterv1.ConditionSeverityInfo, "")
+		default:
+			rc.log.Info(fmt.Sprintf("Unexpected host state %q reported by SB Handler", hostState))
+		}
+
+		// Updating Annotation will trigger a requeue, so we don't need to requeue.
+		return false
+	}
 	return false
 }
 
