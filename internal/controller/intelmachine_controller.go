@@ -256,6 +256,10 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 }
 
 func (r *IntelMachineReconciler) ensureClusterInfrastructureReady(rc IntelMachineReconcilerContext) (bool, error) {
+	if rc.intelMachine.Spec.ProviderID != nil {
+		// IntelMachine is already provisioned, skip this step
+		return false, nil
+	}
 	if !rc.cluster.Status.InfrastructureReady {
 		rc.log.Info("Waiting for IntelCluster Controller to create cluster infrastructure")
 		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForClusterInfrastructureReason, clusterv1.ConditionSeverityInfo, "")
@@ -265,6 +269,9 @@ func (r *IntelMachineReconciler) ensureClusterInfrastructureReady(rc IntelMachin
 }
 
 func (r *IntelMachineReconciler) ensureBootstrapDataAvailable(rc IntelMachineReconcilerContext) (bool, error) {
+	if rc.intelMachine.Spec.ProviderID != nil {
+		return false, nil
+	}
 	dataSecretName := rc.machine.Spec.Bootstrap.DataSecretName
 	if dataSecretName == nil {
 		if !util.IsControlPlaneMachine(rc.machine) && !conditions.IsTrue(rc.cluster, clusterv1.ControlPlaneInitializedCondition) {
@@ -280,6 +287,10 @@ func (r *IntelMachineReconciler) ensureBootstrapDataAvailable(rc IntelMachineRec
 }
 
 func (r *IntelMachineReconciler) allocateNodeGUIDIfNeeded(rc IntelMachineReconcilerContext) (bool, error) {
+	if rc.intelMachine.Spec.ProviderID != nil {
+		// IntelMachine is already provisioned, skip this step
+		return false, nil
+	}
 	// Get the NodeGUID for the host to reserve in Inventory.
 	if rc.intelMachine.Spec.NodeGUID == "" {
 		err := r.allocateNodeGUID(rc)
@@ -294,6 +305,10 @@ func (r *IntelMachineReconciler) allocateNodeGUIDIfNeeded(rc IntelMachineReconci
 }
 
 func (r *IntelMachineReconciler) reserveHostInInventory(rc IntelMachineReconcilerContext) (bool, error) {
+	if rc.intelMachine.Spec.ProviderID != nil {
+		// IntelMachine is already provisioned, skip this step
+		return false, nil
+	}
 	// Reserve the host in Inventory
 	gmReq := inventory.GetInstanceByMachineIdInput{
 		TenantId:  rc.intelCluster.Namespace,
@@ -330,7 +345,7 @@ func (r *IntelMachineReconciler) reserveHostInInventory(rc IntelMachineReconcile
 }
 
 func (r *IntelMachineReconciler) finalizeProvisioning(rc IntelMachineReconcilerContext) (bool, error) {
-	// if the machine is already provisioned, check host status and return
+	// if the IntelMachine is already provisioned, check host status and return
 	if rc.intelMachine.Spec.ProviderID != nil {
 		conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition)
 
