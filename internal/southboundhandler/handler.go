@@ -5,7 +5,6 @@ package southboundhandler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -13,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	jsonpatch "github.com/evanphx/json-patch"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -262,8 +260,6 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 
 	// Only patch IntelMachine if it needs to be changed
 	if currentHostState != hostState || removeFinalizer {
-		origIntelMachine := intelmachine.DeepCopy()
-
 		if removeFinalizer {
 			cutil.RemoveFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer)
 		}
@@ -273,7 +269,7 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 			intelmachine.Annotations = make(map[string]string)
 		}
 		intelmachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] = hostState
-		return action, patchIntelMachine(ctx, h.client, origIntelMachine, intelmachine)
+		return action, patchIntelMachine(ctx, h.client, intelmachine)
 	}
 
 	return action, nil
@@ -309,7 +305,7 @@ func getIntelMachine(ctx context.Context, client ctrlclient.Client, projectId st
 	return intelMachine, nil
 }
 
-func patchIntelMachine(ctx context.Context, client ctrlclient.Client, orig, new *infrastructurev1alpha1.IntelMachine) error {
+func patchIntelMachine(ctx context.Context, client ctrlclient.Client, new *infrastructurev1alpha1.IntelMachine) error {
 	// Update the IntelMachine object
 	if err := client.Update(ctx, new); err != nil {
 		return err
@@ -418,24 +414,6 @@ func getUninstall(kind string) (string, error) {
 		err = fmt.Errorf("unknown bootstrap provider: %s", kind)
 	}
 	return uninstall, err
-}
-
-// getPatchData will return difference between original and modified document
-func getPatchData(originalObj, modifiedObj interface{}) ([]byte, error) {
-	originalData, err := json.Marshal(originalObj)
-	if err != nil {
-		return nil, err
-	}
-	modifiedData, err := json.Marshal(modifiedObj)
-	if err != nil {
-		return nil, err
-	}
-
-	patchBytes, err := jsonpatch.CreateMergePatch(originalData, modifiedData)
-	if err != nil {
-		return nil, err
-	}
-	return patchBytes, nil
 }
 
 // Convert a cloudinit.Cmd to a runnable shell command.
