@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	client "k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 	cutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
@@ -64,14 +65,17 @@ func validLabelVal(val string) bool {
 }
 
 type Handler struct {
-	client dynamic.Interface
+	client client.Client
 }
 
 func NewHandler() (*Handler, error) {
+	// Create the in-cluster config
 	config, err := client.InClusterConfig()
 	if err != nil {
 		return nil, err
 	}
+
+	// Set rate limiter parameters
 	qpsValue, burstValue, err := getRateLimiterParams()
 	if err != nil {
 		log.Warn().Err(err).Msg("unable to get rate limiter params; using default values")
@@ -80,9 +84,26 @@ func NewHandler() (*Handler, error) {
 
 	config.QPS = float32(qpsValue)
 	config.Burst = int(burstValue)
-	client := dynamic.NewForConfigOrDie(config)
 
-	return &Handler{client: client}, nil
+	// Create a controller-runtime manager
+	mgr, err := ctrl.NewManager(config, ctrl.Options{
+		Scheme: runtime.NewScheme(), // Add your scheme here if needed
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create manager: %w", err)
+	}
+
+	// Use the manager's cached client
+	cachedClient := mgr.GetClient()
+
+	// Start the manager in a separate goroutine
+	go func() {
+		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+			log.Fatal().Err(err).Msg("failed to start manager")
+		}
+	}()
+
+	return &Handler{client: cachedClient}, nil
 }
 
 // Register is called by the CO Agent when registring a new cluster node.
