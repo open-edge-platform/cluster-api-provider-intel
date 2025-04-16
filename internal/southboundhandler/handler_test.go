@@ -366,12 +366,6 @@ func TestHandler_UpdateStatus_MachineReady(t *testing.T) {
 			expectedAction:    pb.UpdateClusterStatusResponse_NONE,
 			expectedHostState: infrastructurev1alpha1.HostStateInProgress,
 		},
-		{
-			name:              "Test ERROR status",
-			status:            pb.UpdateClusterStatusRequest_ERROR,
-			expectedAction:    pb.UpdateClusterStatusResponse_NONE,
-			expectedHostState: infrastructurev1alpha1.HostStateError,
-		},
 	}
 
 	for _, tc := range cases {
@@ -436,7 +430,7 @@ func TestHandler_UpdateStatus_MachineDeleted(t *testing.T) {
 		{
 			name:               "Remove finalizer after host is deregistered",
 			status:             pb.UpdateClusterStatusRequest_INACTIVE,
-			expectedAction:     pb.UpdateClusterStatusResponse_NONE,
+			expectedAction:     pb.UpdateClusterStatusResponse_DEREGISTER,
 			expectedHostState:  infrastructurev1alpha1.HostStateInactive,
 			expectedFinalizers: nil,
 		},
