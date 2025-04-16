@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	cloudinit "sigs.k8s.io/cluster-api/test/infrastructure/docker/cloudinit"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
@@ -351,266 +352,320 @@ func FuzzHandlerRegister(f *testing.F) {
 	})
 }
 
-// func TestHandler_UpdateStatus_MachineReady(t *testing.T) {
-// 	// Create Machine
-// 	machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
-// 	secretName := secretName
-// 	machine.Spec.Bootstrap.DataSecretName = &secretName
+func TestHandler_UpdateStatus_MachineReady(t *testing.T) {
+	projectId := "00000000-0000-0000-0000-000000000200"
 
-// 	// Create IntelMachine
-// 	intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
-// 	intelmachine.Spec.NodeGUID = nodeGUID
-// 	intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
-// 	intelmachine.Spec.ProviderID = &providerID
+	// Create Machine
+	machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
+	secretName := secretName
+	machine.Spec.Bootstrap.DataSecretName = &secretName
 
-// 	// Set up fake dynamic client
-// 	testHandler := &Handler{
-// 		client: k8sClient,
-// 	}
+	// Create IntelMachine
+	intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
+	intelmachine.Spec.NodeGUID = nodeGUID
+	intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
+	intelmachine.Spec.ProviderID = &providerID
 
-// 	// Add Project ID to context
-// 	ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
+	// Set up fake dynamic client
+	testHandler := &Handler{
+		client: k8sClient,
+	}
 
-// 	err := k8sClient.Create(ctx, machine)
-// 	assert.NoError(t, err)
+	// Add Project ID to context
+	ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
 
-// 	err = k8sClient.Create(ctx, intelmachine)
-// 	assert.NoError(t, err)
+	// Create the namespace
+	ns := &corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			Name: projectId,
+		},
+	}
+	err := k8sClient.Create(ctx, ns)
+	assert.NoError(t, err)
 
-// 	cases := []struct {
-// 		name              string
-// 		status            pb.UpdateClusterStatusRequest_Code
-// 		expectedAction    pb.UpdateClusterStatusResponse_ActionRequest
-// 		expectedHostState string
-// 	}{
-// 		{
-// 			name:              "Test INACTIVE status",
-// 			status:            pb.UpdateClusterStatusRequest_INACTIVE,
-// 			expectedAction:    pb.UpdateClusterStatusResponse_REGISTER,
-// 			expectedHostState: infrastructurev1alpha1.HostStateInactive,
-// 		},
-// 		{
-// 			name:              "Test REGISTERING status",
-// 			status:            pb.UpdateClusterStatusRequest_REGISTERING,
-// 			expectedAction:    pb.UpdateClusterStatusResponse_NONE,
-// 			expectedHostState: infrastructurev1alpha1.HostStateInProgress,
-// 		},
-// 		{
-// 			name:              "Test INSTALL_IN_PROGRESS status",
-// 			status:            pb.UpdateClusterStatusRequest_INSTALL_IN_PROGRESS,
-// 			expectedAction:    pb.UpdateClusterStatusResponse_NONE,
-// 			expectedHostState: infrastructurev1alpha1.HostStateInProgress,
-// 		},
-// 		{
-// 			name:              "Test ACTIVE status",
-// 			status:            pb.UpdateClusterStatusRequest_ACTIVE,
-// 			expectedAction:    pb.UpdateClusterStatusResponse_NONE,
-// 			expectedHostState: infrastructurev1alpha1.HostStateActive,
-// 		},
-// 		{
-// 			name:              "Test DEREGISTERING status",
-// 			status:            pb.UpdateClusterStatusRequest_DEREGISTERING,
-// 			expectedAction:    pb.UpdateClusterStatusResponse_NONE,
-// 			expectedHostState: infrastructurev1alpha1.HostStateInProgress,
-// 		},
-// 		{
-// 			name:              "Test UNINSTALL_IN_PROGRESS",
-// 			status:            pb.UpdateClusterStatusRequest_UNINSTALL_IN_PROGRESS,
-// 			expectedAction:    pb.UpdateClusterStatusResponse_NONE,
-// 			expectedHostState: infrastructurev1alpha1.HostStateInProgress,
-// 		},
-// 		{
-// 			name:              "Test ERROR status",
-// 			status:            pb.UpdateClusterStatusRequest_ERROR,
-// 			expectedAction:    pb.UpdateClusterStatusResponse_NONE,
-// 			expectedHostState: infrastructurev1alpha1.HostStateError,
-// 		},
-// 	}
+	err = k8sClient.Create(ctx, machine)
+	assert.NoError(t, err)
 
-// 	for _, tc := range cases {
-// 		t.Run(tc.name, func(t *testing.T) {
-// 			actionReq, err := testHandler.UpdateStatus(ctx, nodeGUID, tc.status)
-// 			assert.NoError(t, err)
-// 			assert.Equal(t, tc.expectedAction, actionReq)
+	err = k8sClient.Create(ctx, intelmachine)
+	assert.NoError(t, err)
 
-// 			// Check that IntelMachine has been updated with the correct host state
-// 			im, err := getIntelMachine(ctx, testHandler.client, projectId, nodeGUID)
-// 			assert.NoError(t, err)
-// 			hostStatus, ok := im.Annotations[infrastructurev1alpha1.HostStateAnnotation]
-// 			assert.True(t, ok)
-// 			assert.Equal(t, tc.expectedHostState, hostStatus)
+	cases := []struct {
+		name              string
+		status            pb.UpdateClusterStatusRequest_Code
+		expectedAction    pb.UpdateClusterStatusResponse_ActionRequest
+		expectedHostState string
+	}{
+		{
+			name:              "Test INACTIVE status",
+			status:            pb.UpdateClusterStatusRequest_INACTIVE,
+			expectedAction:    pb.UpdateClusterStatusResponse_REGISTER,
+			expectedHostState: infrastructurev1alpha1.HostStateInactive,
+		},
+		{
+			name:              "Test REGISTERING status",
+			status:            pb.UpdateClusterStatusRequest_REGISTERING,
+			expectedAction:    pb.UpdateClusterStatusResponse_NONE,
+			expectedHostState: infrastructurev1alpha1.HostStateInProgress,
+		},
+		{
+			name:              "Test INSTALL_IN_PROGRESS status",
+			status:            pb.UpdateClusterStatusRequest_INSTALL_IN_PROGRESS,
+			expectedAction:    pb.UpdateClusterStatusResponse_NONE,
+			expectedHostState: infrastructurev1alpha1.HostStateInProgress,
+		},
+		{
+			name:              "Test ACTIVE status",
+			status:            pb.UpdateClusterStatusRequest_ACTIVE,
+			expectedAction:    pb.UpdateClusterStatusResponse_NONE,
+			expectedHostState: infrastructurev1alpha1.HostStateActive,
+		},
+		{
+			name:              "Test DEREGISTERING status",
+			status:            pb.UpdateClusterStatusRequest_DEREGISTERING,
+			expectedAction:    pb.UpdateClusterStatusResponse_NONE,
+			expectedHostState: infrastructurev1alpha1.HostStateInProgress,
+		},
+		{
+			name:              "Test UNINSTALL_IN_PROGRESS",
+			status:            pb.UpdateClusterStatusRequest_UNINSTALL_IN_PROGRESS,
+			expectedAction:    pb.UpdateClusterStatusResponse_NONE,
+			expectedHostState: infrastructurev1alpha1.HostStateInProgress,
+		},
+		{
+			name:              "Test ERROR status",
+			status:            pb.UpdateClusterStatusRequest_ERROR,
+			expectedAction:    pb.UpdateClusterStatusResponse_NONE,
+			expectedHostState: infrastructurev1alpha1.HostStateError,
+		},
+	}
 
-// 			updatedIntelMachine := &infrastructurev1alpha1.IntelMachine{}
-// 			err = k8sClient.Get(ctx, client.ObjectKey{
-// 				Namespace: projectId,
-// 				Name:      intelMachineName,
-// 			}, updatedIntelMachine)
-// 			assert.NoError(t, err)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actionReq, err := testHandler.UpdateStatus(ctx, nodeGUID, tc.status)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedAction, actionReq)
 
-// 			hostStatus, ok = updatedIntelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
-// 			assert.True(t, ok)
-// 			assert.Equal(t, tc.expectedHostState, hostStatus)
-// 		})
-// 	}
-// }
+			// Check that IntelMachine has been updated with the correct host state
+			im, err := getIntelMachine(ctx, testHandler.client, projectId, nodeGUID)
+			assert.NoError(t, err)
+			hostStatus, ok := im.Annotations[infrastructurev1alpha1.HostStateAnnotation]
+			assert.True(t, ok)
+			assert.Equal(t, tc.expectedHostState, hostStatus)
 
-// func TestHandler_UpdateStatus_MachineDeleted(t *testing.T) {
-// 	// Create Machine
-// 	machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
-// 	secretName := secretName
-// 	machine.Spec.Bootstrap.DataSecretName = &secretName
+			updatedIntelMachine := &infrastructurev1alpha1.IntelMachine{}
+			err = k8sClient.Get(ctx, client.ObjectKey{
+				Namespace: projectId,
+				Name:      intelMachineName,
+			}, updatedIntelMachine)
+			assert.NoError(t, err)
 
-// 	// Create IntelMachine
-// 	intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
-// 	assert.True(t, controllerutil.AddFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer))
-// 	assert.True(t, controllerutil.ContainsFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer))
-// 	intelmachine.Spec.NodeGUID = nodeGUID
-// 	intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
-// 	intelmachine.DeletionTimestamp = &v1.Time{Time: time.Now()}
-// 	intelmachine.Status.Ready = false
+			hostStatus, ok = updatedIntelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
+			assert.True(t, ok)
+			assert.Equal(t, tc.expectedHostState, hostStatus)
+		})
+	}
+}
 
-// 	// Set up fake dynamic client
-// 	testHandler := &Handler{
-// 		client: k8sClient,
-// 	}
+func TestHandler_UpdateStatus_MachineDeleted(t *testing.T) {
+	projectId := "00000000-0000-0000-0000-000000000300"
 
-// 	// Add Project ID to context
-// 	ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
+	// Create Machine
+	machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
+	secretName := secretName
+	machine.Spec.Bootstrap.DataSecretName = &secretName
 
-// 	err := k8sClient.Create(ctx, machine)
-// 	assert.NoError(t, err)
+	// Create IntelMachine
+	intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
+	assert.True(t, controllerutil.AddFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer))
+	assert.True(t, controllerutil.ContainsFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer))
+	intelmachine.Spec.NodeGUID = nodeGUID
+	intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
+	intelmachine.Status.Ready = false
 
-// 	err = k8sClient.Create(ctx, intelmachine)
-// 	assert.NoError(t, err)
+	testHandler := &Handler{
+		client: k8sClient,
+	}
 
-// 	cases := []struct {
-// 		name               string
-// 		status             pb.UpdateClusterStatusRequest_Code
-// 		expectedAction     pb.UpdateClusterStatusResponse_ActionRequest
-// 		expectedHostState  string
-// 		expectedFinalizers []string
-// 	}{
-// 		{
-// 			name:               "Deregister host when intelmachine is being deleted",
-// 			status:             pb.UpdateClusterStatusRequest_ACTIVE,
-// 			expectedAction:     pb.UpdateClusterStatusResponse_DEREGISTER,
-// 			expectedHostState:  infrastructurev1alpha1.HostStateActive,
-// 			expectedFinalizers: []string{infrastructurev1alpha1.HostCleanupFinalizer},
-// 		},
-// 		{
-// 			name:               "Remove finalizer after host is deregistered",
-// 			status:             pb.UpdateClusterStatusRequest_INACTIVE,
-// 			expectedAction:     pb.UpdateClusterStatusResponse_NONE,
-// 			expectedHostState:  infrastructurev1alpha1.HostStateInactive,
-// 			expectedFinalizers: nil,
-// 		},
-// 	}
+	// Add Project ID to context
+	ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
 
-// 	for _, tc := range cases {
-// 		t.Run(tc.name, func(t *testing.T) {
-// 			actionReq, err := testHandler.UpdateStatus(ctx, nodeGUID, tc.status)
-// 			assert.NoError(t, err)
-// 			assert.Equal(t, tc.expectedAction, actionReq)
+	// Create the namespace
+	ns := &corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			Name: projectId,
+		},
+	}
+	err := k8sClient.Create(ctx, ns)
+	assert.NoError(t, err)
 
-// 			// Check that IntelMachine has been updated with the correct host state
-// 			im, err := getIntelMachine(ctx, testHandler.client, projectId, nodeGUID)
-// 			assert.NoError(t, err)
-// 			hostStatus, ok := im.Annotations[infrastructurev1alpha1.HostStateAnnotation]
-// 			assert.True(t, ok)
-// 			assert.Equal(t, tc.expectedHostState, hostStatus)
-// 			assert.Equal(t, tc.expectedFinalizers, im.Finalizers)
-// 		})
-// 	}
-// }
+	err = k8sClient.Create(ctx, machine)
+	assert.NoError(t, err)
 
-// func TestHandler_UpdateStatus_Error(t *testing.T) {
-// 	cases := []struct {
-// 		name          string
-// 		nodeGUID      string
-// 		nodeGUIDLabel string
-// 		expectError   bool
-// 	}{
-// 		{
-// 			name:          "Wrong NodeGUID",
-// 			nodeGUID:      "x",
-// 			nodeGUIDLabel: nodeGUID,
-// 			expectError:   true,
-// 		}, {
-// 			name:          "Wrong NodeGUID label",
-// 			nodeGUID:      nodeGUID,
-// 			nodeGUIDLabel: "x",
-// 			expectError:   false,
-// 		},
-// 	}
-// 	for _, tc := range cases {
-// 		t.Run(tc.name, func(t *testing.T) {
-// 			// Create Machine
-// 			machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
-// 			secretName := secretName
-// 			machine.Spec.Bootstrap.DataSecretName = &secretName
+	err = k8sClient.Create(ctx, intelmachine)
+	assert.NoError(t, err)
 
-// 			// Create IntelMachine
-// 			intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
-// 			intelmachine.Spec.NodeGUID = tc.nodeGUID
-// 			intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = tc.nodeGUIDLabel
-// 			intelmachine.Spec.ProviderID = &providerID
+	// Delete the IntelMachine
+	err = k8sClient.Delete(ctx, intelmachine)
+	assert.NoError(t, err)
 
-// 			// Set up fake dynamic client
-// 			testHandler := &Handler{
-// 				client: k8sClient,
-// 			}
+	cases := []struct {
+		name               string
+		status             pb.UpdateClusterStatusRequest_Code
+		expectedAction     pb.UpdateClusterStatusResponse_ActionRequest
+		expectedHostState  string
+		expectedFinalizers []string
+		stillExists        bool
+	}{
+		{
+			name:               "Deregister host when intelmachine is being deleted",
+			status:             pb.UpdateClusterStatusRequest_ACTIVE,
+			expectedAction:     pb.UpdateClusterStatusResponse_DEREGISTER,
+			expectedHostState:  infrastructurev1alpha1.HostStateActive,
+			expectedFinalizers: []string{infrastructurev1alpha1.HostCleanupFinalizer},
+			stillExists:        true,
+		},
+		{
+			name:               "Remove finalizer after host is deregistered",
+			status:             pb.UpdateClusterStatusRequest_INACTIVE,
+			expectedAction:     pb.UpdateClusterStatusResponse_NONE,
+			expectedHostState:  "",
+			expectedFinalizers: nil,
+			stillExists:        false,
+		},
+	}
 
-// 			// Add Project ID to context
-// 			ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actionReq, err := testHandler.UpdateStatus(ctx, nodeGUID, tc.status)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedAction, actionReq)
 
-// 			err := k8sClient.Create(ctx, machine)
-// 			assert.NoError(t, err)
+			// Check that IntelMachine has been updated with the correct host state
+			im, err := getIntelMachine(ctx, testHandler.client, projectId, nodeGUID)
+			assert.NoError(t, err)
+			if tc.stillExists {
+				hostStatus, ok := im.Annotations[infrastructurev1alpha1.HostStateAnnotation]
+				assert.True(t, ok)
+				assert.Equal(t, tc.expectedHostState, hostStatus)
+				assert.Equal(t, tc.expectedFinalizers, im.Finalizers)
+			} else {
+				assert.Nil(t, im)
+			}
+		})
+	}
+}
 
-// 			err = k8sClient.Create(ctx, intelmachine)
-// 			assert.NoError(t, err)
+func TestHandler_UpdateStatus_Error(t *testing.T) {
+	cases := []struct {
+		name          string
+		namespace     string
+		nodeGUID      string
+		nodeGUIDLabel string
+		expectError   bool
+	}{
+		{
+			name:          "Wrong NodeGUID",
+			namespace:     "00000000-0000-0000-0000-000000000400",
+			nodeGUID:      "x",
+			nodeGUIDLabel: nodeGUID,
+			expectError:   true,
+		}, {
+			name:          "Wrong NodeGUID label",
+			namespace:     "00000000-0000-0000-0000-000000000401",
+			nodeGUID:      nodeGUID,
+			nodeGUIDLabel: "x",
+			expectError:   false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create Machine
+			machine := utils.NewMachine(tc.namespace, clusterName, machineName, bootstrapKind)
+			secretName := secretName
+			machine.Spec.Bootstrap.DataSecretName = &secretName
 
-// 			actionReq, err := testHandler.UpdateStatus(ctx, nodeGUID, pb.UpdateClusterStatusRequest_INACTIVE)
-// 			if tc.expectError {
-// 				assert.Error(t, err)
-// 			} else {
-// 				assert.NoError(t, err)
-// 			}
-// 			assert.Equal(t, pb.UpdateClusterStatusResponse_NONE, actionReq)
-// 		})
-// 	}
-// }
+			// Create IntelMachine
+			intelmachine := utils.NewIntelMachine(tc.namespace, intelMachineName, machine)
+			intelmachine.Spec.NodeGUID = tc.nodeGUID
+			intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = tc.nodeGUIDLabel
+			intelmachine.Spec.ProviderID = &providerID
 
-// func FuzzHandlerUpdateStatus(f *testing.F) {
-// 	f.Add("abc", int32(0))
-// 	f.Fuzz(func(t *testing.T, nodeGUID string, code int32) {
-// 		// Create Machine
-// 		machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
-// 		secretName := secretName
-// 		machine.Spec.Bootstrap.DataSecretName = &secretName
+			// Set up fake dynamic client
+			testHandler := &Handler{
+				client: k8sClient,
+			}
 
-// 		// Create IntelMachine
-// 		intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
-// 		intelmachine.Spec.NodeGUID = nodeGUID
-// 		intelmachine.Spec.ProviderID = &providerID
-// 		intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
+			// Add Project ID to context
+			ctx := tenant.AddActiveProjectIdToContext(context.Background(), tc.namespace)
 
-// 		// Set up fake dynamic client
-// 		testHandler := &Handler{
-// 			client: k8sClient,
-// 		}
+			// Create the namespace
+			ns := &corev1.Namespace{
+				ObjectMeta: v1.ObjectMeta{
+					Name: tc.namespace,
+				},
+			}
+			err := k8sClient.Create(ctx, ns)
+			assert.NoError(t, err)
 
-// 		// Add Project ID to context
-// 		ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
+			err = k8sClient.Create(ctx, machine)
+			assert.NoError(t, err)
 
-// 		err := k8sClient.Create(ctx, machine)
-// 		assert.NoError(t, err)
+			err = k8sClient.Create(ctx, intelmachine)
+			assert.NoError(t, err)
 
-// 		err = k8sClient.Create(ctx, intelmachine)
-// 		assert.NoError(t, err)
+			actionReq, err := testHandler.UpdateStatus(ctx, nodeGUID, pb.UpdateClusterStatusRequest_INACTIVE)
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, pb.UpdateClusterStatusResponse_NONE, actionReq)
+		})
+	}
+}
 
-// 		_, _ = testHandler.UpdateStatus(ctx, nodeGUID, pb.UpdateClusterStatusRequest_Code(code))
-// 	})
-// }
+func FuzzHandlerUpdateStatus(f *testing.F) {
+	projectId := "00000000-0000-0000-0000-000000000500"
+
+	f.Add("abc", int32(0))
+	f.Fuzz(func(t *testing.T, nodeGUID string, code int32) {
+		// Create Machine
+		machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
+		secretName := secretName
+		machine.Spec.Bootstrap.DataSecretName = &secretName
+
+		// Create IntelMachine
+		intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
+		intelmachine.Spec.NodeGUID = nodeGUID
+		intelmachine.Spec.ProviderID = &providerID
+		intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
+
+		// Set up fake dynamic client
+		testHandler := &Handler{
+			client: k8sClient,
+		}
+
+		// Add Project ID to context
+		ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
+
+		// Create the namespace
+		ns := &corev1.Namespace{
+			ObjectMeta: v1.ObjectMeta{
+				Name: projectId,
+			},
+		}
+		err := k8sClient.Create(ctx, ns)
+		assert.NoError(t, err)
+
+		err = k8sClient.Create(ctx, machine)
+		assert.NoError(t, err)
+
+		err = k8sClient.Create(ctx, intelmachine)
+		assert.NoError(t, err)
+
+		_, _ = testHandler.UpdateStatus(ctx, nodeGUID, pb.UpdateClusterStatusRequest_Code(code))
+	})
+}
 
 // Currently this function just tests that the commands observed when parsing the
 // RKE2 Bootstrap cloud-init script are translated correctly to bash.
@@ -666,7 +721,7 @@ func TestHandler_GetCommand(t *testing.T) {
 }
 
 func Test_ExtractBootstrapScript(t *testing.T) {
-	projectId := "00000000-0000-0000-0000-00000000100"
+	projectId := "00000000-0000-0000-0000-00000000600"
 	// Create Secret
 	secret := utils.NewBootstrapSecret(projectId, secretName)
 
