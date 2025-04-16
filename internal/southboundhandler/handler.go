@@ -15,13 +15,12 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/dynamic"
-	client "k8s.io/client-go/rest"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	cutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
@@ -65,12 +64,12 @@ func validLabelVal(val string) bool {
 }
 
 type Handler struct {
-	client client.Client
+	client ctrlclient.Client
 }
 
 func NewHandler() (*Handler, error) {
 	// Create the in-cluster config
-	config, err := client.InClusterConfig()
+	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -274,75 +273,61 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 	return action, nil
 }
 
-func getIntelMachine(ctx context.Context, client dynamic.Interface, projectId string, nodeGUID string) (*infrastructurev1alpha1.IntelMachine, error) {
+func getIntelMachine(ctx context.Context, client ctrlclient.Client, projectId string, nodeGUID string) (*infrastructurev1alpha1.IntelMachine, error) {
 	if !validLabelVal(nodeGUID) {
 		return nil, errors.New("invalid Node GUID")
 	}
-	opts := v1.ListOptions{
-		LabelSelector: infrastructurev1alpha1.NodeGUIDKey + "=" + nodeGUID,
+
+	// Use a label selector to filter IntelMachines by NodeGUID
+	intelMachineList := &infrastructurev1alpha1.IntelMachineList{}
+	listOpts := []ctrlclient.ListOption{
+		ctrlclient.InNamespace(projectId),
+		ctrlclient.MatchingLabels{infrastructurev1alpha1.NodeGUIDKey: nodeGUID},
 	}
-	result, err := client.Resource(IntelMachineResourceSchema).Namespace(projectId).List(ctx, opts)
-	if err != nil {
+
+	if err := client.List(ctx, intelMachineList, listOpts...); err != nil {
 		return nil, err
 	}
-	if len(result.Items) < 1 {
+
+	if len(intelMachineList.Items) < 1 {
 		return nil, nil
 	}
-	if len(result.Items) > 1 {
+	if len(intelMachineList.Items) > 1 {
 		return nil, errors.New("duplicate IntelMachines found")
 	}
-	intelmachine := &infrastructurev1alpha1.IntelMachine{}
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(result.Items[0].Object, intelmachine)
-	if err != nil {
-		return nil, err
-	}
-	if intelmachine.Spec.NodeGUID != nodeGUID {
+
+	intelMachine := &intelMachineList.Items[0]
+	if intelMachine.Spec.NodeGUID != nodeGUID {
 		return nil, errors.New("invalid IntelMachine found")
 	}
-	return intelmachine, nil
+	return intelMachine, nil
 }
 
-func patchIntelMachine(ctx context.Context, client dynamic.Interface, orig, new *infrastructurev1alpha1.IntelMachine) error {
-	patchBytes, err := getPatchData(orig, new)
-	if err != nil {
+func patchIntelMachine(ctx context.Context, client ctrlclient.Client, orig, new *infrastructurev1alpha1.IntelMachine) error {
+	// Update the IntelMachine object
+	if err := client.Update(ctx, new); err != nil {
 		return err
 	}
-
-	_, err = client.Resource(IntelMachineResourceSchema).Namespace(orig.Namespace).Patch(ctx, orig.GetName(), types.MergePatchType, patchBytes, v1.PatchOptions{})
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func getMachine(ctx context.Context, client dynamic.Interface, projectId string, name string) (*clusterv1.Machine, error) {
-	result, err := client.Resource(MachineResourceSchema).Namespace(projectId).Get(ctx, name, v1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
+func getMachine(ctx context.Context, client ctrlclient.Client, projectId string, name string) (*clusterv1.Machine, error) {
 	machine := &clusterv1.Machine{}
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(result.Object, machine)
-	if err != nil {
+	key := types.NamespacedName{Namespace: projectId, Name: name}
+
+	if err := client.Get(ctx, key, machine); err != nil {
 		return nil, err
 	}
-
 	return machine, nil
 }
 
-func getSecret(ctx context.Context, client dynamic.Interface, projectId string, name string) (*corev1.Secret, error) {
-	result, err := client.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}).Namespace(projectId).Get(ctx, name, v1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
+func getSecret(ctx context.Context, client ctrlclient.Client, projectId string, name string) (*corev1.Secret, error) {
 	secret := &corev1.Secret{}
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(result.Object, secret)
-	if err != nil {
+	key := types.NamespacedName{Namespace: projectId, Name: name}
+
+	if err := client.Get(ctx, key, secret); err != nil {
 		return nil, err
 	}
-
 	return secret, nil
 }
 

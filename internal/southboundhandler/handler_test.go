@@ -11,11 +11,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes/scheme"
 	cloudinit "sigs.k8s.io/cluster-api/test/infrastructure/docker/cloudinit"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
 	pb "github.com/open-edge-platform/cluster-api-provider-intel/pkg/api/proto"
@@ -38,6 +38,46 @@ const (
 var (
 	providerID = "test-providerID"
 )
+
+var testEnv *envtest.Environment
+var k8sClient client.Client
+
+func TestMain(m *testing.M) {
+	// Set up the test environment
+	testEnv = &envtest.Environment{
+		CRDDirectoryPaths: []string{
+			"../../config/crd/bases",
+			"../../config/crd/deps",
+		},
+	}
+
+	cfg, err := testEnv.Start()
+	if err != nil {
+		log.Fatal().Msgf("Failed to start test environment: %v", err)
+	}
+
+	// Add your schemes here
+	err = scheme.AddToScheme(scheme.Scheme)
+	if err != nil {
+		log.Fatal().Msgf("Failed to add scheme: %v", err)
+	}
+
+	// Create the controller-runtime client
+	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	if err != nil {
+		log.Fatal().Msgf("Failed to create client: %v", err)
+	}
+
+	code := m.Run()
+
+	// Tear down the test environment
+	err = testEnv.Stop()
+	if err != nil {
+		log.Fatal().Msgf("Failed to stop test environment: %v", err)
+	}
+
+	os.Exit(code)
+}
 
 func TestHandler_Register(t *testing.T) {
 	cases := []struct {
@@ -210,8 +250,6 @@ func TestHandler_Register(t *testing.T) {
 			}
 			machine.Namespace = tc.namespace
 			machine.Spec.Bootstrap.ConfigRef.Kind = tc.bootstrapKind
-			machineUnstructured, err := getUnstructured(machine)
-			assert.NoError(t, err)
 
 			// Create IntelMachine
 			intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
@@ -219,8 +257,6 @@ func TestHandler_Register(t *testing.T) {
 			intelmachine.Spec.ProviderID = tc.providerID
 			intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = tc.nodeGUIDLabel
 			intelmachine.OwnerReferences[0].Kind = tc.ownerRefKind
-			intelMachineUnstructured, err := getUnstructured(intelmachine)
-			assert.NoError(t, err)
 
 			// Create Secret
 			secret := utils.NewBootstrapSecret(projectId, secretName)
@@ -232,19 +268,23 @@ func TestHandler_Register(t *testing.T) {
 			if !tc.secretValueEn {
 				delete(secret.Data, "value")
 			}
-			secretUnstructured, err := getUnstructured(secret)
-			assert.NoError(t, err)
 
 			// Set up fake dynamic client
 			testHandler := &Handler{
-				client: dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(),
-					machineUnstructured,
-					intelMachineUnstructured,
-					secretUnstructured),
+				client: k8sClient,
 			}
 
 			// Add Project ID to context
 			ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
+
+			err := k8sClient.Create(ctx, machine)
+			assert.NoError(t, err)
+
+			err = k8sClient.Create(ctx, intelmachine)
+			assert.NoError(t, err)
+
+			err = k8sClient.Create(ctx, secret)
+			assert.NoError(t, err)
 
 			if !tc.err {
 				installCmd, uninstallCmd, resp, err := testHandler.Register(ctx, nodeGUID)
@@ -267,32 +307,32 @@ func FuzzHandlerRegister(f *testing.F) {
 		machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
 		secretName := secretName
 		machine.Spec.Bootstrap.DataSecretName = &secretName
-		machineUnstructured, err := getUnstructured(machine)
-		assert.NoError(t, err)
 
 		// Create IntelMachine
 		intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
 		intelmachine.Spec.NodeGUID = nodeGUID
 		intelmachine.Spec.ProviderID = &providerID
 		intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
-		intelMachineUnstructured, err := getUnstructured(intelmachine)
-		assert.NoError(t, err)
 
 		// Create Secret
 		secret := utils.NewBootstrapSecret(projectId, secretName)
-		secretUnstructured, err := getUnstructured(secret)
-		assert.NoError(t, err)
 
 		// Set up fake dynamic client
 		testHandler := &Handler{
-			client: dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(),
-				machineUnstructured,
-				intelMachineUnstructured,
-				secretUnstructured),
+			client: k8sClient,
 		}
 
 		// Add Project ID to context
 		ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
+
+		err := k8sClient.Create(ctx, machine)
+		assert.NoError(t, err)
+
+		err = k8sClient.Create(ctx, intelmachine)
+		assert.NoError(t, err)
+
+		err = k8sClient.Create(ctx, secret)
+		assert.NoError(t, err)
 
 		_, _, _, _ = testHandler.Register(ctx, nodeGUID)
 	})
@@ -303,26 +343,26 @@ func TestHandler_UpdateStatus_MachineReady(t *testing.T) {
 	machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
 	secretName := secretName
 	machine.Spec.Bootstrap.DataSecretName = &secretName
-	machineUnstructured, err := getUnstructured(machine)
-	assert.NoError(t, err)
 
 	// Create IntelMachine
 	intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
 	intelmachine.Spec.NodeGUID = nodeGUID
 	intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
 	intelmachine.Spec.ProviderID = &providerID
-	intelMachineUnstructured, err := getUnstructured(intelmachine)
-	assert.NoError(t, err)
 
 	// Set up fake dynamic client
 	testHandler := &Handler{
-		client: dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(),
-			machineUnstructured,
-			intelMachineUnstructured),
+		client: k8sClient,
 	}
 
 	// Add Project ID to context
 	ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
+
+	err := k8sClient.Create(ctx, machine)
+	assert.NoError(t, err)
+
+	err = k8sClient.Create(ctx, intelmachine)
+	assert.NoError(t, err)
 
 	cases := []struct {
 		name              string
@@ -386,6 +426,17 @@ func TestHandler_UpdateStatus_MachineReady(t *testing.T) {
 			hostStatus, ok := im.Annotations[infrastructurev1alpha1.HostStateAnnotation]
 			assert.True(t, ok)
 			assert.Equal(t, tc.expectedHostState, hostStatus)
+
+			updatedIntelMachine := &infrastructurev1alpha1.IntelMachine{}
+			err = k8sClient.Get(ctx, client.ObjectKey{
+				Namespace: projectId,
+				Name:      intelMachineName,
+			}, updatedIntelMachine)
+			assert.NoError(t, err)
+
+			hostStatus, ok = updatedIntelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
+			assert.True(t, ok)
+			assert.Equal(t, tc.expectedHostState, hostStatus)
 		})
 	}
 }
@@ -395,8 +446,6 @@ func TestHandler_UpdateStatus_MachineDeleted(t *testing.T) {
 	machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
 	secretName := secretName
 	machine.Spec.Bootstrap.DataSecretName = &secretName
-	machineUnstructured, err := getUnstructured(machine)
-	assert.NoError(t, err)
 
 	// Create IntelMachine
 	intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
@@ -406,18 +455,20 @@ func TestHandler_UpdateStatus_MachineDeleted(t *testing.T) {
 	intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
 	intelmachine.DeletionTimestamp = &v1.Time{Time: time.Now()}
 	intelmachine.Status.Ready = false
-	intelMachineUnstructured, err := getUnstructured(intelmachine)
-	assert.NoError(t, err)
 
 	// Set up fake dynamic client
 	testHandler := &Handler{
-		client: dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(),
-			machineUnstructured,
-			intelMachineUnstructured),
+		client: k8sClient,
 	}
 
 	// Add Project ID to context
 	ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
+
+	err := k8sClient.Create(ctx, machine)
+	assert.NoError(t, err)
+
+	err = k8sClient.Create(ctx, intelmachine)
+	assert.NoError(t, err)
 
 	cases := []struct {
 		name               string
@@ -484,26 +535,27 @@ func TestHandler_UpdateStatus_Error(t *testing.T) {
 			machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
 			secretName := secretName
 			machine.Spec.Bootstrap.DataSecretName = &secretName
-			machineUnstructured, err := getUnstructured(machine)
-			assert.NoError(t, err)
 
 			// Create IntelMachine
 			intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
 			intelmachine.Spec.NodeGUID = tc.nodeGUID
 			intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = tc.nodeGUIDLabel
 			intelmachine.Spec.ProviderID = &providerID
-			intelMachineUnstructured, err := getUnstructured(intelmachine)
-			assert.NoError(t, err)
 
 			// Set up fake dynamic client
 			testHandler := &Handler{
-				client: dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(),
-					machineUnstructured,
-					intelMachineUnstructured),
+				client: k8sClient,
 			}
 
 			// Add Project ID to context
 			ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
+
+			err := k8sClient.Create(ctx, machine)
+			assert.NoError(t, err)
+
+			err = k8sClient.Create(ctx, intelmachine)
+			assert.NoError(t, err)
+
 			actionReq, err := testHandler.UpdateStatus(ctx, nodeGUID, pb.UpdateClusterStatusRequest_INACTIVE)
 			if tc.expectError {
 				assert.Error(t, err)
@@ -522,26 +574,26 @@ func FuzzHandlerUpdateStatus(f *testing.F) {
 		machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
 		secretName := secretName
 		machine.Spec.Bootstrap.DataSecretName = &secretName
-		machineUnstructured, err := getUnstructured(machine)
-		assert.NoError(t, err)
 
 		// Create IntelMachine
 		intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
 		intelmachine.Spec.NodeGUID = nodeGUID
 		intelmachine.Spec.ProviderID = &providerID
 		intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
-		intelMachineUnstructured, err := getUnstructured(intelmachine)
-		assert.NoError(t, err)
 
 		// Set up fake dynamic client
 		testHandler := &Handler{
-			client: dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(),
-				machineUnstructured,
-				intelMachineUnstructured),
+			client: k8sClient,
 		}
 
 		// Add Project ID to context
 		ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
+
+		err := k8sClient.Create(ctx, machine)
+		assert.NoError(t, err)
+
+		err = k8sClient.Create(ctx, intelmachine)
+		assert.NoError(t, err)
 
 		_, _ = testHandler.UpdateStatus(ctx, nodeGUID, pb.UpdateClusterStatusRequest_Code(code))
 	})
@@ -610,14 +662,4 @@ func Test_ExtractBootstrapScript(t *testing.T) {
 
 	// Save the result to a file for further inspection / testing
 	assert.NoError(t, os.WriteFile("/tmp/bootstrap.sh", []byte(bs), 0644))
-}
-
-func getUnstructured(obj runtime.Object) (*unstructured.Unstructured, error) {
-	result, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-	if err != nil {
-		return nil, err
-	}
-	unstructuredObj := &unstructured.Unstructured{}
-	unstructuredObj.SetUnstructuredContent(result)
-	return unstructuredObj, nil
 }
