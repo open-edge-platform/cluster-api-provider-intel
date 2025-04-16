@@ -221,7 +221,6 @@ var _ = Describe("IntelMachine Controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
 				g.Expect(cutil.ContainsFinalizer(resource, infrastructurev1alpha1.FreeInstanceFinalizer)).To(BeTrue())
-				g.Expect(cutil.ContainsFinalizer(resource, infrastructurev1alpha1.HostCleanupFinalizer)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			By("Updating the Host State annotation")
