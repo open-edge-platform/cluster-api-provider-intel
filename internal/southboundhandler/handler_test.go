@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	cloudinit "sigs.k8s.io/cluster-api/test/infrastructure/docker/cloudinit"
@@ -21,6 +23,7 @@ import (
 	pb "github.com/open-edge-platform/cluster-api-provider-intel/pkg/api/proto"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/tenant"
 	utils "github.com/open-edge-platform/cluster-api-provider-intel/test/utils"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
 const (
@@ -58,6 +61,14 @@ func TestMain(m *testing.M) {
 
 	// Add your schemes here
 	err = scheme.AddToScheme(scheme.Scheme)
+	if err != nil {
+		log.Fatal().Msgf("Failed to add scheme: %v", err)
+	}
+	err = infrastructurev1alpha1.AddToScheme(scheme.Scheme)
+	if err != nil {
+		log.Fatal().Msgf("Failed to add scheme: %v", err)
+	}
+	err = clusterv1.AddToScheme(scheme.Scheme)
 	if err != nil {
 		log.Fatal().Msgf("Failed to add scheme: %v", err)
 	}
@@ -277,7 +288,18 @@ func TestHandler_Register(t *testing.T) {
 			// Add Project ID to context
 			ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
 
-			err := k8sClient.Create(ctx, machine)
+			// Create the namespace if it doesn't exist
+			ns := &corev1.Namespace{
+				ObjectMeta: v1.ObjectMeta{
+					Name: projectId,
+				},
+			}
+			err := k8sClient.Create(ctx, ns)
+			if err != nil && !apierrors.IsAlreadyExists(err) {
+				assert.NoError(t, err)
+			}
+
+			err = k8sClient.Create(ctx, machine)
 			assert.NoError(t, err)
 
 			err = k8sClient.Create(ctx, intelmachine)
