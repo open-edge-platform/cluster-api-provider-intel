@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -84,9 +85,14 @@ func NewHandler() (*Handler, error) {
 	config.QPS = float32(qpsValue)
 	config.Burst = int(burstValue)
 
+	scheme := runtime.NewScheme()
+	utilruntime.Must(infrastructurev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(clusterv1.AddToScheme(scheme))
+	utilruntime.Must(corev1.AddToScheme(scheme))
+
 	// Create a controller-runtime manager
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
-		Scheme: runtime.NewScheme(), // Add your scheme here if needed
+		Scheme: scheme,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create manager: %w", err)
