@@ -8,6 +8,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -99,6 +100,7 @@ func NewMachine(namespace, clusterName, machineName, bootstrapKind string) *clus
 				clusterv1.ClusterNameLabel:         clusterName,
 				clusterv1.MachineControlPlaneLabel: "true",
 			},
+			UID: types.UID("1234567890"),
 		},
 		Spec: clusterv1.MachineSpec{
 			ClusterName: clusterName,
