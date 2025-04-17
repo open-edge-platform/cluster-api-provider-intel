@@ -258,7 +258,7 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 		hostState = infrastructurev1alpha1.HostStateError
 	}
 
-	// Only patch IntelMachine if it needs to be changed
+	// Only update IntelMachine if it needs it
 	if currentHostState != hostState || removeFinalizer {
 		if removeFinalizer {
 			cutil.RemoveFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer)
@@ -269,7 +269,7 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 			intelmachine.Annotations = make(map[string]string)
 		}
 		intelmachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] = hostState
-		return action, patchIntelMachine(ctx, h.client, intelmachine)
+		return action, h.client.Update(ctx, intelmachine)
 	}
 
 	return action, nil
@@ -303,14 +303,6 @@ func getIntelMachine(ctx context.Context, client ctrlclient.Client, projectId st
 		return nil, errors.New("invalid IntelMachine found")
 	}
 	return intelMachine, nil
-}
-
-func patchIntelMachine(ctx context.Context, client ctrlclient.Client, new *infrastructurev1alpha1.IntelMachine) error {
-	// Update the IntelMachine object
-	if err := client.Update(ctx, new); err != nil {
-		return err
-	}
-	return nil
 }
 
 func getMachine(ctx context.Context, client ctrlclient.Client, projectId string, name string) (*clusterv1.Machine, error) {
