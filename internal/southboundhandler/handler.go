@@ -5,23 +5,21 @@ package southboundhandler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 
-	jsonpatch "github.com/evanphx/json-patch"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/dynamic"
-	client "k8s.io/client-go/rest"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	cutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
@@ -65,14 +63,17 @@ func validLabelVal(val string) bool {
 }
 
 type Handler struct {
-	client dynamic.Interface
+	client ctrlclient.Client
 }
 
 func NewHandler() (*Handler, error) {
-	config, err := client.InClusterConfig()
+	// Create the in-cluster config
+	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
 	}
+
+	// Set rate limiter parameters
 	qpsValue, burstValue, err := getRateLimiterParams()
 	if err != nil {
 		log.Warn().Err(err).Msg("unable to get rate limiter params; using default values")
@@ -81,9 +82,31 @@ func NewHandler() (*Handler, error) {
 
 	config.QPS = float32(qpsValue)
 	config.Burst = int(burstValue)
-	client := dynamic.NewForConfigOrDie(config)
 
-	return &Handler{client: client}, nil
+	scheme := runtime.NewScheme()
+	utilruntime.Must(infrastructurev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(clusterv1.AddToScheme(scheme))
+	utilruntime.Must(corev1.AddToScheme(scheme))
+
+	// Create a controller-runtime manager
+	mgr, err := ctrl.NewManager(config, ctrl.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create manager: %w", err)
+	}
+
+	// Use the manager's cached client
+	cachedClient := mgr.GetClient()
+
+	// Start the manager in a separate goroutine
+	go func() {
+		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+			log.Fatal().Err(err).Msg("failed to start manager")
+		}
+	}()
+
+	return &Handler{client: cachedClient}, nil
 }
 
 // Register is called by the CO Agent when registring a new cluster node.
@@ -111,11 +134,13 @@ func (h *Handler) Register(ctx context.Context, nodeGUID string) (*pb.ShellScrip
 		log.Error().Msg("Failed to get IntelMachine")
 		return nil, nil, pb.RegisterClusterResponse_ERROR, err
 	}
+
 	if intelmachine == nil {
 		err := errors.New("IntelMachine not found")
 		log.Error().Msg(err.Error())
 		return nil, nil, pb.RegisterClusterResponse_ERROR, err
 	}
+
 	providerID := intelmachine.Spec.ProviderID
 	if providerID == nil {
 		err := errors.New("IntelMachine does not have a ProviderID")
@@ -128,8 +153,9 @@ func (h *Handler) Register(ctx context.Context, nodeGUID string) (*pb.ShellScrip
 		log.Error().Msg("Failed to find owner reference on IntelMachine")
 		return nil, nil, pb.RegisterClusterResponse_ERROR, err
 	}
-	machine, err := getMachine(ctx, h.client, projectId, ownername)
-	if err != nil {
+
+	machine := &clusterv1.Machine{}
+	if err = h.client.Get(ctx, types.NamespacedName{Namespace: projectId, Name: ownername}, machine); err != nil {
 		log.Error().Msg("Failed to get Machine")
 		return nil, nil, pb.RegisterClusterResponse_ERROR, err
 	}
@@ -140,9 +166,9 @@ func (h *Handler) Register(ctx context.Context, nodeGUID string) (*pb.ShellScrip
 		log.Error().Msg(err.Error())
 		return nil, nil, pb.RegisterClusterResponse_ERROR, err
 	}
-	secretName := *machine.Spec.Bootstrap.DataSecretName
-	secret, err := getSecret(ctx, h.client, projectId, secretName)
-	if err != nil {
+
+	secret := &corev1.Secret{}
+	if err = h.client.Get(ctx, types.NamespacedName{Namespace: projectId, Name: *machine.Spec.Bootstrap.DataSecretName}, secret); err != nil {
 		log.Error().Msg("Failed to get Bootstrap Secret")
 		return nil, nil, pb.RegisterClusterResponse_ERROR, err
 	}
@@ -190,10 +216,8 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 		// The node has not yet been put into a cluster
 		return pb.UpdateClusterStatusResponse_NONE, nil
 	}
-
-	intelMachinePatch := intelMachine.DeepCopy()
-	if intelMachinePatch.Annotations == nil {
-		intelMachinePatch.Annotations = make(map[string]string)
+	if intelMachine.Annotations == nil {
+		intelMachine.Annotations = make(map[string]string)
 	}
 
 	action := pb.UpdateClusterStatusResponse_NONE
@@ -202,13 +226,18 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 		action = pb.UpdateClusterStatusResponse_DEREGISTER
 	}
 
+	previousState := intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
+	var patch bool
 	switch status {
 	case pb.UpdateClusterStatusRequest_INACTIVE:
-		intelMachinePatch.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateInactive
+		intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateInactive
 
 		if action == pb.UpdateClusterStatusResponse_DEREGISTER {
-			removed := cutil.RemoveFinalizer(intelMachinePatch, infrastructurev1alpha1.HostCleanupFinalizer)
-			log.Debug().Msgf("host cleanup finalizer removed: %v", removed)
+			if cutil.ContainsFinalizer(intelMachine, infrastructurev1alpha1.HostCleanupFinalizer) {
+				patch = true
+				removed := cutil.RemoveFinalizer(intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
+				log.Debug().Msgf("host cleanup finalizer removed: %v", removed)
+			}
 			break
 		}
 
@@ -218,98 +247,58 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 		}
 
 	case pb.UpdateClusterStatusRequest_REGISTERING, pb.UpdateClusterStatusRequest_INSTALL_IN_PROGRESS:
-		intelMachinePatch.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateInProgress
+		intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateInProgress
 
-		// Add 'HostCleanupFinalizer' finalizer, it is removed after host clean up.
-		added := cutil.AddFinalizer(intelMachinePatch, infrastructurev1alpha1.HostCleanupFinalizer)
-		log.Debug().Msgf("host cleanup finalizer added: %v", added)
+		if !cutil.ContainsFinalizer(intelMachine, infrastructurev1alpha1.HostCleanupFinalizer) {
+			patch = true
+			added := cutil.AddFinalizer(intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
+			log.Debug().Msgf("host cleanup finalizer added: %v", added)
+		}
 
 	case pb.UpdateClusterStatusRequest_ACTIVE:
-		intelMachinePatch.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateActive
+		intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateActive
 
 	case pb.UpdateClusterStatusRequest_DEREGISTERING, pb.UpdateClusterStatusRequest_UNINSTALL_IN_PROGRESS:
-		intelMachinePatch.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateInProgress
+		intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateInProgress
 	}
 
-	if !reflect.DeepEqual(intelMachine, intelMachinePatch) {
+	if patch || intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] != previousState {
 		log.Debug().Msgf("patching intel machine (%s/%s): %s", intelMachine.GetNamespace(), intelMachine.GetName(), action)
-		return action, patchIntelMachine(ctx, h.client, intelMachine, intelMachinePatch)
+		return action, h.client.Update(ctx, intelMachine)
 	}
 
 	log.Debug().Msgf("not patching intel machine (%s/%s): %s", intelMachine.GetNamespace(), intelMachine.GetName(), action)
 	return action, nil
 }
 
-func getIntelMachine(ctx context.Context, client dynamic.Interface, projectId string, nodeGUID string) (*infrastructurev1alpha1.IntelMachine, error) {
+func getIntelMachine(ctx context.Context, client ctrlclient.Client, projectId string, nodeGUID string) (*infrastructurev1alpha1.IntelMachine, error) {
 	if !validLabelVal(nodeGUID) {
 		return nil, errors.New("invalid Node GUID")
 	}
-	opts := v1.ListOptions{
-		LabelSelector: infrastructurev1alpha1.NodeGUIDKey + "=" + nodeGUID,
+
+	// Use a label selector to filter IntelMachines by NodeGUID
+	intelMachineList := &infrastructurev1alpha1.IntelMachineList{}
+	listOpts := []ctrlclient.ListOption{
+		ctrlclient.InNamespace(projectId),
+		ctrlclient.MatchingLabels{infrastructurev1alpha1.NodeGUIDKey: nodeGUID},
 	}
-	result, err := client.Resource(IntelMachineResourceSchema).Namespace(projectId).List(ctx, opts)
-	if err != nil {
+
+	if err := client.List(ctx, intelMachineList, listOpts...); err != nil {
 		return nil, err
 	}
-	if len(result.Items) < 1 {
+
+	if len(intelMachineList.Items) < 1 {
 		return nil, nil
 	}
-	if len(result.Items) > 1 {
+	if len(intelMachineList.Items) > 1 {
 		return nil, errors.New("duplicate IntelMachines found")
 	}
-	intelmachine := &infrastructurev1alpha1.IntelMachine{}
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(result.Items[0].Object, intelmachine)
-	if err != nil {
-		return nil, err
-	}
-	if intelmachine.Spec.NodeGUID != nodeGUID {
+
+	intelMachine := &intelMachineList.Items[0]
+	if intelMachine.Spec.NodeGUID != nodeGUID {
 		return nil, errors.New("invalid IntelMachine found")
 	}
-	return intelmachine, nil
-}
-
-func patchIntelMachine(ctx context.Context, client dynamic.Interface, original, patch *infrastructurev1alpha1.IntelMachine) error {
-	patchBytes, err := getPatchData(original, patch)
-	if err != nil {
-		return err
-	}
-
-	_, err = client.Resource(IntelMachineResourceSchema).Namespace(original.Namespace).Patch(ctx, original.GetName(), types.MergePatchType, patchBytes, v1.PatchOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func getMachine(ctx context.Context, client dynamic.Interface, projectId string, name string) (*clusterv1.Machine, error) {
-	result, err := client.Resource(MachineResourceSchema).Namespace(projectId).Get(ctx, name, v1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	machine := &clusterv1.Machine{}
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(result.Object, machine)
-	if err != nil {
-		return nil, err
-	}
-
-	return machine, nil
-}
-
-func getSecret(ctx context.Context, client dynamic.Interface, projectId string, name string) (*corev1.Secret, error) {
-	result, err := client.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}).Namespace(projectId).Get(ctx, name, v1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	secret := &corev1.Secret{}
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(result.Object, secret)
-	if err != nil {
-		return nil, err
-	}
-
-	return secret, nil
+	return intelMachine, nil
 }
 
 func getMachineOwnerName(intelmachine *infrastructurev1alpha1.IntelMachine) (string, error) {
@@ -393,24 +382,6 @@ func getUninstall(kind string) (string, error) {
 		err = fmt.Errorf("unknown bootstrap provider: %s", kind)
 	}
 	return uninstall, err
-}
-
-// getPatchData will return difference between original and modified document
-func getPatchData(originalObj, modifiedObj interface{}) ([]byte, error) {
-	originalData, err := json.Marshal(originalObj)
-	if err != nil {
-		return nil, err
-	}
-	modifiedData, err := json.Marshal(modifiedObj)
-	if err != nil {
-		return nil, err
-	}
-
-	patchBytes, err := jsonpatch.CreateMergePatch(originalData, modifiedData)
-	if err != nil {
-		return nil, err
-	}
-	return patchBytes, nil
 }
 
 // Convert a cloudinit.Cmd to a runnable shell command.
