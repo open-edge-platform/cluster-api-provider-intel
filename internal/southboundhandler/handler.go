@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -190,24 +191,24 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 		return pb.UpdateClusterStatusResponse_NONE, nil
 	}
 
+	intelMachinePatch := intelMachine.DeepCopy()
+	if intelMachinePatch.Annotations == nil {
+		intelMachinePatch.Annotations = make(map[string]string)
+	}
+
 	action := pb.UpdateClusterStatusResponse_NONE
 	if !intelMachine.DeletionTimestamp.IsZero() {
 		// If IntelMachine is being deleted, need to clean up the node
 		action = pb.UpdateClusterStatusResponse_DEREGISTER
 	}
 
-	previousHostState := intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
-
-	var removeFinalizer bool
-	var currentHostState string
 	switch status {
 	case pb.UpdateClusterStatusRequest_INACTIVE:
-		currentHostState = infrastructurev1alpha1.HostStateInactive
+		intelMachinePatch.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateInactive
 
 		if action == pb.UpdateClusterStatusResponse_DEREGISTER {
-			if cutil.ContainsFinalizer(intelMachine, infrastructurev1alpha1.HostCleanupFinalizer) {
-				removeFinalizer = true
-			}
+			removed := cutil.RemoveFinalizer(intelMachinePatch, infrastructurev1alpha1.HostCleanupFinalizer)
+			log.Debug().Msgf("host cleanup finalizer removed: %v", removed)
 			break
 		}
 
@@ -217,24 +218,26 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 		}
 
 	case pb.UpdateClusterStatusRequest_REGISTERING, pb.UpdateClusterStatusRequest_INSTALL_IN_PROGRESS:
-		currentHostState = infrastructurev1alpha1.HostStateInProgress
+		intelMachinePatch.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateInProgress
 
 		// Add 'HostCleanupFinalizer' finalizer, it is removed after host clean up.
-		cutil.AddFinalizer(intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
+		added := cutil.AddFinalizer(intelMachinePatch, infrastructurev1alpha1.HostCleanupFinalizer)
+		log.Debug().Msgf("host cleanup finalizer added: %v", added)
 
 	case pb.UpdateClusterStatusRequest_ACTIVE:
-		currentHostState = infrastructurev1alpha1.HostStateActive
+		intelMachinePatch.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateActive
 
 	case pb.UpdateClusterStatusRequest_DEREGISTERING, pb.UpdateClusterStatusRequest_UNINSTALL_IN_PROGRESS:
-		currentHostState = infrastructurev1alpha1.HostStateInProgress
+		intelMachinePatch.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateInProgress
 	}
 
-	if previousHostState == currentHostState && !removeFinalizer {
-		// No changes to the IntelMachine, return early
-		return action, nil
+	if !reflect.DeepEqual(intelMachine, intelMachinePatch) {
+		log.Debug().Msgf("patching intel machine (%s/%s): %s", intelMachine.GetNamespace(), intelMachine.GetName(), action)
+		return action, patchIntelMachine(ctx, h.client, intelMachine, intelMachinePatch)
 	}
 
-	return action, patchIntelMachine(ctx, h.client, intelMachine, currentHostState, removeFinalizer)
+	log.Debug().Msgf("not patching intel machine (%s/%s): %s", intelMachine.GetNamespace(), intelMachine.GetName(), action)
+	return action, nil
 }
 
 func getIntelMachine(ctx context.Context, client dynamic.Interface, projectId string, nodeGUID string) (*infrastructurev1alpha1.IntelMachine, error) {
@@ -265,20 +268,8 @@ func getIntelMachine(ctx context.Context, client dynamic.Interface, projectId st
 	return intelmachine, nil
 }
 
-func patchIntelMachine(ctx context.Context, client dynamic.Interface, intelMachine *infrastructurev1alpha1.IntelMachine, hostState string, removeFinalizer bool) error {
-	original := intelMachine.DeepCopy()
-
-	if removeFinalizer {
-		cutil.RemoveFinalizer(intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
-	}
-
-	// Update the IntelMachine annotations
-	if intelMachine.Annotations == nil {
-		intelMachine.Annotations = make(map[string]string)
-	}
-	intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] = hostState
-
-	patchBytes, err := getPatchData(original, intelMachine)
+func patchIntelMachine(ctx context.Context, client dynamic.Interface, original, patch *infrastructurev1alpha1.IntelMachine) error {
+	patchBytes, err := getPatchData(original, patch)
 	if err != nil {
 		return err
 	}
