@@ -217,20 +217,36 @@ var _ = Describe("IntelMachine Controller", func() {
 				g.Expect(conditions.IsFalse(resource, clusterv1.ReadyCondition)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
-			By("By checking the IntelMachine has the expected finalizers")
+			By("By checking the IntelMachine has the FreeInstanceFinalizer")
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
 				g.Expect(cutil.ContainsFinalizer(resource, infrastructurev1alpha1.FreeInstanceFinalizer)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
-			By("Updating the Host State annotation")
+			By("By updating status to registering and add HostCleanupFinalizer")
 			Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
 			Expect(resource.Annotations).NotTo(HaveKey(infrastructurev1alpha1.HostStateAnnotation))
 			if resource.Annotations == nil {
 				resource.Annotations = make(map[string]string)
 			}
-			resource.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateActive
+			resource.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateInProgress
+			resource.Finalizers = []string{infrastructurev1alpha1.FreeInstanceFinalizer, infrastructurev1alpha1.HostCleanupFinalizer}
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+
+			By("By checking the IntelMachine has the expected finalizers")
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
+				g.Expect(cutil.ContainsFinalizer(resource, infrastructurev1alpha1.FreeInstanceFinalizer)).To(BeTrue())
+				g.Expect(cutil.ContainsFinalizer(resource, infrastructurev1alpha1.HostCleanupFinalizer)).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			By("Updating the Host State annotation")
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
+				g.Expect(resource.Annotations).To(HaveKey(infrastructurev1alpha1.HostStateAnnotation))
+				resource.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateActive
+				g.Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
 
 			By("Checking that the IntelMachine is ready")
 			Eventually(func(g Gomega) {
