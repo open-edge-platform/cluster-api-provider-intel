@@ -47,9 +47,13 @@ make license
 
 ## Community and Support
 
-To learn more about the project, its community, and governance, visit the Edge Orchestrator Community. 
-For support, start with Troubleshooting or contact us. 
+To learn more about the project, its community, and governance, visit the [Edge Orchestrator Community].
+For support, start with [Troubleshooting] or [contact us].
 
 ## License
 
 Cluster API Provider Intel is licensed under [Apache 2.0 License](LICENSES/Apache-2.0.txt)
+
+[Edge Orchestrator Community]: https://docs.openedgeplatform.intel.com/edge-manage-docs/main/index.html
+[Contact us]: https://github.com/open-edge-platform
+[Troubleshooting]: https://docs.openedgeplatform.intel.com/edge-manage-docs/main/developer_guide/troubleshooting/index.html
