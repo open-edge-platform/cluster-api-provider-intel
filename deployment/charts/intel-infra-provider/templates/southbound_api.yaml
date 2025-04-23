@@ -50,7 +50,7 @@ spec:
           readinessProbe:
             grpc:
               port: 50020
-            initialDelaySeconds: 15
+            initialDelaySeconds: 5
             periodSeconds: 10
           env:
             - name: OIDC_SERVER_URL
