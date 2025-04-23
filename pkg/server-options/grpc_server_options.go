@@ -63,7 +63,10 @@ func GetGrpcServerOpts(enableTracing bool) []grpc.ServerOption {
 	tenantInterceptor := tenant.ActiveProjectIdGrpcInterceptor()
 
 	// Wrap the tenant interceptor to exempt specific paths
-	exemptPaths := []string{"/cluster_orchestrator_southbound_proto.ClusterOrchestratorSouthbound"}
+	exemptPaths := []string{
+		"/cluster_orchestrator_southbound_proto.ClusterOrchestratorSouthbound/Check",
+		"/cluster_orchestrator_southbound_proto.ClusterOrchestratorSouthbound/Watch",
+	}
 	wrappedTenantInterceptor := ExemptPathUnaryInterceptor(exemptPaths, tenantInterceptor)
 	unaryInterceptors = append(unaryInterceptors, wrappedTenantInterceptor)
 
