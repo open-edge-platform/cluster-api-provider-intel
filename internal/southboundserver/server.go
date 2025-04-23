@@ -13,6 +13,8 @@ import (
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
@@ -72,6 +74,15 @@ func NewGrpcServer(cfg config.Config, regoFilePath string) (*grpc.Server, net.Li
 	// Enable gRPC reflection
 	reflection.Register(grpcServer)
 	pb.RegisterClusterOrchestratorSouthboundServer(grpcServer, s)
+
+	// Create health service
+	healthService := health.NewServer()
+
+	// Register the health service with the gRPC server
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
+
+	// Set the service health status
+	healthService.SetServingStatus("/cluster_orchestrator_southbound_proto.ClusterOrchestratorSouthbound", grpc_health_v1.HealthCheckResponse_SERVING)
 	return grpcServer, lis
 }
 
