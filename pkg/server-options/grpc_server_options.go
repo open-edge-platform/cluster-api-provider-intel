@@ -62,7 +62,7 @@ func GetGrpcServerOpts(enableTracing bool) []grpc.ServerOption {
 	// Add the tenant interceptor
 	tenantInterceptor := tenant.ActiveProjectIdGrpcInterceptor()
 
-	// Wrap the tenant interceptor to exempt specific paths
+	// Wrap the tenant interceptor to exempt health check paths
 	exemptPaths := []string{
 		"/cluster_orchestrator_southbound_proto.ClusterOrchestratorSouthbound/Check",
 		"/cluster_orchestrator_southbound_proto.ClusterOrchestratorSouthbound/Watch",
