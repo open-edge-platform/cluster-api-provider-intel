@@ -4,3 +4,6 @@
 scan:
   skip-files:
     - deployment/charts/intel-infra-provider/templates/role.yaml
+
+vulnerability:
+  ignore-unfixed: true

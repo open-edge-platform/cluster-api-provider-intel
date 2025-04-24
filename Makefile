@@ -1,13 +1,14 @@
 # SPDX-FileCopyrightText: (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+SHELL := bash -eu -o pipefail
+
 # VERSION defines the project version for the bundle.
 # Update this value when you upgrade the version of your project.
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION            ?= $(shell cat VERSION)
-HELM_VERSION       ?= $(shell cat VERSION)
 GIT_HASH_SHORT     := $(shell git rev-parse --short=8 HEAD)
 VERSION_DEV_SUFFIX := ${GIT_HASH_SHORT}
 
@@ -18,6 +19,8 @@ FUZZTIME ?= 60s
 ifeq ($(findstring -dev,$(VERSION)), -dev)
     VERSION := $(VERSION)-$(VERSION_DEV_SUFFIX)
 endif
+
+HELM_VERSION ?= ${VERSION}
 
 REGISTRY         ?= 080137407410.dkr.ecr.us-west-2.amazonaws.com
 REGISTRY_NO_AUTH ?= edge-orch
@@ -93,11 +96,6 @@ PROTOC_GEN_VALIDATE_VERSION := v1.1.0
 # scaffolded by default. However, you might want to replace it to use other
 # tools. (i.e. podman)
 CONTAINER_TOOL ?= docker
-
-# Setting SHELL to bash allows bash commands to be executed by recipes.
-# Options are set to exit when a recipe line exits non-zero or a piped command fails.
-SHELL = /usr/bin/env bash -o pipefail
-.SHELLFLAGS = -ec
 
 .PHONY: all
 all: build
@@ -209,6 +207,20 @@ docker-push: ## Push docker images.
 	$(CONTAINER_TOOL) push ${IMG_MANAGER}
 	$(CONTAINER_TOOL) push ${IMG_SOUTHBOUND}
 
+.PHONY: docker-list
+docker-list: ## Print name of docker container images
+	@echo "images:"
+	@echo "  capi-provider-intel-manager:"
+	@echo "    name: '$(IMG_MANAGER)'"
+	@echo "    version: '$(VERSION)'"
+	@echo "    gitTagPrefix: 'v'"
+	@echo "    buildTarget: 'docker-build'"
+	@echo "  capi-provider-intel-southbound:"
+	@echo "    name: '$(IMG_SOUTHBOUND)'"
+	@echo "    version: '$(VERSION)'"
+	@echo "    gitTagPrefix: 'v'"
+	@echo "    buildTarget: 'docker-build'"
+
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
 # - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/
@@ -264,6 +276,17 @@ helm-build: ## Package helm charts.
 .PHONY: helm-push
 helm-push: ## Push helm charts.
 	for c in $(HELM_PKGS); do helm push $$c oci://${REGISTRY}/${REGISTRY_NO_AUTH}/${REPOSITORY}/charts; done
+
+.PHONY: helm-list
+helm-list:
+	@echo "charts:"
+	@for d in $(HELM_DIRS); do \
+    cname=$$(grep "^name:" "$$d/Chart.yaml" | cut -d " " -f 2) ;\
+    echo "  $$cname:" ;\
+    echo -n "    "; grep "^version" "$$d/Chart.yaml"  ;\
+    echo "    gitTagPrefix: 'v'" ;\
+    echo "    outDir: '.'" ;\
+  done
 
 .PHONY: helm-install
 helm-install: helm-build ## Install Helm charts in the local cluster
