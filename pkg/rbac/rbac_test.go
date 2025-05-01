@@ -11,7 +11,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	testing_utils "github.com/open-edge-platform/cluster-api-provider-intel/pkg/testing"
-	"github.com/open-policy-agent/opa/rego" // nolint: staticcheck
+	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/undefinedlabs/go-mpatch"
@@ -414,6 +414,7 @@ func TestPolicy_Verify(t *testing.T) {
 		})
 	}
 }
+
 func prepareQueryForTesting(t *testing.T, regoPolicy string) *rego.PreparedEvalQuery {
 	ctx := context.Background()
 	r := rego.New(
