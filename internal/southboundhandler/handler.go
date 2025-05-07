@@ -335,6 +335,25 @@ func getMachineOwnerName(intelmachine *infrastructurev1alpha1.IntelMachine) (str
 	return "", errors.New("machine not found")
 }
 
+func providerIDCommands(configDir, providerID string) []cloudinit.Cmd {
+	filename := configDir + "providerID.yaml"
+	return []cloudinit.Cmd{
+		{
+			Cmd:  "mkdir",
+			Args: []string{"-p", configDir},
+		},
+		{
+			Cmd:   "/bin/sh",
+			Args:  []string{"-c", fmt.Sprintf("cat > %s /dev/stdin", filename)},
+			Stdin: fmt.Sprintf(`kubelet-arg+: [\"--provider-id=%s\"]`, providerID),
+		},
+		{
+			Cmd:  "chmod",
+			Args: []string{"0640", filename},
+		},
+	}
+}
+
 func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (string, error) {
 	format, ok := secret.Data["format"]
 	if ok && string(format) != "cloud-config" {
@@ -354,25 +373,12 @@ func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (str
 	case kind == "KubeadmConfig":
 		// Add providerID to Kubeadm node
 	case kind == "KThreesConfig":
-		// Add providerID to K3s node
+		dir := "/etc/rancher/k3s/config.yaml.d/"
+		newcmds := providerIDCommands(dir, providerID)
+		commands = append(newcmds, commands...)
 	case kind == "RKE2Config":
 		dir := "/etc/rancher/rke2/config.yaml.d/"
-		filename := dir + "providerID.yaml"
-		newcmds := []cloudinit.Cmd{
-			{
-				Cmd:  "mkdir",
-				Args: []string{"-p", dir},
-			},
-			{
-				Cmd:   "/bin/sh",
-				Args:  []string{"-c", fmt.Sprintf("cat > %s /dev/stdin", filename)},
-				Stdin: fmt.Sprintf(`kubelet-arg+: [\"--provider-id=%s\"]`, providerID),
-			},
-			{
-				Cmd:  "chmod",
-				Args: []string{"0640", filename},
-			},
-		}
+		newcmds := providerIDCommands(dir, providerID)
 		commands = append(newcmds, commands...)
 	default:
 		return "", fmt.Errorf("unsupported bootstrap provider: %s", kind)
