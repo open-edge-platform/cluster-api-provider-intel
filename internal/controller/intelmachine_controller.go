@@ -323,9 +323,7 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	rc.intelMachine.Annotations[infrastructurev1alpha1.HostIdAnnotation] = gmRes.Host.Id
 	conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition)
 
-	// Add finalizers.  The HostCleanupFinalizer is removed by the SB Handler after it has cleaned up the host.
-	// The FreeInstanceFinalizer is removed by the IntelMachine Reconciler after the host is freed in Inventory.
-	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
+	// Add 'FreeInstanceFinalizer' finalizer, it is removed by the IntelMachine Reconciler after the host is freed in Inventory.
 	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
 
 	return false
