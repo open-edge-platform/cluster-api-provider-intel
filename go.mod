@@ -10,7 +10,6 @@ require (
 	entgo.io/ent v0.14.4
 	github.com/bnkamalesh/errors v0.11.1
 	github.com/envoyproxy/protoc-gen-validate v1.2.1
-	github.com/evanphx/json-patch v5.7.0+incompatible
 	github.com/getkin/kin-openapi v0.120.0
 	github.com/gogo/grpc-example v0.0.0-20211127015421-6236971f8de2
 	github.com/golang-jwt/jwt v3.2.2+incompatible
