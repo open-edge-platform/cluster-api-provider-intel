@@ -34,7 +34,7 @@ spec:
         - name: intel-infra-provider-southbound
           securityContext:
             {{- toYaml .Values.southboundApi.securityContext | nindent 12 }}
-          image: "{{ .Values.southboundApi.image.registry.name }}/{{ .Values.southboundApi.image.repository }}:{{ .Values.southboundApi.image.tag | default .Chart.AppVersion }}"
+          image: "localhost:5000/sbh:1.1.1-dev"
           imagePullPolicy: {{ .Values.southboundApi.image.pullPolicy }}
           command:
             - /southbound_handler

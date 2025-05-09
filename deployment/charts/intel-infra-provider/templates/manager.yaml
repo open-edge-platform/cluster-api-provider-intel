@@ -32,7 +32,7 @@ spec:
         - name: intel-infra-provider-manager
           securityContext:
             {{- toYaml .Values.manager.securityContext | nindent 12 }}
-          image: "{{ .Values.manager.image.registry.name }}/{{ .Values.manager.image.repository }}:{{ .Values.manager.image.tag | default .Chart.AppVersion }}"
+          image: "localhost:5000/manager:1.1.1-dev"
           imagePullPolicy: {{ .Values.manager.image.pullPolicy }}
           command:
             - /manager
