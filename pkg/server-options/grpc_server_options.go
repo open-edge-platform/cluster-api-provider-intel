@@ -32,10 +32,10 @@ func InterceptorLogger(l mclog.MCLogger) logging.Logger {
 func ExemptPathUnaryInterceptor(exemptPaths []string, interceptor grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		// Check if the method is in the exempt paths
-		log.Info().Str("method", info.FullMethod).Msg("Checking if method is exempt")
 		for _, path := range exemptPaths {
 			if info.FullMethod == path {
 				// Skip the interceptor and directly call the handler
+				log.Debug().Str("method", info.FullMethod).Msg("Method is exempt from interceptor")
 				return handler(ctx, req)
 			}
 		}
