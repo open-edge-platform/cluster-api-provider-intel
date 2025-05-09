@@ -68,6 +68,8 @@ func GetGrpcServerOpts(enableTracing bool) []grpc.ServerOption {
 	exemptPaths := []string{
 		"/cluster_orchestrator_southbound_proto.ClusterOrchestratorSouthbound/Check",
 		"/cluster_orchestrator_southbound_proto.ClusterOrchestratorSouthbound/Watch",
+		"/grpc.health.v1.Health/Check",
+		"/grpc.health.v1.Health/Watch",
 	}
 	wrappedTenantInterceptor := ExemptPathUnaryInterceptor(exemptPaths, tenantInterceptor)
 	unaryInterceptors = append(unaryInterceptors, wrappedTenantInterceptor)
