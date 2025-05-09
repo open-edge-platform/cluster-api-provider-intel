@@ -34,7 +34,7 @@ spec:
         - name: intel-infra-provider-southbound
           securityContext:
             {{- toYaml .Values.southboundApi.securityContext | nindent 12 }}
-          image: "localhost:5000/sbh:1.1.1-dev"
+          image: "localhost:5000/sbh:1.1.1-dev-1"
           imagePullPolicy: {{ .Values.southboundApi.image.pullPolicy }}
           command:
             - /southbound_handler
