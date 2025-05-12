@@ -1,5 +1,8 @@
 # Welcome to the Cluster API Provider for Intel
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/open-edge-platform/cluster-api-provider-intel/badge)](https://scorecard.dev/viewer/?uri=github.com/open-edge-platform/cluster-api-provider-intel)
+
 ## Overview
 
 The Cluster API Provider for Intel enables using the [Cluster API](https://cluster-api.sigs.k8s.io/)
@@ -47,9 +50,13 @@ make license
 
 ## Community and Support
 
-To learn more about the project, its community, and governance, visit the Edge Orchestrator Community. 
-For support, start with Troubleshooting or contact us. 
+To learn more about the project, its community, and governance, visit the [Edge Orchestrator Community].
+For support, start with [Troubleshooting] or [contact us].
 
 ## License
 
 Cluster API Provider Intel is licensed under [Apache 2.0 License](LICENSES/Apache-2.0.txt)
+
+[Edge Orchestrator Community]: https://docs.openedgeplatform.intel.com/edge-manage-docs/main/index.html
+[Contact us]: https://github.com/open-edge-platform
+[Troubleshooting]: https://docs.openedgeplatform.intel.com/edge-manage-docs/main/developer_guide/troubleshooting/index.html
