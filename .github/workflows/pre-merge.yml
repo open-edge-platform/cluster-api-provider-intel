@@ -12,8 +12,12 @@ on:
       - release-*
   workflow_dispatch: 
 
+permissions: {}
+
 jobs:
   lint:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
     - name: Checkout PR
@@ -31,6 +35,8 @@ jobs:
       run: make lint
 
   build:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
     - name: Checkout PR
@@ -48,6 +54,8 @@ jobs:
       run: make build
 
   test:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
     - name: Checkout PR
@@ -65,8 +73,10 @@ jobs:
       run: make test
   
   pre-merge:
+    permissions:
+      contents: read
     needs: [lint, build, test]
-    uses: open-edge-platform/orch-ci/.github/workflows/pre-merge.yml@main
+    uses: open-edge-platform/orch-ci/.github/workflows/pre-merge.yml@0.1.10
     with:
       bootstrap_tools: "base,go"
       cache_go: true
@@ -83,4 +93,4 @@ jobs:
       run_helm_build: true
       run_helm_push: true
       run_artifact: false
-    secrets: inherit
+    secrets: inherit  # zizmor: ignore[secrets-inherit]
