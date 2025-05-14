@@ -196,7 +196,7 @@ func TestHandler_Register(t *testing.T) {
 			secretName:    secretName,
 			secretFormat:  "",
 			secretValueEn: true,
-			err:           true,
+			err:           false,
 		}, {
 			name:          "No Secret Format",
 			nodeGUID:      nodeGUID,

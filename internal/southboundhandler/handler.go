@@ -335,13 +335,28 @@ func getMachineOwnerName(intelmachine *infrastructurev1alpha1.IntelMachine) (str
 	return "", errors.New("machine not found")
 }
 
+func providerIDCommands(configDir, providerID string) []cloudinit.Cmd {
+	filename := configDir + "providerID.yaml"
+	return []cloudinit.Cmd{
+		{
+			Cmd:  "mkdir",
+			Args: []string{"-p", configDir},
+		},
+		{
+			Cmd:   "/bin/sh",
+			Args:  []string{"-c", fmt.Sprintf("cat > %s /dev/stdin", filename)},
+			Stdin: fmt.Sprintf(`kubelet-arg+: [\"--provider-id=%s\"]`, providerID),
+		},
+		{
+			Cmd:  "chmod",
+			Args: []string{"0640", filename},
+		},
+	}
+}
+
 func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (string, error) {
 	format, ok := secret.Data["format"]
-	if !ok {
-		return "", errors.New("missing format in bootstrap secret")
-	}
-
-	if string(format) != "cloud-config" {
+	if ok && string(format) != "cloud-config" {
 		return "", errors.New("unsupported bootstrap script format: " + string(format))
 	}
 
@@ -357,24 +372,13 @@ func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (str
 	switch {
 	case kind == "KubeadmConfig":
 		// Add providerID to Kubeadm node
+	case kind == "KThreesConfig":
+		dir := "/etc/rancher/k3s/config.yaml.d/"
+		newcmds := providerIDCommands(dir, providerID)
+		commands = append(newcmds, commands...)
 	case kind == "RKE2Config":
 		dir := "/etc/rancher/rke2/config.yaml.d/"
-		filename := dir + "providerID.yaml"
-		newcmds := []cloudinit.Cmd{
-			{
-				Cmd:  "mkdir",
-				Args: []string{"-p", dir},
-			},
-			{
-				Cmd:   "/bin/sh",
-				Args:  []string{"-c", fmt.Sprintf("cat > %s /dev/stdin", filename)},
-				Stdin: fmt.Sprintf(`kubelet-arg+: [\"--provider-id=%s\"]`, providerID),
-			},
-			{
-				Cmd:  "chmod",
-				Args: []string{"0640", filename},
-			},
-		}
+		newcmds := providerIDCommands(dir, providerID)
 		commands = append(newcmds, commands...)
 	default:
 		return "", fmt.Errorf("unsupported bootstrap provider: %s", kind)
@@ -398,11 +402,15 @@ func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (str
 func getUninstall(kind string) (string, error) {
 	uninstall := ""
 	var err error = nil
-	if kind == "KubeadmConfig" {
+
+	switch {
+	case kind == "KubeadmConfig":
 		uninstall = "sudo /usr/local/bin/kubeadm-uninstall.sh"
-	} else if kind == "RKE2Config" {
+	case kind == "KThreesConfig":
+		uninstall = "sudo /usr/local/bin/k3s-uninstall.sh"
+	case kind == "RKE2Config":
 		uninstall = "if [ -f /usr/local/bin/rke2-uninstall.sh ]; then sudo /usr/local/bin/rke2-uninstall.sh; else sudo /opt/rke2/bin/rke2-uninstall.sh; fi"
-	} else {
+	default:
 		err = fmt.Errorf("unknown bootstrap provider: %s", kind)
 	}
 	return uninstall, err
