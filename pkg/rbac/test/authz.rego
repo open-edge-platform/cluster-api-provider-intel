@@ -5,12 +5,12 @@ package authz
 
 import future.keywords.in
 
-hasWriteAccess {
+hasWriteAccess := true if {
     some role in input["realm_access/roles"] # iteration
     ["clusters-write-role"][_] == role
 }
 
-hasReadAccess {
+hasReadAccess := true if {
     some role in input["realm_access/roles"] # iteration
     ["clusters-read-role"][_] == role
 }

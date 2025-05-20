@@ -32,6 +32,7 @@ func InterceptorLogger(l mclog.MCLogger) logging.Logger {
 func ExemptPathUnaryInterceptor(exemptPaths []string, interceptor grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		// Check if the method is in the exempt paths
+		log.Debug().Str("method", info.FullMethod).Msg("Checking if method is exempt")
 		for _, path := range exemptPaths {
 			if info.FullMethod == path {
 				// Skip the interceptor and directly call the handler
@@ -67,6 +68,8 @@ func GetGrpcServerOpts(enableTracing bool) []grpc.ServerOption {
 	exemptPaths := []string{
 		"/cluster_orchestrator_southbound_proto.ClusterOrchestratorSouthbound/Check",
 		"/cluster_orchestrator_southbound_proto.ClusterOrchestratorSouthbound/Watch",
+		"/grpc.health.v1.Health/Check",
+		"/grpc.health.v1.Health/Watch",
 	}
 	wrappedTenantInterceptor := ExemptPathUnaryInterceptor(exemptPaths, tenantInterceptor)
 	unaryInterceptors = append(unaryInterceptors, wrappedTenantInterceptor)
