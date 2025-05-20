@@ -28,11 +28,11 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ClusterOrchestratorSouthboundClient interface {
-	// RegisterCluster is called from Edge Node to receive LPKE installation script
+	// RegisterCluster is called from Edge Node to receive cluster installation script
 	RegisterCluster(ctx context.Context, in *RegisterClusterRequest, opts ...grpc.CallOption) (*RegisterClusterResponse, error)
 	// UpdateClusterStatus is called from Edge Cluster to set the status cluster deployment
 	UpdateClusterStatus(ctx context.Context, in *UpdateClusterStatusRequest, opts ...grpc.CallOption) (*UpdateClusterStatusResponse, error)
-	// GetClusterNumByTemplateIdentifier is called from CTM service
+	// GetClusterNumByTemplateIdentifier is called from Cluster Manager service
 	GetClusterNumByTemplateIdentifier(ctx context.Context, in *GetClusterNumByTemplateIdentifierRequest, opts ...grpc.CallOption) (*GetClusterNumByTemplateIdentifierResponse, error)
 }
 
@@ -78,11 +78,11 @@ func (c *clusterOrchestratorSouthboundClient) GetClusterNumByTemplateIdentifier(
 // All implementations must embed UnimplementedClusterOrchestratorSouthboundServer
 // for forward compatibility.
 type ClusterOrchestratorSouthboundServer interface {
-	// RegisterCluster is called from Edge Node to receive LPKE installation script
+	// RegisterCluster is called from Edge Node to receive cluster installation script
 	RegisterCluster(context.Context, *RegisterClusterRequest) (*RegisterClusterResponse, error)
 	// UpdateClusterStatus is called from Edge Cluster to set the status cluster deployment
 	UpdateClusterStatus(context.Context, *UpdateClusterStatusRequest) (*UpdateClusterStatusResponse, error)
-	// GetClusterNumByTemplateIdentifier is called from CTM service
+	// GetClusterNumByTemplateIdentifier is called from Cluster Manager service
 	GetClusterNumByTemplateIdentifier(context.Context, *GetClusterNumByTemplateIdentifierRequest) (*GetClusterNumByTemplateIdentifierResponse, error)
 	mustEmbedUnimplementedClusterOrchestratorSouthboundServer()
 }
