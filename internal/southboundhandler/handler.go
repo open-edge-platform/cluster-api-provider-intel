@@ -5,7 +5,6 @@ package southboundhandler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -13,14 +12,14 @@ import (
 	"strconv"
 	"strings"
 
-	jsonpatch "github.com/evanphx/json-patch"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/dynamic"
-	client "k8s.io/client-go/rest"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	cutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
@@ -64,14 +63,17 @@ func validLabelVal(val string) bool {
 }
 
 type Handler struct {
-	client dynamic.Interface
+	client ctrlclient.Client
 }
 
 func NewHandler() (*Handler, error) {
-	config, err := client.InClusterConfig()
+	// Create the in-cluster config
+	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
 	}
+
+	// Set rate limiter parameters
 	qpsValue, burstValue, err := getRateLimiterParams()
 	if err != nil {
 		log.Warn().Err(err).Msg("unable to get rate limiter params; using default values")
@@ -80,9 +82,31 @@ func NewHandler() (*Handler, error) {
 
 	config.QPS = float32(qpsValue)
 	config.Burst = int(burstValue)
-	client := dynamic.NewForConfigOrDie(config)
 
-	return &Handler{client: client}, nil
+	scheme := runtime.NewScheme()
+	utilruntime.Must(infrastructurev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(clusterv1.AddToScheme(scheme))
+	utilruntime.Must(corev1.AddToScheme(scheme))
+
+	// Create a controller-runtime manager
+	mgr, err := ctrl.NewManager(config, ctrl.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create manager: %w", err)
+	}
+
+	// Use the manager's cached client
+	cachedClient := mgr.GetClient()
+
+	// Start the manager in a separate goroutine
+	go func() {
+		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+			log.Fatal().Err(err).Msg("failed to start manager")
+		}
+	}()
+
+	return &Handler{client: cachedClient}, nil
 }
 
 // Register is called by the CO Agent when registring a new cluster node.
@@ -234,10 +258,8 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 		hostState = infrastructurev1alpha1.HostStateError
 	}
 
-	// Only patch IntelMachine if it needs to be changed
+	// Only update IntelMachine if it needs it
 	if currentHostState != hostState || removeFinalizer {
-		origIntelMachine := intelmachine.DeepCopy()
-
 		if removeFinalizer {
 			cutil.RemoveFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer)
 		}
@@ -247,81 +269,59 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 			intelmachine.Annotations = make(map[string]string)
 		}
 		intelmachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] = hostState
-		return action, patchIntelMachine(ctx, h.client, origIntelMachine, intelmachine)
+		return action, h.client.Update(ctx, intelmachine)
 	}
 
 	return action, nil
 }
 
-func getIntelMachine(ctx context.Context, client dynamic.Interface, projectId string, nodeGUID string) (*infrastructurev1alpha1.IntelMachine, error) {
+func getIntelMachine(ctx context.Context, client ctrlclient.Client, projectId string, nodeGUID string) (*infrastructurev1alpha1.IntelMachine, error) {
 	if !validLabelVal(nodeGUID) {
 		return nil, errors.New("invalid Node GUID")
 	}
-	opts := v1.ListOptions{
-		LabelSelector: infrastructurev1alpha1.NodeGUIDKey + "=" + nodeGUID,
+
+	// Use a label selector to filter IntelMachines by NodeGUID
+	intelMachineList := &infrastructurev1alpha1.IntelMachineList{}
+	listOpts := []ctrlclient.ListOption{
+		ctrlclient.InNamespace(projectId),
+		ctrlclient.MatchingLabels{infrastructurev1alpha1.NodeGUIDKey: nodeGUID},
 	}
-	result, err := client.Resource(IntelMachineResourceSchema).Namespace(projectId).List(ctx, opts)
-	if err != nil {
+
+	if err := client.List(ctx, intelMachineList, listOpts...); err != nil {
 		return nil, err
 	}
-	if len(result.Items) < 1 {
+
+	if len(intelMachineList.Items) < 1 {
 		return nil, nil
 	}
-	if len(result.Items) > 1 {
+	if len(intelMachineList.Items) > 1 {
 		return nil, errors.New("duplicate IntelMachines found")
 	}
-	intelmachine := &infrastructurev1alpha1.IntelMachine{}
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(result.Items[0].Object, intelmachine)
-	if err != nil {
-		return nil, err
-	}
-	if intelmachine.Spec.NodeGUID != nodeGUID {
+
+	intelMachine := &intelMachineList.Items[0]
+	if intelMachine.Spec.NodeGUID != nodeGUID {
 		return nil, errors.New("invalid IntelMachine found")
 	}
-	return intelmachine, nil
+	return intelMachine, nil
 }
 
-func patchIntelMachine(ctx context.Context, client dynamic.Interface, orig, new *infrastructurev1alpha1.IntelMachine) error {
-	patchBytes, err := getPatchData(orig, new)
-	if err != nil {
-		return err
-	}
-
-	_, err = client.Resource(IntelMachineResourceSchema).Namespace(orig.Namespace).Patch(ctx, orig.GetName(), types.MergePatchType, patchBytes, v1.PatchOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func getMachine(ctx context.Context, client dynamic.Interface, projectId string, name string) (*clusterv1.Machine, error) {
-	result, err := client.Resource(MachineResourceSchema).Namespace(projectId).Get(ctx, name, v1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
+func getMachine(ctx context.Context, client ctrlclient.Client, projectId string, name string) (*clusterv1.Machine, error) {
 	machine := &clusterv1.Machine{}
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(result.Object, machine)
-	if err != nil {
+	key := types.NamespacedName{Namespace: projectId, Name: name}
+
+	if err := client.Get(ctx, key, machine); err != nil {
 		return nil, err
 	}
-
 	return machine, nil
 }
 
-func getSecret(ctx context.Context, client dynamic.Interface, projectId string, name string) (*corev1.Secret, error) {
-	result, err := client.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}).Namespace(projectId).Get(ctx, name, v1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
+func getSecret(ctx context.Context, client ctrlclient.Client, projectId string, name string) (*corev1.Secret, error) {
 	secret := &corev1.Secret{}
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(result.Object, secret)
-	if err != nil {
+	key := types.NamespacedName{Namespace: projectId, Name: name}
+
+	if err := client.Get(ctx, key, secret); err != nil {
 		return nil, err
 	}
-
 	return secret, nil
 }
 
@@ -406,24 +406,6 @@ func getUninstall(kind string) (string, error) {
 		err = fmt.Errorf("unknown bootstrap provider: %s", kind)
 	}
 	return uninstall, err
-}
-
-// getPatchData will return difference between original and modified document
-func getPatchData(originalObj, modifiedObj interface{}) ([]byte, error) {
-	originalData, err := json.Marshal(originalObj)
-	if err != nil {
-		return nil, err
-	}
-	modifiedData, err := json.Marshal(modifiedObj)
-	if err != nil {
-		return nil, err
-	}
-
-	patchBytes, err := jsonpatch.CreateMergePatch(originalData, modifiedData)
-	if err != nil {
-		return nil, err
-	}
-	return patchBytes, nil
 }
 
 // Convert a cloudinit.Cmd to a runnable shell command.

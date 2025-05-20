@@ -29,6 +29,21 @@ func InterceptorLogger(l mclog.MCLogger) logging.Logger {
 	})
 }
 
+func ExemptPathUnaryInterceptor(exemptPaths []string, interceptor grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		// Check if the method is in the exempt paths
+		log.Debug().Str("method", info.FullMethod).Msg("Checking if method is exempt")
+		for _, path := range exemptPaths {
+			if info.FullMethod == path {
+				// Skip the interceptor and directly call the handler
+				return handler(ctx, req)
+			}
+		}
+		// Apply the actual interceptor
+		return interceptor(ctx, req, info, handler)
+	}
+}
+
 func GetGrpcServerOpts(enableTracing bool) []grpc.ServerOption {
 	var serverOptions []grpc.ServerOption
 
@@ -36,16 +51,28 @@ func GetGrpcServerOpts(enableTracing bool) []grpc.ServerOption {
 	var streamInterceptors []grpc.StreamServerInterceptor
 
 	if enableTracing {
-		// generate an event at the start and end of the call
+		// Generate an event at the start and end of the call
 		opts := []logging.Option{logging.WithLogOnEvents(logging.StartCall, logging.FinishCall)}
 
-		// enable options to insert otel context as well as log the trace and span id at entry/exit of the call
+		// Enable options to insert otel context as well as log the trace and span ID at entry/exit of the call
 		unaryInterceptors = append(unaryInterceptors, logging.UnaryServerInterceptor(InterceptorLogger(log), opts...))
 		streamInterceptors = append(streamInterceptors, logging.StreamServerInterceptor(InterceptorLogger(log), opts...))
 		serverOptions = append(serverOptions, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	}
 
-	unaryInterceptors = append(unaryInterceptors, tenant.ActiveProjectIdGrpcInterceptor())
+	// Add the tenant interceptor
+	tenantInterceptor := tenant.ActiveProjectIdGrpcInterceptor()
+
+	// Wrap the tenant interceptor to exempt health check paths
+	// See https://github.com/grpc/grpc/blob/master/doc/health-checking.md
+	exemptPaths := []string{
+		"/cluster_orchestrator_southbound_proto.ClusterOrchestratorSouthbound/Check",
+		"/cluster_orchestrator_southbound_proto.ClusterOrchestratorSouthbound/Watch",
+		"/grpc.health.v1.Health/Check",
+		"/grpc.health.v1.Health/Watch",
+	}
+	wrappedTenantInterceptor := ExemptPathUnaryInterceptor(exemptPaths, tenantInterceptor)
+	unaryInterceptors = append(unaryInterceptors, wrappedTenantInterceptor)
 
 	serverOptions = append(serverOptions,
 		grpc.UnaryInterceptor(grpcmw.ChainUnaryServer(unaryInterceptors...)),
