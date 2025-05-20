@@ -6,13 +6,13 @@ import "validate/validate.proto";
 option go_package = ".;cluster_orchestrator_southbound";
 
 service ClusterOrchestratorSouthbound {
-  // RegisterCluster is called from Edge Node to receive LPKE installation script
+  // RegisterCluster is called from Edge Node to receive cluster installation script
   rpc RegisterCluster(RegisterClusterRequest) returns (RegisterClusterResponse) {}
 
   // UpdateClusterStatus is called from Edge Cluster to set the status cluster deployment
   rpc UpdateClusterStatus(UpdateClusterStatusRequest) returns (UpdateClusterStatusResponse) {}
 
-  // GetClusterNumByTemplateIdentifier is called from CTM service
+  // GetClusterNumByTemplateIdentifier is called from Cluster Manager service
   rpc GetClusterNumByTemplateIdentifier(GetClusterNumByTemplateIdentifierRequest) returns (GetClusterNumByTemplateIdentifierResponse) {}
 }
 
@@ -21,7 +21,7 @@ message RegisterClusterRequest {
   string node_guid = 1 [(validate.rules).string = { pattern: "^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$"}];
 }
 
-// RegisterClusterResponse contains shell script to be executed by Cluster Agent to install LPKE
+// RegisterClusterResponse contains shell script to be executed by Cluster Agent to install cluster
 message RegisterClusterResponse {
   ShellScriptCommand install_cmd = 1;
   ShellScriptCommand uninstall_cmd = 2;

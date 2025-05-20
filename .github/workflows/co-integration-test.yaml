@@ -30,6 +30,7 @@ jobs:
           path: ci
           ref: "main"
           token: ${{ secrets.SYS_ORCH_GITHUB }}
+          persist-credentials: false
 
       - name: Checkout cluster-tests for integration tests
         uses: actions/checkout@v4
@@ -38,6 +39,7 @@ jobs:
           path: cluster-tests
           ref: "main"
           token: ${{ secrets.SYS_ORCH_GITHUB }}
+          persist-credentials: false
 
       - name: Bootstrap CI environment
         uses: ./ci/.github/actions/bootstrap
@@ -45,6 +47,8 @@ jobs:
           gh_token: ${{ secrets.SYS_ORCH_GITHUB }}
 
       - name: Run make test with additional config
+        env:
+          VERSION: ${{ env.VERSION }}
         run: |
           cd cluster-tests
-          ADDITIONAL_CONFIG="{\"components\":[{\"name\":\"cluster-api-provider-intel\", \"skip-local-build\": false, \"git-repo\": {\"version\":\"${{ env.VERSION }}\"}}]}" make test
+          ADDITIONAL_CONFIG="{\"components\":[{\"name\":\"cluster-api-provider-intel\", \"skip-local-build\": false, \"git-repo\": {\"version\":\"${VERSION}\"}}]}" make test
