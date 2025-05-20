@@ -268,7 +268,7 @@ func (x *RegisterClusterRequest) GetNodeGuid() string {
 	return ""
 }
 
-// RegisterClusterResponse contains shell script to be executed by Cluster Agent to install LPKE
+// RegisterClusterResponse contains shell script to be executed by Cluster Agent to install cluster
 type RegisterClusterResponse struct {
 	state         protoimpl.MessageState         `protogen:"open.v1"`
 	InstallCmd    *ShellScriptCommand            `protobuf:"bytes,1,opt,name=install_cmd,json=installCmd,proto3" json:"install_cmd,omitempty"`
@@ -333,7 +333,8 @@ func (x *RegisterClusterResponse) GetRes() RegisterClusterResponse_Result {
 // command is to be executed in shell, like this `sh -c command`
 type ShellScriptCommand struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// example: "/usr/local/bin/rancher-system-agent-uninstall.sh; /usr/local/bin/rke2-uninstall.sh"
+	// example1: "curl -fL https://DOMAIN.NAME/system-agent-install.sh | sudo  sh -s - --server https://DOMAIN.NAME --label 'cattle.io/os=linux' --token 86f9cqfnvvlmwmvvmsptmr5wqj9d6bqpxkmxbvjw2txklhbglcdtff --ca-checksum b50da8bfa2cbcc13e209b9ffbab4b39c699e0aa2b3fe50f44ec4477c54725ea3 --etcd --controlplane --worker"
+	// example2: "/usr/local/bin/rancher-system-agent-uninstall.sh; /usr/local/bin/rke2-uninstall.sh"
 	Command       string `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

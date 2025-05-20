@@ -28,25 +28,7 @@ func (MockSecretClient) Patch(secretPath string, secretkvMap map[string]interfac
 
 func (MockSecretClient) Get(secretPath string) (*api.KVSecret, error) {
 	switch secretPath {
-	case "co-ecm-db-pwd":
-		return &api.KVSecret{
-			Data: map[string]interface{}{
-				"db-pwd": "password",
-			},
-			VersionMetadata: nil,
-			CustomMetadata:  nil,
-			Raw:             nil,
-		}, nil
-	case "co-ctm-db-pwd":
-		return &api.KVSecret{
-			Data: map[string]interface{}{
-				"db-pwd": "password",
-			},
-			VersionMetadata: nil,
-			CustomMetadata:  nil,
-			Raw:             nil,
-		}, nil
-	case "amrregistrycaasintelcom":
+	case "co-cm-db-pwd":
 		return &api.KVSecret{
 			Data: map[string]interface{}{
 				"db-pwd": "password",
