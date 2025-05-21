@@ -357,7 +357,7 @@ func providerIDCommands(configDir, providerID string) []cloudinit.Cmd {
 		{
 			Cmd:   "/bin/sh",
 			Args:  []string{"-c", fmt.Sprintf("cat > %s /dev/stdin", filename)},
-			Stdin: fmt.Sprintf(`kubelet-arg+: [\"--provider-id=%s\"]`, providerID),
+			Stdin: fmt.Sprintf(`kubelet-arg+: ["--provider-id=%s"]`, providerID),
 		},
 		{
 			Cmd:  "chmod",
@@ -403,7 +403,7 @@ func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (str
 		shellcommands[i] = shellcommand
 	}
 	script := strings.Join(shellcommands, "; ")
-	script = fmt.Sprintf("sudo sh -c \"%s\"", script)
+	script = fmt.Sprintf("sudo sh -c '%s'", script)
 
 	return script, nil
 }
@@ -438,7 +438,11 @@ func getCommand(cmd cloudinit.Cmd) (string, error) {
 				if cmd.Stdin != "" {
 					args := strings.Split(cmd.Args[1], " ")
 					if len(args) == 4 && args[0] == "cat" && args[1] == ">" && args[3] == "/dev/stdin" {
-						return fmt.Sprintf("echo '%s' > %s", cmd.Stdin, args[2]), nil
+						// contents := strings.ReplaceAll(cmd.Stdin, `"`, `\"`)
+						// contents = strings.ReplaceAll(contents, `'`, `\'`)
+						// contents = strings.ReplaceAll(contents, `$`, `\$`)
+						contents := strconv.Quote(cmd.Stdin)
+						return fmt.Sprintf("echo %s > %s", contents, args[2]), nil
 					}
 				} else {
 					return cmd.Args[1], nil
