@@ -44,6 +44,13 @@ const (
 	configTypeKubeadm = "KubeadmConfig"
 	configTypeKThrees = "KThreesConfig"
 	configTypeRKE2    = "RKE2Config"
+
+	// Configuration paths
+	configDirRKE2 = "/etc/rancher/rke2/config.yaml.d/"
+	configDirK3S  = "/etc/rancher/k3s/config.yaml.d/"
+
+	// Secret formats
+	cloudConfigFormat = "cloud-config"
 )
 
 var (
@@ -361,7 +368,7 @@ func providerIDCommands(configDir, providerID string) []cloudinit.Cmd {
 
 func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (string, error) {
 	format, ok := secret.Data["format"]
-	if ok && string(format) != "cloud-config" {
+	if ok && string(format) != cloudConfigFormat {
 		return "", errors.New("unsupported bootstrap script format: " + string(format))
 	}
 
@@ -378,12 +385,10 @@ func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (str
 	case configTypeKubeadm:
 		// Add providerID to Kubeadm node
 	case configTypeKThrees:
-		dir := "/etc/rancher/k3s/config.yaml.d/"
-		newcmds := providerIDCommands(dir, providerID)
+		newcmds := providerIDCommands(configDirK3S, providerID)
 		commands = append(newcmds, commands...)
 	case configTypeRKE2:
-		dir := "/etc/rancher/rke2/config.yaml.d/"
-		newcmds := providerIDCommands(dir, providerID)
+		newcmds := providerIDCommands(configDirRKE2, providerID)
 		commands = append(newcmds, commands...)
 	default:
 		return "", fmt.Errorf("unsupported bootstrap provider: %s", kind)

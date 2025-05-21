@@ -29,7 +29,7 @@ const (
 	machineName      = "test-machine"
 	clusterName      = "test-cluster"
 	secretName       = "test-secret"
-	secretFormat     = "cloud-config"
+	secretFormat     = cloudConfigFormat
 	nodeGUID         = "test-nodeGUID"
 	ownerRefKind     = "Machine"
 	bootstrapKind    = configTypeRKE2
