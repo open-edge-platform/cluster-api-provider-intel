@@ -5,6 +5,7 @@ package southboundhandler
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -438,10 +439,10 @@ func getCommand(cmd cloudinit.Cmd) (string, error) {
 				if cmd.Stdin != "" {
 					args := strings.Split(cmd.Args[1], " ")
 					if len(args) == 4 && args[0] == "cat" && args[1] == ">" && args[3] == "/dev/stdin" {
-						// Escape special chars so that they will be preserved in the shell
-						contents := strconv.Quote(cmd.Stdin)
-						contents = strings.ReplaceAll(contents, `$`, `\$`)
-						return fmt.Sprintf("echo %s > %s", contents, args[2]), nil
+						// Base64-encode contents so that the shell doesn't eat special characters
+						encoded := base64.StdEncoding.EncodeToString([]byte(cmd.Stdin))
+						command := fmt.Sprintf("echo %s | base64 -d > %s", encoded, args[2])
+						return command, nil
 					}
 				} else {
 					return cmd.Args[1], nil
