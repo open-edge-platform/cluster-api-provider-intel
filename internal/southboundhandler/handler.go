@@ -404,7 +404,7 @@ func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (str
 		shellcommands[i] = shellcommand
 	}
 	script := strings.Join(shellcommands, "; ")
-	script = fmt.Sprintf("sudo sh -c '%s'", script)
+	script = fmt.Sprintf("sudo sh -c \"%s\"", script)
 
 	return script, nil
 }
