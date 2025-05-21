@@ -438,10 +438,9 @@ func getCommand(cmd cloudinit.Cmd) (string, error) {
 				if cmd.Stdin != "" {
 					args := strings.Split(cmd.Args[1], " ")
 					if len(args) == 4 && args[0] == "cat" && args[1] == ">" && args[3] == "/dev/stdin" {
-						// contents := strings.ReplaceAll(cmd.Stdin, `"`, `\"`)
-						// contents = strings.ReplaceAll(contents, `'`, `\'`)
-						// contents = strings.ReplaceAll(contents, `$`, `\$`)
+						// Escape special chars so that they will be preserved in the shell
 						contents := strconv.Quote(cmd.Stdin)
+						contents = strings.ReplaceAll(contents, `$`, `\$`)
 						return fmt.Sprintf("echo %s > %s", contents, args[2]), nil
 					}
 				} else {
