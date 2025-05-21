@@ -31,7 +31,19 @@ import (
 )
 
 const (
+	// Rate Limiter constants
+	rateLimiterQPS   = "RATE_LIMITER_QPS"
+	rateLimiterBurst = "RATE_LIMITER_BURST"
+	defaultQPS       = 30
+	defaultBurst     = 100
+
+	// Label constants
 	maxLabelValLen = 63
+
+	// Known config types
+	configTypeKubeadm = "KubeadmConfig"
+	configTypeKThrees = "KThreesConfig"
+	configTypeRKE2    = "RKE2Config"
 )
 
 var (
@@ -40,13 +52,6 @@ var (
 	MachineResourceSchema      = schema.GroupVersionResource{Group: clusterv1.GroupVersion.Group, Version: clusterv1.GroupVersion.Version, Resource: "machines"}
 	alphaNum                   = regexp.MustCompile(`^[a-zA-Z0-9]*$`).MatchString
 	labelVal                   = regexp.MustCompile(`^[a-zA-Z0-9]+[a-zA-Z0-9-_.]*[a-zA-Z0-9]+$`).MatchString
-)
-
-const (
-	rateLimiterQPS   = "RATE_LIMITER_QPS"
-	rateLimiterBurst = "RATE_LIMITER_BURST"
-	defaultQPS       = 30
-	defaultBurst     = 100
 )
 
 // validLabelVal checks if the string argument is a valid k8s label value
@@ -369,14 +374,14 @@ func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (str
 	if err != nil {
 		return "", err
 	}
-	switch {
-	case kind == "KubeadmConfig":
+	switch kind {
+	case configTypeKubeadm:
 		// Add providerID to Kubeadm node
-	case kind == "KThreesConfig":
+	case configTypeKThrees:
 		dir := "/etc/rancher/k3s/config.yaml.d/"
 		newcmds := providerIDCommands(dir, providerID)
 		commands = append(newcmds, commands...)
-	case kind == "RKE2Config":
+	case configTypeRKE2:
 		dir := "/etc/rancher/rke2/config.yaml.d/"
 		newcmds := providerIDCommands(dir, providerID)
 		commands = append(newcmds, commands...)
@@ -403,12 +408,12 @@ func getUninstall(kind string) (string, error) {
 	uninstall := ""
 	var err error = nil
 
-	switch {
-	case kind == "KubeadmConfig":
+	switch kind {
+	case configTypeKubeadm:
 		uninstall = "sudo /usr/local/bin/kubeadm-uninstall.sh"
-	case kind == "KThreesConfig":
+	case configTypeKThrees:
 		uninstall = "sudo /usr/local/bin/k3s-uninstall.sh"
-	case kind == "RKE2Config":
+	case configTypeRKE2:
 		uninstall = "if [ -f /usr/local/bin/rke2-uninstall.sh ]; then sudo /usr/local/bin/rke2-uninstall.sh; else sudo /opt/rke2/bin/rke2-uninstall.sh; fi"
 	default:
 		err = fmt.Errorf("unknown bootstrap provider: %s", kind)
@@ -419,10 +424,10 @@ func getUninstall(kind string) (string, error) {
 // Convert a cloudinit.Cmd to a runnable shell command.
 // This is bare-bones at present but seems adequate for the RKE2 Bootstrap script.
 func getCommand(cmd cloudinit.Cmd) (string, error) {
-	switch {
-	case cmd.Cmd == "mkdir" || cmd.Cmd == "chmod":
+	switch cmd.Cmd {
+	case "mkdir", "chmod":
 		return fmt.Sprintf("%s %s", cmd.Cmd, strings.Join(cmd.Args, " ")), nil
-	case cmd.Cmd == "/bin/sh":
+	case "/bin/sh":
 		if len(cmd.Args) == 2 {
 			if cmd.Args[0] == "-c" {
 				if cmd.Stdin != "" {

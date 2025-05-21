@@ -260,7 +260,7 @@ helm-clean: ## Clean helm chart build annotations.
 .PHONY: helm-test
 helm-test: ## Template the charts.
 	for d in $(HELM_DIRS); do \
-		helm template intel $$d; \
+		helm template intel $$d > /dev/null; \
 	done
 
 .PHONY: helm-build
