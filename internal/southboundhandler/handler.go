@@ -429,7 +429,7 @@ func getUninstall(kind string) (string, error) {
 }
 
 func encodeContents(path, contents string) string {
-	// For backward compatibility, remove extra escape characters in the
+	// For backwards compatibility, remove extra escape characters in the
 	// file contents that were added before switching to base64 encoding.
 	// E.g., /var/lib/rancher/rke2/agent/etc/containerd/config.toml.tmpl
 	_, file := filepath.Split(path)

@@ -748,3 +748,18 @@ func Test_K3SExtractBootstrapScript(t *testing.T) {
 	// Save the result to a file for further inspection / testing
 	assert.NoError(t, os.WriteFile("/tmp/k3sbootstrap.sh", []byte(bs), 0644))
 }
+
+func Test_EncodeContents(t *testing.T) {
+	// Test with a simple string
+	input := "Hello, World!"
+	expectedOutput := "SGVsbG8sIFdvcmxkIQ=="
+	output := encodeContents("/tmp/test.txt", input)
+	assert.Equal(t, expectedOutput, output)
+
+	// Extra escapes should be removed from config.toml.tmpl files as part of the encoding process.
+	// Verify that \" in the string is replaced with ".
+	input = "Hello, \\\"World!\\\""
+	expectedOutput = "SGVsbG8sICJXb3JsZCEi" // Hello, "World!"
+	output = encodeContents("/tmp/config.toml.tmpl", input)
+	assert.Equal(t, expectedOutput, output)
+}
