@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -427,6 +428,18 @@ func getUninstall(kind string) (string, error) {
 	return uninstall, err
 }
 
+func encodeContents(path, contents string) string {
+	// For backward compatibility, remove extra escape characters in the
+	// file contents that were added before switching to base64 encoding.
+	// E.g., /var/lib/rancher/rke2/agent/etc/containerd/config.toml.tmpl
+	_, file := filepath.Split(path)
+	if file == "config.toml.tmpl" {
+		contents = strings.ReplaceAll(contents, "\\\"", "\"")
+	}
+
+	return base64.StdEncoding.EncodeToString([]byte(contents))
+}
+
 // Convert a cloudinit.Cmd to a runnable shell command.
 // This is bare-bones at present but seems adequate for the RKE2 Bootstrap script.
 func getCommand(cmd cloudinit.Cmd) (string, error) {
@@ -439,9 +452,10 @@ func getCommand(cmd cloudinit.Cmd) (string, error) {
 				if cmd.Stdin != "" {
 					args := strings.Split(cmd.Args[1], " ")
 					if len(args) == 4 && args[0] == "cat" && args[1] == ">" && args[3] == "/dev/stdin" {
-						// Base64-encode contents so that the shell doesn't eat special characters
-						encoded := base64.StdEncoding.EncodeToString([]byte(cmd.Stdin))
-						command := fmt.Sprintf("echo %s | base64 -d > %s", encoded, args[2])
+						contents := cmd.Stdin
+						path := args[2]
+						encoded := encodeContents(path, contents)
+						command := fmt.Sprintf("echo %s | base64 -d > %s", encoded, path)
 						return command, nil
 					}
 				} else {

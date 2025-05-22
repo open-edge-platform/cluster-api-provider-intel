@@ -703,13 +703,13 @@ func TestHandler_GetCommand(t *testing.T) {
 			expectedCommand: "curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.30.6+rke2r1 sh -s - server",
 		},
 		{
-			name: "Test file write command -- convert from cat to echo",
+			name: "Test file write command -- convert from cat to echo of base64-encoded string",
 			inputCommand: cloudinit.Cmd{
 				Cmd:   "/bin/sh",
 				Args:  []string{"-c", "cat > /etc/test/test.yaml /dev/stdin"},
 				Stdin: "file contents",
 			},
-			expectedCommand: "echo 'file contents' > /etc/test/test.yaml",
+			expectedCommand: "echo ZmlsZSBjb250ZW50cw== | base64 -d > /etc/test/test.yaml",
 		},
 	}
 
