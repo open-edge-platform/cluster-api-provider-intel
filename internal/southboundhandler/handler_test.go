@@ -762,4 +762,10 @@ func Test_EncodeContents(t *testing.T) {
 	expectedOutput = "SGVsbG8sICJXb3JsZCEi" // Hello, "World!"
 	output = encodeContents("/tmp/config.toml.tmpl", input)
 	assert.Equal(t, expectedOutput, output)
+
+	// config.toml.tmpl without extra escapes should be unchanged.
+	input = "Hello, \"World!\""
+	expectedOutput = "SGVsbG8sICJXb3JsZCEi" // Hello, "World!"
+	output = encodeContents("/tmp/config.toml.tmpl", input)
+	assert.Equal(t, expectedOutput, output)
 }
