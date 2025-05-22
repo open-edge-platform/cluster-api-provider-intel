@@ -31,7 +31,26 @@ import (
 )
 
 const (
+	// Rate Limiter constants
+	rateLimiterQPS   = "RATE_LIMITER_QPS"
+	rateLimiterBurst = "RATE_LIMITER_BURST"
+	defaultQPS       = 30
+	defaultBurst     = 100
+
+	// Label constants
 	maxLabelValLen = 63
+
+	// Known config types
+	configTypeKubeadm = "KubeadmConfig"
+	configTypeKThrees = "KThreesConfig"
+	configTypeRKE2    = "RKE2Config"
+
+	// Configuration paths
+	configDirRKE2 = "/etc/rancher/rke2/config.yaml.d/"
+	configDirK3S  = "/etc/rancher/k3s/config.yaml.d/"
+
+	// Secret formats
+	cloudConfigFormat = "cloud-config"
 )
 
 var (
@@ -40,13 +59,6 @@ var (
 	MachineResourceSchema      = schema.GroupVersionResource{Group: clusterv1.GroupVersion.Group, Version: clusterv1.GroupVersion.Version, Resource: "machines"}
 	alphaNum                   = regexp.MustCompile(`^[a-zA-Z0-9]*$`).MatchString
 	labelVal                   = regexp.MustCompile(`^[a-zA-Z0-9]+[a-zA-Z0-9-_.]*[a-zA-Z0-9]+$`).MatchString
-)
-
-const (
-	rateLimiterQPS   = "RATE_LIMITER_QPS"
-	rateLimiterBurst = "RATE_LIMITER_BURST"
-	defaultQPS       = 30
-	defaultBurst     = 100
 )
 
 // validLabelVal checks if the string argument is a valid k8s label value
@@ -335,13 +347,28 @@ func getMachineOwnerName(intelmachine *infrastructurev1alpha1.IntelMachine) (str
 	return "", errors.New("machine not found")
 }
 
+func providerIDCommands(configDir, providerID string) []cloudinit.Cmd {
+	filename := configDir + "providerID.yaml"
+	return []cloudinit.Cmd{
+		{
+			Cmd:  "mkdir",
+			Args: []string{"-p", configDir},
+		},
+		{
+			Cmd:   "/bin/sh",
+			Args:  []string{"-c", fmt.Sprintf("cat > %s /dev/stdin", filename)},
+			Stdin: fmt.Sprintf(`kubelet-arg+: [\"--provider-id=%s\"]`, providerID),
+		},
+		{
+			Cmd:  "chmod",
+			Args: []string{"0640", filename},
+		},
+	}
+}
+
 func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (string, error) {
 	format, ok := secret.Data["format"]
-	if !ok {
-		return "", errors.New("missing format in bootstrap secret")
-	}
-
-	if string(format) != "cloud-config" {
+	if ok && string(format) != cloudConfigFormat {
 		return "", errors.New("unsupported bootstrap script format: " + string(format))
 	}
 
@@ -354,27 +381,14 @@ func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (str
 	if err != nil {
 		return "", err
 	}
-	switch {
-	case kind == "KubeadmConfig":
+	switch kind {
+	case configTypeKubeadm:
 		// Add providerID to Kubeadm node
-	case kind == "RKE2Config":
-		dir := "/etc/rancher/rke2/config.yaml.d/"
-		filename := dir + "providerID.yaml"
-		newcmds := []cloudinit.Cmd{
-			{
-				Cmd:  "mkdir",
-				Args: []string{"-p", dir},
-			},
-			{
-				Cmd:   "/bin/sh",
-				Args:  []string{"-c", fmt.Sprintf("cat > %s /dev/stdin", filename)},
-				Stdin: fmt.Sprintf(`kubelet-arg+: [\"--provider-id=%s\"]`, providerID),
-			},
-			{
-				Cmd:  "chmod",
-				Args: []string{"0640", filename},
-			},
-		}
+	case configTypeKThrees:
+		newcmds := providerIDCommands(configDirK3S, providerID)
+		commands = append(newcmds, commands...)
+	case configTypeRKE2:
+		newcmds := providerIDCommands(configDirRKE2, providerID)
 		commands = append(newcmds, commands...)
 	default:
 		return "", fmt.Errorf("unsupported bootstrap provider: %s", kind)
@@ -398,11 +412,15 @@ func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (str
 func getUninstall(kind string) (string, error) {
 	uninstall := ""
 	var err error = nil
-	if kind == "KubeadmConfig" {
+
+	switch kind {
+	case configTypeKubeadm:
 		uninstall = "sudo /usr/local/bin/kubeadm-uninstall.sh"
-	} else if kind == "RKE2Config" {
+	case configTypeKThrees:
+		uninstall = "sudo /usr/local/bin/k3s-uninstall.sh"
+	case configTypeRKE2:
 		uninstall = "if [ -f /usr/local/bin/rke2-uninstall.sh ]; then sudo /usr/local/bin/rke2-uninstall.sh; else sudo /opt/rke2/bin/rke2-uninstall.sh; fi"
-	} else {
+	default:
 		err = fmt.Errorf("unknown bootstrap provider: %s", kind)
 	}
 	return uninstall, err
@@ -411,10 +429,10 @@ func getUninstall(kind string) (string, error) {
 // Convert a cloudinit.Cmd to a runnable shell command.
 // This is bare-bones at present but seems adequate for the RKE2 Bootstrap script.
 func getCommand(cmd cloudinit.Cmd) (string, error) {
-	switch {
-	case cmd.Cmd == "mkdir" || cmd.Cmd == "chmod":
+	switch cmd.Cmd {
+	case "mkdir", "chmod":
 		return fmt.Sprintf("%s %s", cmd.Cmd, strings.Join(cmd.Args, " ")), nil
-	case cmd.Cmd == "/bin/sh":
+	case "/bin/sh":
 		if len(cmd.Args) == 2 {
 			if cmd.Args[0] == "-c" {
 				if cmd.Stdin != "" {
