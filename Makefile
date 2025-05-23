@@ -20,6 +20,11 @@ ifeq ($(findstring -dev,$(VERSION)), -dev)
     VERSION := $(VERSION)-$(VERSION_DEV_SUFFIX)
 endif
 
+# Add VERSION_SUFFIX as suffix if specified and not empty
+ifneq ($(strip $(VERSION_SUFFIX)),)
+	VERSION := $(VERSION)$(VERSION_SUFFIX)
+endif
+
 HELM_VERSION ?= ${VERSION}
 
 REGISTRY         ?= 080137407410.dkr.ecr.us-west-2.amazonaws.com
@@ -260,7 +265,7 @@ helm-clean: ## Clean helm chart build annotations.
 .PHONY: helm-test
 helm-test: ## Template the charts.
 	for d in $(HELM_DIRS); do \
-		helm template intel $$d; \
+		helm template intel $$d > /dev/null; \
 	done
 
 .PHONY: helm-build

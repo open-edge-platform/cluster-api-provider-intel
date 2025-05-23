@@ -29,10 +29,10 @@ const (
 	machineName      = "test-machine"
 	clusterName      = "test-cluster"
 	secretName       = "test-secret"
-	secretFormat     = "cloud-config"
+	secretFormat     = cloudConfigFormat
 	nodeGUID         = "test-nodeGUID"
 	ownerRefKind     = "Machine"
-	bootstrapKind    = "RKE2Config"
+	bootstrapKind    = configTypeRKE2
 )
 
 var (
@@ -186,6 +186,9 @@ func TestHandler_Register(t *testing.T) {
 			secretValueEn: true,
 			err:           true,
 		}, {
+			// This is a special case where the secret format is not specified
+			// and the secret value is not empty. The handler should assume
+			// that the secret format is cloud-config.
 			name:          "No Secret Format",
 			nodeGUID:      nodeGUID,
 			nodeGUIDLabel: nodeGUID,
@@ -196,9 +199,9 @@ func TestHandler_Register(t *testing.T) {
 			secretName:    secretName,
 			secretFormat:  "",
 			secretValueEn: true,
-			err:           true,
+			err:           false,
 		}, {
-			name:          "No Secret Format",
+			name:          "Unknown Secret Format",
 			nodeGUID:      nodeGUID,
 			nodeGUIDLabel: nodeGUID,
 			providerID:    &providerID,
@@ -255,7 +258,7 @@ func TestHandler_Register(t *testing.T) {
 			intelmachine.OwnerReferences[0].Kind = tc.ownerRefKind
 
 			// Create Secret
-			secret := utils.NewBootstrapSecret(tc.namespace, secretName)
+			secret := utils.NewRKE2BootstrapSecret(tc.namespace, secretName)
 			if tc.secretFormat == "" {
 				delete(secret.Data, "format")
 			} else {
@@ -321,7 +324,7 @@ func FuzzHandlerRegister(f *testing.F) {
 		intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
 
 		// Create Secret
-		secret := utils.NewBootstrapSecret(projectId, secretName)
+		secret := utils.NewRKE2BootstrapSecret(projectId, secretName)
 
 		testHandler := &Handler{
 			client: k8sClient,
@@ -668,7 +671,7 @@ func FuzzHandlerUpdateStatus(f *testing.F) {
 }
 
 // Currently this function just tests that the commands observed when parsing the
-// RKE2 Bootstrap cloud-init script are translated correctly to bash.
+// RKE2 / K3S Bootstrap cloud-init script are translated correctly to bash.
 func TestHandler_GetCommand(t *testing.T) {
 	cases := []struct {
 		name            string
@@ -720,15 +723,28 @@ func TestHandler_GetCommand(t *testing.T) {
 
 }
 
-func Test_ExtractBootstrapScript(t *testing.T) {
+func Test_RKE2ExtractBootstrapScript(t *testing.T) {
 	projectId := "00000000-0000-0000-0000-00000000600"
 	// Create Secret
-	secret := utils.NewBootstrapSecret(projectId, secretName)
+	secret := utils.NewRKE2BootstrapSecret(projectId, secretName)
 
-	bs, err := extractBootstrapScript(secret, "RKE2Config", "test-provider-id")
+	bs, err := extractBootstrapScript(secret, configTypeRKE2, "test-provider-id")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, bs)
 
 	// Save the result to a file for further inspection / testing
-	assert.NoError(t, os.WriteFile("/tmp/bootstrap.sh", []byte(bs), 0644))
+	assert.NoError(t, os.WriteFile("/tmp/rke2bootstrap.sh", []byte(bs), 0644))
+}
+
+func Test_K3SExtractBootstrapScript(t *testing.T) {
+	projectId := "00000000-0000-0000-0000-00000000700"
+	// Create Secret
+	secret := utils.NewK3SBootstrapSecret(projectId, secretName)
+
+	bs, err := extractBootstrapScript(secret, configTypeKThrees, "test-provider-id")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, bs)
+
+	// Save the result to a file for further inspection / testing
+	assert.NoError(t, os.WriteFile("/tmp/k3sbootstrap.sh", []byte(bs), 0644))
 }
