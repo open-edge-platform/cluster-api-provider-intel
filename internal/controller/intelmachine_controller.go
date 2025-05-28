@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -18,6 +19,7 @@ import (
 	"github.com/go-logr/logr"
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
 	inventory "github.com/open-edge-platform/cluster-api-provider-intel/pkg/inventory"
+	ccgv1 "github.com/open-edge-platform/cluster-connect-gateway/api/v1alpha1"
 	"github.com/pkg/errors"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
@@ -328,6 +330,37 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
 	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
 
+	clusterConnect := &ccgv1.ClusterConnect{}
+	if err := r.Client.Get(rc.ctx, client.ObjectKey{
+		Name:      fmt.Sprintf("%s-%s", rc.intelCluster.Namespace, rc.intelCluster.Name),
+		Namespace: rc.intelCluster.Namespace,
+	}, clusterConnect); err != nil {
+		if !apierrors.IsNotFound(err) {
+			rc.log.Info("failed to read cluster connection resource")
+			return true
+		}
+	}
+
+	// get the connection probe condition from the clusterconnect resource
+	connectionProbeCondition := metav1.Condition{}
+	ccConditions := clusterConnect.GetConditions()
+	if ccConditions != nil {
+		for _, condition := range ccConditions {
+			if condition.Type == ccgv1.ConnectionProbeCondition {
+				connectionProbeCondition = condition
+			}
+		}
+	}
+
+	if connectionProbeCondition.Status != ccgv1.ConnectionProbeSucceededReason {
+		rc.log.Info("connection probe condition not met in clusterconnect resource")
+		conditions.MarkFalse(rc.intelCluster, infrastructurev1alpha1.ConnectionAliveCondition, infrastructurev1alpha1.ConnectionNotAliveReason, clusterv1.ConditionSeverityError, "No connection to cluster, waiting for connection probe condition to be true")
+		return true
+	}
+
+	rc.log.Info("connection probe condition met in clusterconnect resource")
+	conditions.MarkTrue(rc.intelCluster, infrastructurev1alpha1.ConnectionAliveCondition)
+
 	return false
 }
 
@@ -438,6 +471,7 @@ func patchIntelMachine(ctx context.Context, patchHelper *patch.Helper, intelMach
 		conditions.WithConditions(
 			infrastructurev1alpha1.HostProvisionedCondition,
 			infrastructurev1alpha1.BootstrapExecSucceededCondition,
+			infrastructurev1alpha1.ConnectionAliveCondition,
 		),
 		conditions.WithStepCounterIf(intelMachine.ObjectMeta.DeletionTimestamp.IsZero() && intelMachine.Spec.ProviderID == nil),
 	)
@@ -450,6 +484,7 @@ func patchIntelMachine(ctx context.Context, patchHelper *patch.Helper, intelMach
 			clusterv1.ReadyCondition,
 			infrastructurev1alpha1.HostProvisionedCondition,
 			infrastructurev1alpha1.BootstrapExecSucceededCondition,
+			infrastructurev1alpha1.ConnectionAliveCondition,
 		}},
 	)
 }
