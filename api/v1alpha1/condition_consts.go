@@ -58,6 +58,13 @@ const (
 )
 
 const (
+	// ConnectionAliveCondition reports on whether the connection to the IntelCluster is alive.
+	ConnectionAliveCondition clusterv1.ConditionType = "ConnectionAlive"
+	// ConnectionNotAliveReason (Severity=Error) refers to a IntelCluster which is not alive and the connection to it is unhealthy.
+	ConnectionNotAliveReason = "NoConnectionToCluster"
+)
+
+const (
 	// ControlPlaneEndpointReadyCondition reports on whether a control plane endpoint was successfully reconciled
 	ControlPlaneEndpointReadyCondition clusterv1.ConditionType = "ControlPlaneEnpointReady"
 	// WaitingForControlPlaneEndpointReason (Severity=Warn) refers to a IntelCluster which is waiting for the control

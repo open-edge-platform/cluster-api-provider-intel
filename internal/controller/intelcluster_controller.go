@@ -200,6 +200,42 @@ func (r *IntelClusterReconciler) reconcileControlPlaneEndpoint(scope *scope.Clus
 	return true
 }
 
+func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.ClusterReconcileScope) bool {
+	intelCluster := scope.IntelCluster
+	clusterConnect := &ccgv1.ClusterConnect{}
+	if err := r.Client.Get(scope.Ctx, client.ObjectKey{
+		Name:      fmt.Sprintf("%s-%s", scope.IntelCluster.Namespace, scope.IntelCluster.Name),
+		Namespace: scope.IntelCluster.Namespace,
+	}, clusterConnect); err != nil {
+		if !apierrors.IsNotFound(err) {
+			scope.Log.Info("failed to read cluster connection resource")
+			return true
+		}
+	}
+
+	// get the connection probe condition from the clusterconnect resource
+	connectionProbeCondition := metav1.Condition{}
+	ccConditions := clusterConnect.GetConditions()
+	if ccConditions != nil {
+		for _, condition := range ccConditions {
+			if condition.Type == ccgv1.ConnectionProbeCondition {
+				connectionProbeCondition = condition
+			}
+		}
+	}
+
+	if connectionProbeCondition.Status != ccgv1.ConnectionProbeSucceededReason {
+		scope.Log.Info("connection probe condition not met in clusterconnect resource")
+		conditions.MarkFalse(intelCluster, infrav1.ConnectionAliveCondition, infrav1.ConnectionNotAliveReason, clusterv1.ConditionSeverityError, "No connection to cluster, waiting for connection probe condition to be true")
+		return true
+	}
+
+	scope.Log.Info("connection probe condition met in clusterconnect resource")
+	conditions.MarkTrue(intelCluster, infrav1.ConnectionAliveCondition)
+
+	return false
+}
+
 func (r *IntelClusterReconciler) reconcileNormal(clusterScope *scope.ClusterReconcileScope) reconcile.Result {
 	clusterScope.Log.Info("running intelcluster reconciliation normal")
 
@@ -208,6 +244,10 @@ func (r *IntelClusterReconciler) reconcileNormal(clusterScope *scope.ClusterReco
 	}
 
 	if shouldRequeue := r.reconcileWorkloadCreate(clusterScope); shouldRequeue {
+		return reconcile.Result{RequeueAfter: requeueAfter}
+	}
+
+	if shouldRequeue := r.reconcileClusterConnectConnection(clusterScope); shouldRequeue {
 		return reconcile.Result{RequeueAfter: requeueAfter}
 	}
 

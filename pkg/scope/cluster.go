@@ -120,6 +120,7 @@ func (s *ClusterReconcileScope) Close() error {
 		conditions.WithConditions(
 			infrav1.ControlPlaneEndpointReadyCondition,
 			infrav1.WorkloadCreatedReadyCondition,
+			infrav1.ConnectionAliveCondition,
 		),
 		conditions.WithStepCounterIf(s.IntelCluster.ObjectMeta.DeletionTimestamp.IsZero()),
 	)
@@ -134,6 +135,7 @@ func (s *ClusterReconcileScope) Close() error {
 			clusterv1.ReadyCondition,
 			infrav1.ControlPlaneEndpointReadyCondition,
 			infrav1.WorkloadCreatedReadyCondition,
+			infrav1.ConnectionAliveCondition,
 		}},
 	)
 }
