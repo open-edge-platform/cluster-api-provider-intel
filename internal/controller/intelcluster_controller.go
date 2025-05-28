@@ -202,6 +202,11 @@ func (r *IntelClusterReconciler) reconcileControlPlaneEndpoint(scope *scope.Clus
 
 func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.ClusterReconcileScope) bool {
 	intelCluster := scope.IntelCluster
+
+	if !scope.Cluster.Status.ControlPlaneReady {
+		return false
+	}
+
 	clusterConnect := &ccgv1.ClusterConnect{}
 	if err := r.Client.Get(scope.Ctx, client.ObjectKey{
 		Name:      fmt.Sprintf("%s-%s", scope.IntelCluster.Namespace, scope.IntelCluster.Name),
