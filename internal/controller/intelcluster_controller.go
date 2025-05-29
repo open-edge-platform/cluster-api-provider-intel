@@ -202,6 +202,7 @@ func (r *IntelClusterReconciler) reconcileControlPlaneEndpoint(scope *scope.Clus
 
 func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.ClusterReconcileScope) bool {
 	intelCluster := scope.IntelCluster
+	conditions.MarkTrue(intelCluster, infrav1.ConnectionAliveCondition)
 
 	if !scope.Cluster.Status.ControlPlaneReady {
 		return false
@@ -236,7 +237,6 @@ func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.
 	}
 
 	scope.Log.Info("connection probe condition met in clusterconnect resource")
-	conditions.MarkTrue(intelCluster, infrav1.ConnectionAliveCondition)
 
 	return false
 }
