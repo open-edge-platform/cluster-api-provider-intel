@@ -279,13 +279,11 @@ func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.
 		}
 	}
 
-	if connectionProbeCondition.Status != ccgv1.ConnectionProbeSucceededReason {
+	if connectionProbeCondition.Status != metav1.ConditionTrue {
 		scope.Log.Info("connection probe condition not met in clusterconnect resource")
 		conditions.MarkFalse(intelCluster, infrav1.ConnectionAliveCondition, infrav1.ConnectionNotAliveReason, clusterv1.ConditionSeverityError, "No connection to cluster, waiting for connection probe condition to be true")
 		return true
 	}
-
-	scope.Log.Info("connection probe condition met in clusterconnect resource")
 
 	return false
 }
