@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -157,20 +156,17 @@ func (r *IntelClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				func(ctx context.Context, obj client.Object) []reconcile.Request {
 					clusterConnect := obj.(*ccgv1.ClusterConnect)
 
-					// Map ClusterConnect to IntelCluster using ClusterConnect name
-					// <intelcluster-namespace>-<intelcluster-name>
-					clusterConnectName := clusterConnect.GetName()
+					// Map ClusterConnect to IntelCluster using ClusterConnect's Name
+					// The ClusterConnect name is in the format "<namespace>-<name>"
 					log := ctrl.LoggerFrom(ctx)
 					log.Info("Analyzing ClusterConnect object", "ClusterConnect", clusterConnect)
-					parts := strings.Split(clusterConnectName, "-")
-					if len(parts) != 2 {
-						return nil
-					}
-
+					name := clusterConnect.GetName()[37:]
+					namespace := clusterConnect.GetName()[:36]
+					log.Info("Trigger reconcile for ClusterConnect", "name", name, "namespace", namespace)
 					return []reconcile.Request{{
 						NamespacedName: types.NamespacedName{
-							Name:      parts[1],
-							Namespace: parts[0],
+							Name:      name,
+							Namespace: namespace,
 						},
 					}}
 				},
