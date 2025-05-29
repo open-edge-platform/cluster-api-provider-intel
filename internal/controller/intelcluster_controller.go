@@ -7,17 +7,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/paused"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	infrav1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
@@ -122,6 +125,26 @@ func (r *IntelClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&infrav1.IntelCluster{}).
 		Named("intelcluster").
 		Owns(&ccgv1.ClusterConnect{}).
+		Watches(&ccgv1.ClusterConnect{}, handler.EnqueueRequestsFromMapFunc(
+			func(ctx context.Context, obj client.Object) []reconcile.Request {
+				clusterConnect := obj.(*ccgv1.ClusterConnect)
+
+				// Map ClusterConnect to IntelCluster using ClusterConnect name
+				// <intelcluster-namespace>-<intelcluster-name>
+				clusterConnectName := clusterConnect.GetName()
+				parts := strings.Split(clusterConnectName, "-")
+				if len(parts) != 2 {
+					return nil
+				}
+
+				return []reconcile.Request{{
+					NamespacedName: types.NamespacedName{
+						Name:      parts[1],
+						Namespace: parts[0],
+					},
+				}}
+			},
+		)).
 		Complete(r)
 }
 
