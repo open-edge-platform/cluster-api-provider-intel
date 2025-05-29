@@ -18,9 +18,12 @@ import (
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/paused"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	infrav1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
@@ -121,30 +124,58 @@ func (r *IntelClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *IntelClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Predicate to trigger reconciliation only on size changes in the Busybox spec
+	updatePred := predicate.Funcs{
+		// Only allow updates when the spec.size of the Busybox resource changes
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldObj := e.ObjectOld.(*ccgv1.ClusterConnect)
+			newObj := e.ObjectNew.(*ccgv1.ClusterConnect)
+
+			// Trigger reconciliation only if the ClusterConnect Ready status has changed
+			return newObj.Status.Ready != oldObj.Status.Ready
+		},
+
+		// TODO: check if we need create/delete/generic events for ClusterConnect
+		// Allow create events
+		CreateFunc: func(e event.CreateEvent) bool {
+			return true
+		},
+
+		// Allow delete events
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return true
+		},
+
+		// Allow generic events (e.g., external triggers)
+		GenericFunc: func(e event.GenericEvent) bool {
+			return true
+		},
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infrav1.IntelCluster{}).
 		Named("intelcluster").
 		Owns(&ccgv1.ClusterConnect{}).
-		Watches(&ccgv1.ClusterConnect{}, handler.EnqueueRequestsFromMapFunc(
-			func(ctx context.Context, obj client.Object) []reconcile.Request {
-				clusterConnect := obj.(*ccgv1.ClusterConnect)
+		Watches(&ccgv1.ClusterConnect{},
+			handler.EnqueueRequestsFromMapFunc(
+				func(ctx context.Context, obj client.Object) []reconcile.Request {
+					clusterConnect := obj.(*ccgv1.ClusterConnect)
 
-				// Map ClusterConnect to IntelCluster using ClusterConnect name
-				// <intelcluster-namespace>-<intelcluster-name>
-				clusterConnectName := clusterConnect.GetName()
-				parts := strings.Split(clusterConnectName, "-")
-				if len(parts) != 2 {
-					return nil
-				}
+					// Map ClusterConnect to IntelCluster using ClusterConnect name
+					// <intelcluster-namespace>-<intelcluster-name>
+					clusterConnectName := clusterConnect.GetName()
+					parts := strings.Split(clusterConnectName, "-")
+					if len(parts) != 2 {
+						return nil
+					}
 
-				return []reconcile.Request{{
-					NamespacedName: types.NamespacedName{
-						Name:      parts[1],
-						Namespace: parts[0],
-					},
-				}}
-			},
-		)).
+					return []reconcile.Request{{
+						NamespacedName: types.NamespacedName{
+							Name:      parts[1],
+							Namespace: parts[0],
+						},
+					}}
+				},
+			), builder.WithPredicates(updatePred)).
 		Complete(r)
 }
 
