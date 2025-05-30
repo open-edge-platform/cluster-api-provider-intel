@@ -157,7 +157,6 @@ func (r *IntelClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					// get the IntelCluster name from the ClusterConnect name by trimming the namespace prefix
 					name := strings.TrimPrefix(clusterConnect.GetName(), namespace+"-")
 
-					log.Info("Trigger reconcile for IntelCluster", "name", name, "namespace", namespace)
 					return []reconcile.Request{{
 						NamespacedName: types.NamespacedName{
 							Name:      name,
@@ -275,7 +274,8 @@ func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.
 	if connectionProbeCondition.Status != metav1.ConditionTrue {
 		scope.Log.Info("connection probe condition not met in clusterconnect resource")
 		conditions.MarkFalse(intelCluster, infrav1.ConnectionAliveCondition, infrav1.ConnectionNotAliveReason, clusterv1.ConditionSeverityError, "No connection to cluster, waiting for connection probe condition to be true")
-		// do not requeue here, as the clusterconnect controller will update the condition when the connection is alive
+		// do not requeue here, as the clusterconnect object status update event
+		// will cause intelCluster reconcile and update the condition when the connection is alive
 		return false
 	}
 
