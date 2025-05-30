@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -143,17 +144,20 @@ func (r *IntelClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(
 				func(ctx context.Context, obj client.Object) []reconcile.Request {
 					clusterConnect := obj.(*ccgv1.ClusterConnect)
-
-					// Map ClusterConnect to IntelCluster using ClusterConnect's ClusterRef
 					log := ctrl.LoggerFrom(ctx)
-					log.Info("Analyzing ClusterConnect object", "ClusterConnect", clusterConnect)
-					if clusterConnect.Spec.ClusterRef == nil || clusterConnect.Spec.ClusterRef.Name == "" || clusterConnect.Spec.ClusterRef.Namespace == "" {
+
+					// Map ClusterConnect to IntelCluster
+					// get namespace from clusterRef
+					if clusterConnect.Spec.ClusterRef == nil || clusterConnect.Spec.ClusterRef.Namespace == "" {
 						log.Info("ClusterRef is empty or invalid in ClusterConnect resource", "ClusterConnect", clusterConnect.Name)
 						return nil
 					}
-					name := clusterConnect.Spec.ClusterRef.Name
 					namespace := clusterConnect.Spec.ClusterRef.Namespace
-					log.Info("Trigger reconcile for ClusterConnect", "name", name, "namespace", namespace)
+
+					// get the IntelCluster name from the ClusterConnect name by trimming the namespace prefix
+					name := strings.TrimPrefix(clusterConnect.GetName(), namespace+"-")
+
+					log.Info("Trigger reconcile for IntelCluster", "name", name, "namespace", namespace)
 					return []reconcile.Request{{
 						NamespacedName: types.NamespacedName{
 							Name:      name,
