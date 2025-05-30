@@ -7,17 +7,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/paused"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	infrav1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
@@ -36,6 +42,18 @@ var (
 	ErrInvalidControlPlaneEndpointHost = errors.New("invalid host in controlplane endpoint")
 	ErrInvalidControlPlaneEndpointPort = errors.New("invalid port in controlplane endpoint")
 	ErrInvalidProviderId               = errors.New("invalid provider id")
+	// Predicate to trigger reconciliation only on status.Ready changes in the ClusterConnect resource
+	ccUpdatePred = predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldObj := e.ObjectOld.(*ccgv1.ClusterConnect)
+			newObj := e.ObjectNew.(*ccgv1.ClusterConnect)
+
+			return newObj.Status.Ready != oldObj.Status.Ready
+		},
+		CreateFunc:  func(e event.CreateEvent) bool { return false },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
+		GenericFunc: func(e event.GenericEvent) bool { return false },
+	}
 )
 
 // IntelClusterReconciler reconciles a IntelCluster object
@@ -122,6 +140,31 @@ func (r *IntelClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&infrav1.IntelCluster{}).
 		Named("intelcluster").
 		Owns(&ccgv1.ClusterConnect{}).
+		Watches(&ccgv1.ClusterConnect{},
+			handler.EnqueueRequestsFromMapFunc(
+				func(ctx context.Context, obj client.Object) []reconcile.Request {
+					clusterConnect := obj.(*ccgv1.ClusterConnect)
+					log := ctrl.LoggerFrom(ctx)
+
+					// Map ClusterConnect to IntelCluster
+					// get namespace from clusterRef
+					if clusterConnect.Spec.ClusterRef == nil || clusterConnect.Spec.ClusterRef.Namespace == "" {
+						log.Info("ClusterRef is empty or invalid in ClusterConnect resource", "ClusterConnect", clusterConnect.Name)
+						return nil
+					}
+					namespace := clusterConnect.Spec.ClusterRef.Namespace
+
+					// get the IntelCluster name from the ClusterConnect name by trimming the namespace prefix
+					name := strings.TrimPrefix(clusterConnect.GetName(), namespace+"-")
+
+					return []reconcile.Request{{
+						NamespacedName: types.NamespacedName{
+							Name:      name,
+							Namespace: namespace,
+						},
+					}}
+				}),
+			builder.WithPredicates(ccUpdatePred)).
 		Complete(r)
 }
 
@@ -200,6 +243,45 @@ func (r *IntelClusterReconciler) reconcileControlPlaneEndpoint(scope *scope.Clus
 	return true
 }
 
+func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.ClusterReconcileScope) bool {
+	intelCluster := scope.IntelCluster
+	conditions.MarkTrue(intelCluster, infrav1.ConnectionAliveCondition)
+
+	if !scope.Cluster.Status.ControlPlaneReady {
+		return false
+	}
+
+	clusterConnect := &ccgv1.ClusterConnect{}
+	if err := r.Client.Get(scope.Ctx, client.ObjectKey{
+		Name:      fmt.Sprintf("%s-%s", scope.IntelCluster.Namespace, scope.IntelCluster.Name),
+		Namespace: scope.IntelCluster.Namespace,
+	}, clusterConnect); err != nil {
+		if !apierrors.IsNotFound(err) {
+			scope.Log.Info("failed to read cluster connection resource")
+			return true
+		}
+	}
+
+	// get the connection probe condition from the clusterconnect resource
+	connectionProbeCondition := metav1.Condition{}
+	ccConditions := clusterConnect.GetConditions()
+	for _, condition := range ccConditions {
+		if condition.Type == ccgv1.ConnectionProbeCondition {
+			connectionProbeCondition = condition
+		}
+	}
+
+	if connectionProbeCondition.Status != metav1.ConditionTrue {
+		scope.Log.Info("connection probe condition not met in clusterconnect resource")
+		conditions.MarkFalse(intelCluster, infrav1.ConnectionAliveCondition, infrav1.ConnectionNotAliveReason, clusterv1.ConditionSeverityError, "No connection to cluster, waiting for connection probe condition to be true")
+		// do not requeue here, as the clusterconnect object status update event
+		// will cause intelCluster reconcile and update the condition when the connection is alive
+		return false
+	}
+
+	return false
+}
+
 func (r *IntelClusterReconciler) reconcileNormal(clusterScope *scope.ClusterReconcileScope) reconcile.Result {
 	clusterScope.Log.Info("running intelcluster reconciliation normal")
 
@@ -208,6 +290,10 @@ func (r *IntelClusterReconciler) reconcileNormal(clusterScope *scope.ClusterReco
 	}
 
 	if shouldRequeue := r.reconcileWorkloadCreate(clusterScope); shouldRequeue {
+		return reconcile.Result{RequeueAfter: requeueAfter}
+	}
+
+	if shouldRequeue := r.reconcileClusterConnectConnection(clusterScope); shouldRequeue {
 		return reconcile.Result{RequeueAfter: requeueAfter}
 	}
 
