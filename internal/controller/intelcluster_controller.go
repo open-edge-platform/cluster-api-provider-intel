@@ -17,9 +17,12 @@ import (
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/paused"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	infrav1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
@@ -38,6 +41,18 @@ var (
 	ErrInvalidControlPlaneEndpointHost = errors.New("invalid host in controlplane endpoint")
 	ErrInvalidControlPlaneEndpointPort = errors.New("invalid port in controlplane endpoint")
 	ErrInvalidProviderId               = errors.New("invalid provider id")
+	// Predicate to trigger reconciliation only on status.Ready changes in the ClusterConnect resource
+	ccUpdatePred = predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldObj := e.ObjectOld.(*ccgv1.ClusterConnect)
+			newObj := e.ObjectNew.(*ccgv1.ClusterConnect)
+
+			return newObj.Status.Ready != oldObj.Status.Ready
+		},
+		CreateFunc:  func(e event.CreateEvent) bool { return false },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
+		GenericFunc: func(e event.GenericEvent) bool { return false },
+	}
 )
 
 // IntelClusterReconciler reconciles a IntelCluster object
@@ -120,33 +135,6 @@ func (r *IntelClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *IntelClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// Predicate to trigger reconciliation only on size changes in the Busybox spec
-	// updatePred := predicate.Funcs{
-	// 	// Only allow updates when the spec.size of the Busybox resource changes
-	// 	UpdateFunc: func(e event.UpdateEvent) bool {
-	// 		oldObj := e.ObjectOld.(*ccgv1.ClusterConnect)
-	// 		newObj := e.ObjectNew.(*ccgv1.ClusterConnect)
-
-	// 		// Trigger reconciliation only if the ClusterConnect Ready status has changed
-	// 		return newObj.Status.Ready != oldObj.Status.Ready
-	// 	},
-
-	// 	// TODO: check if we need create/delete/generic events for ClusterConnect
-	// 	// Allow create events
-	// 	CreateFunc: func(e event.CreateEvent) bool {
-	// 		return true
-	// 	},
-
-	// 	// Allow delete events
-	// 	DeleteFunc: func(e event.DeleteEvent) bool {
-	// 		return true
-	// 	},
-
-	// 	// Allow generic events (e.g., external triggers)
-	// 	GenericFunc: func(e event.GenericEvent) bool {
-	// 		return true
-	// 	},
-	// }
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infrav1.IntelCluster{}).
 		Named("intelcluster").
@@ -160,6 +148,7 @@ func (r *IntelClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					// The ClusterConnect name is in the format "<namespace>-<name>"
 					log := ctrl.LoggerFrom(ctx)
 					log.Info("Analyzing ClusterConnect object", "ClusterConnect", clusterConnect)
+					// TODO: improve name/namespace extraction logic
 					name := clusterConnect.GetName()[37:]
 					namespace := clusterConnect.GetName()[:36]
 					log.Info("Trigger reconcile for ClusterConnect", "name", name, "namespace", namespace)
@@ -169,8 +158,8 @@ func (r *IntelClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 							Namespace: namespace,
 						},
 					}}
-				},
-			)). //, builder.WithPredicates(updatePred)).
+				}),
+			builder.WithPredicates(ccUpdatePred)).
 		Complete(r)
 }
 
