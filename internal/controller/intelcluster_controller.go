@@ -144,13 +144,15 @@ func (r *IntelClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				func(ctx context.Context, obj client.Object) []reconcile.Request {
 					clusterConnect := obj.(*ccgv1.ClusterConnect)
 
-					// Map ClusterConnect to IntelCluster using ClusterConnect's Name
-					// The ClusterConnect name is in the format "<namespace>-<name>"
+					// Map ClusterConnect to IntelCluster using ClusterConnect's ClusterRef
 					log := ctrl.LoggerFrom(ctx)
 					log.Info("Analyzing ClusterConnect object", "ClusterConnect", clusterConnect)
-					// TODO: improve name/namespace extraction logic
-					name := clusterConnect.GetName()[37:]
-					namespace := clusterConnect.GetName()[:36]
+					if clusterConnect.Spec.ClusterRef == nil || clusterConnect.Spec.ClusterRef.Name == "" || clusterConnect.Spec.ClusterRef.Namespace == "" {
+						log.Info("ClusterRef is empty or invalid in ClusterConnect resource", "ClusterConnect", clusterConnect.Name)
+						return nil
+					}
+					name := clusterConnect.Spec.ClusterRef.Name
+					namespace := clusterConnect.Spec.ClusterRef.Namespace
 					log.Info("Trigger reconcile for ClusterConnect", "name", name, "namespace", namespace)
 					return []reconcile.Request{{
 						NamespacedName: types.NamespacedName{
