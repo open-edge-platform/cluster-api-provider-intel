@@ -10,7 +10,6 @@ require (
 	entgo.io/ent v0.14.4
 	github.com/bnkamalesh/errors v0.11.1
 	github.com/envoyproxy/protoc-gen-validate v1.2.1
-	github.com/evanphx/json-patch v5.7.0+incompatible
 	github.com/getkin/kin-openapi v0.131.0
 	github.com/gogo/grpc-example v0.0.0-20211127015421-6236971f8de2
 	github.com/golang-jwt/jwt v3.2.2+incompatible
@@ -55,6 +54,7 @@ require (
 	github.com/bufbuild/protovalidate-go v0.9.2 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
+	github.com/evanphx/json-patch v5.9.11+incompatible // indirect
 	github.com/fatih/structs v1.0.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
