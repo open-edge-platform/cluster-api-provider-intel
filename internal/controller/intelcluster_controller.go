@@ -263,14 +263,6 @@ func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.
 	intelCluster := scope.IntelCluster
 	conditions.MarkUnknown(intelCluster, infrav1.SecureTunnelEstablishedCondition, infrav1.SecureTunnelUnknownReason, "Checking connection to cluster")
 
-	// If provisioning is not complete, do not check the connection.
-	// Requeue, since ClusterConnect status might trigger this reconcile loopindicating that
-	// the connection is established, but the control plane status hasn't been marked as ready yet.
-	// if !scope.Cluster.Status.ControlPlaneReady {
-	// return true
-	// }
-	// comment: it causes too many reconciliations, to be tested if Unkown condition status is enough
-
 	clusterConnect := &ccgv1.ClusterConnect{}
 	if err := r.Client.Get(scope.Ctx, client.ObjectKey{
 		Name:      fmt.Sprintf("%s-%s", scope.IntelCluster.Namespace, scope.IntelCluster.Name),
