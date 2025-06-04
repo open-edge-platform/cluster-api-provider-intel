@@ -48,7 +48,24 @@ var (
 			oldObj := e.ObjectOld.(*ccgv1.ClusterConnect)
 			newObj := e.ObjectNew.(*ccgv1.ClusterConnect)
 
-			return newObj.Status.Ready != oldObj.Status.Ready
+			// ClusterConnect uses []metav1.Condition, not clusterv1.Conditions,
+			// so we can't use helpers like conditions.Get().
+			var oldCond *metav1.Condition
+			for i := range oldObj.Status.Conditions {
+				if oldObj.Status.Conditions[i].Type == ccgv1.ConnectionProbeCondition {
+					oldCond = &oldObj.Status.Conditions[i]
+					break
+				}
+			}
+
+			var newCond *metav1.Condition
+			for i := range newObj.Status.Conditions {
+				if newObj.Status.Conditions[i].Type == ccgv1.ConnectionProbeCondition {
+					newCond = &newObj.Status.Conditions[i]
+					break
+				}
+			}
+			return oldCond.Status != newCond.Status
 		},
 		CreateFunc:  func(e event.CreateEvent) bool { return false },
 		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
@@ -245,8 +262,9 @@ func (r *IntelClusterReconciler) reconcileControlPlaneEndpoint(scope *scope.Clus
 
 func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.ClusterReconcileScope) bool {
 	intelCluster := scope.IntelCluster
-	conditions.MarkTrue(intelCluster, infrav1.ConnectionAliveCondition)
+	conditions.MarkUnknown(intelCluster, infrav1.SecureTunnelEstablishedCondition, infrav1.SecureTunnelUnknownReason, "Checking connection to cluster")
 
+	// if provisioning is not complete, do not check the connection
 	if !scope.Cluster.Status.ControlPlaneReady {
 		return false
 	}
@@ -273,7 +291,7 @@ func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.
 
 	if connectionProbeCondition.Status != metav1.ConditionTrue {
 		scope.Log.Info("connection probe condition not met in clusterconnect resource")
-		conditions.MarkFalse(intelCluster, infrav1.ConnectionAliveCondition, infrav1.ConnectionNotAliveReason, clusterv1.ConditionSeverityError, "No connection to cluster, waiting for connection probe condition to be true")
+		conditions.MarkFalse(intelCluster, infrav1.SecureTunnelEstablishedCondition, infrav1.SecureTunnelNotEstablishedReason, clusterv1.ConditionSeverityError, "No connection to cluster, waiting for connection probe condition to be true")
 		// do not requeue here, as the clusterconnect object status update event
 		// will cause intelCluster reconcile and update the condition when the connection is alive
 		return false
@@ -293,11 +311,13 @@ func (r *IntelClusterReconciler) reconcileNormal(clusterScope *scope.ClusterReco
 		return reconcile.Result{RequeueAfter: requeueAfter}
 	}
 
+	// after succesfull provisioning, the status.Ready is always set to true.
+	clusterScope.IntelCluster.Status.Ready = true
+
 	if shouldRequeue := r.reconcileClusterConnectConnection(clusterScope); shouldRequeue {
 		return reconcile.Result{RequeueAfter: requeueAfter}
 	}
 
-	clusterScope.IntelCluster.Status.Ready = true
 	return reconcile.Result{}
 }
 
