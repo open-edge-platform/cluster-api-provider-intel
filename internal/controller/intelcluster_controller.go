@@ -50,22 +50,21 @@ var (
 
 			// ClusterConnect uses []metav1.Condition, not clusterv1.Conditions,
 			// so we can't use helpers like conditions.Get().
-			var oldCond *metav1.Condition
+			var oldCondStatus, newCondStatus metav1.ConditionStatus = metav1.ConditionUnknown, metav1.ConditionUnknown
 			for i := range oldObj.Status.Conditions {
 				if oldObj.Status.Conditions[i].Type == ccgv1.ConnectionProbeCondition {
-					oldCond = &oldObj.Status.Conditions[i]
+					oldCondStatus = oldObj.Status.Conditions[i].Status
 					break
 				}
 			}
 
-			var newCond *metav1.Condition
 			for i := range newObj.Status.Conditions {
 				if newObj.Status.Conditions[i].Type == ccgv1.ConnectionProbeCondition {
-					newCond = &newObj.Status.Conditions[i]
+					newCondStatus = newObj.Status.Conditions[i].Status
 					break
 				}
 			}
-			return oldCond.Status != newCond.Status
+			return oldCondStatus != newCondStatus
 		},
 		CreateFunc:  func(e event.CreateEvent) bool { return false },
 		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
@@ -298,8 +297,8 @@ func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.
 		conditions.MarkFalse(intelCluster, infrav1.SecureTunnelEstablishedCondition, infrav1.SecureTunnelNotEstablishedReason, clusterv1.ConditionSeverityError, "No connection to cluster, waiting for connection probe condition to be true")
 		// do not requeue here, as the clusterconnect object status update event
 		// will cause intelCluster reconcile and update the condition when the connection is alive
-		return false
-
+	case metav1.ConditionUnknown:
+		scope.Log.Info("connection probe condition is unknown in clusterconnect resource")
 	}
 
 	return false
