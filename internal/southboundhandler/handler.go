@@ -148,11 +148,13 @@ func (h *Handler) Register(ctx context.Context, nodeGUID string) (*pb.ShellScrip
 		log.Error().Msg("Failed to get IntelMachine")
 		return nil, nil, pb.RegisterClusterResponse_ERROR, err
 	}
+
 	if intelmachine == nil {
 		err := errors.New("IntelMachine not found")
 		log.Error().Msg(err.Error())
 		return nil, nil, pb.RegisterClusterResponse_ERROR, err
 	}
+
 	providerID := intelmachine.Spec.ProviderID
 	if providerID == nil {
 		err := errors.New("IntelMachine does not have a ProviderID")
@@ -165,8 +167,9 @@ func (h *Handler) Register(ctx context.Context, nodeGUID string) (*pb.ShellScrip
 		log.Error().Msg("Failed to find owner reference on IntelMachine")
 		return nil, nil, pb.RegisterClusterResponse_ERROR, err
 	}
-	machine, err := getMachine(ctx, h.client, projectId, ownername)
-	if err != nil {
+
+	machine := &clusterv1.Machine{}
+	if err = h.client.Get(ctx, types.NamespacedName{Namespace: projectId, Name: ownername}, machine); err != nil {
 		log.Error().Msg("Failed to get Machine")
 		return nil, nil, pb.RegisterClusterResponse_ERROR, err
 	}
@@ -177,9 +180,9 @@ func (h *Handler) Register(ctx context.Context, nodeGUID string) (*pb.ShellScrip
 		log.Error().Msg(err.Error())
 		return nil, nil, pb.RegisterClusterResponse_ERROR, err
 	}
-	secretName := *machine.Spec.Bootstrap.DataSecretName
-	secret, err := getSecret(ctx, h.client, projectId, secretName)
-	if err != nil {
+
+	secret := &corev1.Secret{}
+	if err = h.client.Get(ctx, types.NamespacedName{Namespace: projectId, Name: *machine.Spec.Bootstrap.DataSecretName}, secret); err != nil {
 		log.Error().Msg("Failed to get Bootstrap Secret")
 		return nil, nil, pb.RegisterClusterResponse_ERROR, err
 	}
@@ -216,76 +219,69 @@ func (h *Handler) Register(ctx context.Context, nodeGUID string) (*pb.ShellScrip
 //   - pb.UpdateClusterStatusResponse_ActionRequest: The action request to be taken based on the status update.
 //   - error: An error if the status update fails.
 func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.UpdateClusterStatusRequest_Code) (pb.UpdateClusterStatusResponse_ActionRequest, error) {
-	var hostState string
-
-	// Default action is NONE
-	action := pb.UpdateClusterStatusResponse_NONE
-
-	// Get Project ID from context
 	projectId := tenant.GetActiveProjectIdFromContext(ctx)
 
-	// Get IntelMachine in namespace <Project ID> with matching nodeGUID
-	intelmachine, err := getIntelMachine(ctx, h.client, projectId, nodeGUID)
+	intelMachine, err := getIntelMachine(ctx, h.client, projectId, nodeGUID)
 	if err != nil {
 		log.Error().Msg("Failed to get IntelMachine")
 		return pb.UpdateClusterStatusResponse_NONE, err
 	}
-	if intelmachine == nil {
+	if intelMachine == nil {
 		// The node has not yet been put into a cluster
 		return pb.UpdateClusterStatusResponse_NONE, nil
 	}
+	if intelMachine.Annotations == nil {
+		intelMachine.Annotations = make(map[string]string)
+	}
 
-	currentHostState := intelmachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
-	removeFinalizer := false
+	action := pb.UpdateClusterStatusResponse_NONE
+	if !intelMachine.DeletionTimestamp.IsZero() {
+		// If IntelMachine is being deleted, need to clean up the node
+		action = pb.UpdateClusterStatusResponse_DEREGISTER
+	}
 
-	// Choose appropriate ActionRequest
+	previousState := intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
+	var patch bool
 	switch status {
 	case pb.UpdateClusterStatusRequest_INACTIVE:
-		hostState = infrastructurev1alpha1.HostStateInactive
+		intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateInactive
+
+		if action == pb.UpdateClusterStatusResponse_DEREGISTER {
+			if cutil.ContainsFinalizer(intelMachine, infrastructurev1alpha1.HostCleanupFinalizer) {
+				patch = true
+				removed := cutil.RemoveFinalizer(intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
+				log.Debug().Msgf("host cleanup finalizer removed: %v", removed)
+			}
+			break
+		}
 
 		// If IntelMachine is not deleted and has a ProviderID, it's time to bootstrap the node
-		if intelmachine.DeletionTimestamp.IsZero() {
-			if intelmachine.Spec.ProviderID != nil {
-				action = pb.UpdateClusterStatusResponse_REGISTER
-			}
-		} else {
-			if cutil.ContainsFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer) {
-				removeFinalizer = true
-			}
+		if intelMachine.Spec.ProviderID != nil {
+			action = pb.UpdateClusterStatusResponse_REGISTER
 		}
 
 	case pb.UpdateClusterStatusRequest_REGISTERING, pb.UpdateClusterStatusRequest_INSTALL_IN_PROGRESS:
-		hostState = infrastructurev1alpha1.HostStateInProgress
+		intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateInProgress
+
+		if !cutil.ContainsFinalizer(intelMachine, infrastructurev1alpha1.HostCleanupFinalizer) {
+			patch = true
+			added := cutil.AddFinalizer(intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
+			log.Debug().Msgf("host cleanup finalizer added: %v", added)
+		}
 
 	case pb.UpdateClusterStatusRequest_ACTIVE:
-		hostState = infrastructurev1alpha1.HostStateActive
-
-		// If IntelMachine is being deleted, need to clean up the node
-		if !intelmachine.DeletionTimestamp.IsZero() {
-			action = pb.UpdateClusterStatusResponse_DEREGISTER
-		}
+		intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateActive
 
 	case pb.UpdateClusterStatusRequest_DEREGISTERING, pb.UpdateClusterStatusRequest_UNINSTALL_IN_PROGRESS:
-		hostState = infrastructurev1alpha1.HostStateInProgress
-
-	case pb.UpdateClusterStatusRequest_ERROR:
-		hostState = infrastructurev1alpha1.HostStateError
+		intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateInProgress
 	}
 
-	// Only update IntelMachine if it needs it
-	if currentHostState != hostState || removeFinalizer {
-		if removeFinalizer {
-			cutil.RemoveFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer)
-		}
-
-		// Update the IntelMachine annotations
-		if intelmachine.Annotations == nil {
-			intelmachine.Annotations = make(map[string]string)
-		}
-		intelmachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] = hostState
-		return action, h.client.Update(ctx, intelmachine)
+	if patch || intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] != previousState {
+		log.Debug().Msgf("patching intel machine (%s/%s): %s", intelMachine.GetNamespace(), intelMachine.GetName(), action)
+		return action, h.client.Update(ctx, intelMachine)
 	}
 
+	log.Debug().Msgf("not patching intel machine (%s/%s): %s", intelMachine.GetNamespace(), intelMachine.GetName(), action)
 	return action, nil
 }
 
@@ -317,26 +313,6 @@ func getIntelMachine(ctx context.Context, client ctrlclient.Client, projectId st
 		return nil, errors.New("invalid IntelMachine found")
 	}
 	return intelMachine, nil
-}
-
-func getMachine(ctx context.Context, client ctrlclient.Client, projectId string, name string) (*clusterv1.Machine, error) {
-	machine := &clusterv1.Machine{}
-	key := types.NamespacedName{Namespace: projectId, Name: name}
-
-	if err := client.Get(ctx, key, machine); err != nil {
-		return nil, err
-	}
-	return machine, nil
-}
-
-func getSecret(ctx context.Context, client ctrlclient.Client, projectId string, name string) (*corev1.Secret, error) {
-	secret := &corev1.Secret{}
-	key := types.NamespacedName{Namespace: projectId, Name: name}
-
-	if err := client.Get(ctx, key, secret); err != nil {
-		return nil, err
-	}
-	return secret, nil
 }
 
 func getMachineOwnerName(intelmachine *infrastructurev1alpha1.IntelMachine) (string, error) {
