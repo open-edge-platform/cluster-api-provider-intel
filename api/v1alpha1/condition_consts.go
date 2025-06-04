@@ -58,10 +58,14 @@ const (
 )
 
 const (
-	// ConnectionAliveCondition reports on whether the connection to the IntelCluster is alive.
-	ConnectionAliveCondition clusterv1.ConditionType = "ConnectionAlive"
-	// ConnectionNotAliveReason (Severity=Error) refers to a IntelCluster which is not alive and the connection to it is unhealthy.
-	ConnectionNotAliveReason = "NoConnectionToCluster"
+	// SecureTunnelEstablishedCondition reports whether the secure tunnel connection to the IntelCluster is established.
+	SecureTunnelEstablishedCondition clusterv1.ConditionType = "SecureTunnelEstablished"
+
+	// SecureTunnelNotEstablishedReason (Severity=Warning) indicates that the secure tunnel connection to the IntelCluster is not established or the connection is unhealthy.
+	SecureTunnelNotEstablishedReason = "ConnectAgentDisconnected"
+
+	// SecureTunnelUnknownReason (Severity=Info) indicates that the secure tunnel connection status has not been checked yet.
+	SecureTunnelUnknownReason = "ConnectAgentUnknown"
 )
 
 const (
