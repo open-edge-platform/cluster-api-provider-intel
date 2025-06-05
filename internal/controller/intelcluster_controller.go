@@ -12,6 +12,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -275,13 +276,8 @@ func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.
 	}
 
 	// get the connection probe condition from the clusterconnect resource
-	connectionProbeCondition := metav1.Condition{}
 	ccConditions := clusterConnect.GetConditions()
-	for _, condition := range ccConditions {
-		if condition.Type == ccgv1.ConnectionProbeCondition {
-			connectionProbeCondition = condition
-		}
-	}
+	connectionProbeCondition := meta.FindStatusCondition(ccConditions, ccgv1.ConnectionProbeCondition)
 
 	switch connectionProbeCondition.Status {
 	case metav1.ConditionTrue:
