@@ -1159,8 +1159,12 @@ github.com/onsi/gomega v1.36.2/go.mod h1:DdwyADRjrc825LhMEkD76cHR5+pUnjhUN8GlHlR
 github.com/op/go-logging v0.0.0-20160315200505-970db520ece7/go.mod h1:HzydrMdWErDVzsI23lYNej1Htcns9BCg93Dk0bBINWk=
 github.com/open-edge-platform/cluster-connect-gateway v1.0.5 h1:4/F0Sgne0Lv42pB/uxgTrb6tCDvJVI8gB9SZ8/U+jfg=
 github.com/open-edge-platform/cluster-connect-gateway v1.0.5/go.mod h1:EO8QC9qE9hm9OvFiqQ4wl4PCuDmtf0eX1Urw2RLKxvE=
+github.com/open-edge-platform/cluster-connect-gateway v1.1.2 h1:DQOl5P7raXBRzgmIgbjfe3Ex81Sx/CF6tWEd5JctTAg=
+github.com/open-edge-platform/cluster-connect-gateway v1.1.2/go.mod h1:UChNdPqK997iA3/rbiw9fNjGmu+d47nm918UC8TcHpc=
 github.com/open-edge-platform/cluster-connect-gateway v1.1.3-0.20250528123101-b095ce1bf74f h1:/fybIuS+/GBmxxPnzk1/2FbSvTkS9y8oVN8+RF+r/84=
 github.com/open-edge-platform/cluster-connect-gateway v1.1.3-0.20250528123101-b095ce1bf74f/go.mod h1:UChNdPqK997iA3/rbiw9fNjGmu+d47nm918UC8TcHpc=
+github.com/open-edge-platform/cluster-connect-gateway v1.1.3-0.20250605083335-2db568703c54 h1:2WUINhCSrn1f2xtLI1eiii5mmMcoVv/w7wyT5ZLuWJM=
+github.com/open-edge-platform/cluster-connect-gateway v1.1.3-0.20250605083335-2db568703c54/go.mod h1:c9izjEQvS24B66Sh9MfkKTe5UlEPSxkvPw4pGyjRbRo=
 github.com/open-edge-platform/infra-core/inventory/v2 v2.23.0 h1:fq25w9Ky6gvE5pTtqf/N9DLrfvZRnIzAJB+VzsiFSnA=
 github.com/open-edge-platform/infra-core/inventory/v2 v2.23.0/go.mod h1:mpGYnChj0Z5SNYMy8IpuQ76OVcAmKfO384J7ZI5zxFE=
 github.com/open-edge-platform/orch-library/go v0.5.29 h1:LfOaRcRYXpQdcyHrVwN4wC2l11wbdUnBLkc2P7vrZNY=
