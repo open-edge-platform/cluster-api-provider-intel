@@ -294,6 +294,11 @@ func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.
 		// will cause intelCluster reconcile and update the condition when the connection is alive
 	case metav1.ConditionUnknown:
 		scope.Log.Info("connection probe condition is unknown in clusterconnect resource")
+		if scope.Cluster.Status.ControlPlaneReady {
+			// if the Cluster's ControlPlane is provisioned and the ClusterConnect's condition is unknown,
+			// we can assume that the connection is not established yet, so we mark the IntelCluster condition as false
+			conditions.MarkFalse(intelCluster, infrav1.SecureTunnelEstablishedCondition, infrav1.SecureTunnelUnknownReason, clusterv1.ConditionSeverityWarning, "No connection to cluster, waiting for connection probe condition to be true")
+		}
 	}
 
 	return false
