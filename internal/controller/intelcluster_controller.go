@@ -278,6 +278,10 @@ func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.
 	// get the connection probe condition from the clusterconnect resource
 	ccConditions := clusterConnect.GetConditions()
 	connectionProbeCondition := meta.FindStatusCondition(ccConditions, ccgv1.ConnectionProbeCondition)
+	if connectionProbeCondition == nil {
+		scope.Log.Info("connection probe condition not found in clusterconnect resource")
+		return true
+	}
 
 	switch connectionProbeCondition.Status {
 	case metav1.ConditionTrue:
