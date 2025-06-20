@@ -21,7 +21,7 @@ require (
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/naughtygopher/errors v1.0.0
-	github.com/oapi-codegen/echo-middleware v1.0.1
+	github.com/oapi-codegen/echo-middleware v1.0.2
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
 	github.com/open-edge-platform/cluster-connect-gateway v1.2.0
