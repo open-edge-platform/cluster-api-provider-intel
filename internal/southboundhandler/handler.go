@@ -22,7 +22,6 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
-	cutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
 	pb "github.com/open-edge-platform/cluster-api-provider-intel/pkg/api/proto"
@@ -236,7 +235,6 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 	}
 
 	currentHostState := intelmachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
-	removeFinalizer := false
 
 	// Choose appropriate ActionRequest
 	switch status {
@@ -247,10 +245,6 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 		if intelmachine.DeletionTimestamp.IsZero() {
 			if intelmachine.Spec.ProviderID != nil {
 				action = pb.UpdateClusterStatusResponse_REGISTER
-			}
-		} else {
-			if cutil.ContainsFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer) {
-				removeFinalizer = true
 			}
 		}
 
@@ -273,11 +267,7 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 	}
 
 	// Only update IntelMachine if it needs it
-	if currentHostState != hostState || removeFinalizer {
-		if removeFinalizer {
-			cutil.RemoveFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer)
-		}
-
+	if currentHostState != hostState {
 		// Update the IntelMachine annotations
 		if intelmachine.Annotations == nil {
 			intelmachine.Annotations = make(map[string]string)

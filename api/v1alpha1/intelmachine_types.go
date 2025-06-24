@@ -13,9 +13,6 @@ const (
 	// removing it from the apiserver.
 	FreeInstanceFinalizer = "intelmachine.infrastructure.cluster.x-k8s.io/free-instance"
 
-	// HostCleanupFinalizer is removed by the SB Handler after it has cleaned up the host.
-	HostCleanupFinalizer = "intelmachine.infrastructure.cluster.x-k8s.io/host-cleanup"
-
 	// HostState is used by the SB Handler to report the cluster status posted by the agent as an annotation.
 	HostStateAnnotation = "intelmachine.infrastructure.cluster.x-k8s.io/agent-status"
 	HostStateActive     = "active"

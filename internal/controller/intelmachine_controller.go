@@ -203,12 +203,6 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 		return errors.Wrap(err, "failed to patch IntelMachine")
 	}
 
-	// Finalizer will be removed by the SB handler after it has cleaned up the host.
-	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer) {
-		rc.log.Info("Waiting for SB handler to remove IntelMachine's finalizer'")
-		return nil
-	}
-
 	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) {
 		// Remove the instance from the workload in Inventory
 		req := inventory.DeleteInstanceFromWorkloadInput{
@@ -323,9 +317,8 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	rc.intelMachine.Annotations[infrastructurev1alpha1.HostIdAnnotation] = gmRes.Host.Id
 	conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition)
 
-	// Add finalizers.  The HostCleanupFinalizer is removed by the SB Handler after it has cleaned up the host.
+	// Add finalizers.
 	// The FreeInstanceFinalizer is removed by the IntelMachine Reconciler after the host is freed in Inventory.
-	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
 	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
 
 	return false
