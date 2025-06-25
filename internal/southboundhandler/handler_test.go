@@ -297,7 +297,7 @@ func TestHandler_Register(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, pb.RegisterClusterResponse_SUCCESS, resp)
 				assert.NotEmpty(t, installCmd)
-				assert.NotEmpty(t, uninstallCmd)
+				assert.Empty(t, uninstallCmd)
 			} else {
 				_, _, _, err := testHandler.Register(ctx, nodeGUID)
 				assert.Error(t, err)
