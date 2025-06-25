@@ -121,6 +121,10 @@ var _ = Describe("IntelMachine Controller", func() {
 				inventory.DeleteWorkloadInput{TenantId: namespace, WorkloadId: workloadId}).
 				Return(inventory.DeleteWorkloadOutput{Err: nil}).
 				Once()
+			inventoryClient.On("DeauthorizeHost",
+				inventory.DeauthorizeHostInput{TenantId: namespace, HostUUID: nodeGUID}).
+				Return(inventory.DeauthorizeHostOutput{Err: nil}).
+				Once()
 
 			// Create the intelmachine after checking that it does not exist
 			key = types.NamespacedName{Name: intelMachineName, Namespace: namespace}
