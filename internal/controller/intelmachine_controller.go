@@ -217,6 +217,21 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 		}
 		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
 	}
+
+	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer) {
+		// Deauthorize the host in Inventory
+		req := inventory.DeauthorizeHostInput{
+			TenantId: rc.intelCluster.Namespace,
+			HostUUID: rc.intelMachine.Spec.NodeGUID,
+		}
+		res := r.InventoryClient.DeauthorizeHost(req)
+		if res.Err != nil {
+			rc.log.Error(res.Err, "Failed to deauthorize host in Inventory")
+			return res.Err
+		}
+		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer)
+	}
+
 	return nil
 }
 
@@ -320,7 +335,8 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	// Add finalizers.
 	// The FreeInstanceFinalizer is removed by the IntelMachine Reconciler after the host is freed in Inventory.
 	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
-
+	// The DeauthHostFinalizer is removed by the IntelMachine Reconciler after the host is deauthorized in Inventory.
+	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer)
 	return false
 }
 

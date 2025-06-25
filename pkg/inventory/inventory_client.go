@@ -14,6 +14,7 @@ import (
 	inventoryv1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/inventory/v1"
 	"github.com/open-edge-platform/infra-core/inventory/v2/pkg/client"
 	"github.com/open-edge-platform/infra-core/inventory/v2/pkg/validator"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 const (
@@ -136,23 +137,23 @@ func (c *InventoryClient) validateHostResource(host *computev1.HostResource) err
 	return nil
 }
 
-func (c *InventoryClient) getHost(ctx context.Context, tenantId, hostId string) (
+func (c *InventoryClient) getHost(ctx context.Context, tenantId, hostUUID string) (
 	*computev1.HostResource, error,
 ) {
-	slog.Debug("getHost", "tenantId", tenantId, "hostUuid", hostId)
+	slog.Debug("getHost", "tenantId", tenantId, "hostUuid", hostUUID)
 
 	childCtx, cancel := context.WithTimeout(ctx, defaultInventoryTimeout)
 	defer cancel()
 
-	respHost, err := c.Client.GetHostByUUID(childCtx, tenantId, hostId)
+	respHost, err := c.Client.GetHostByUUID(childCtx, tenantId, hostUUID)
 	if err != nil {
 		slog.Warn("failed to get host from host id",
-			"tenantId", tenantId, "host uuid", hostId, "error", err)
+			"tenantId", tenantId, "host uuid", hostUUID, "error", err)
 		return nil, ErrFailedInventoryGetHostByUuid
 	}
 
 	if err := c.validateHostResource(respHost); err != nil {
-		slog.Warn("failed to validate host resource", "error", err, "tenantId", tenantId, "hostUuid", hostId)
+		slog.Warn("failed to validate host resource", "error", err, "tenantId", tenantId, "hostUuid", hostUUID)
 		return nil, err
 	}
 
@@ -436,6 +437,37 @@ func (c *InventoryClient) deleteWorkloadMember(ctx context.Context, tenantId, wo
 		slog.Warn("failed to delete workload member", "tenantId", tenantId, "workload member id",
 			workloadMemberId, "error", err)
 		return ErrFailedInventoryDeleteResource
+	}
+
+	return nil
+}
+
+func (c *InventoryClient) deauthorizeHost(ctx context.Context, tenantId, hostUUID string) error {
+	slog.Debug("deauthorizeHost", "tenantID", tenantId, "host id", hostUUID)
+
+	childCtx, cancel := context.WithTimeout(ctx, defaultInventoryTimeout)
+	defer cancel()
+
+	host, err := c.getHost(childCtx, tenantId, hostUUID)
+	if err != nil {
+		slog.Warn("failed to get host by uuid", "tenantId", tenantId, "host uuid", hostUUID, "error", err)
+		return err
+	}
+	host.DesiredState = computev1.HostState_HOST_STATE_UNTRUSTED
+
+	resource := &inventoryv1.Resource{
+		Resource: &inventoryv1.Resource_Host{
+			Host: host,
+		},
+	}
+
+	fieldMask := &fieldmaskpb.FieldMask{
+		Paths: []string{"desired_state"},
+	}
+
+	if _, err = c.Client.Update(childCtx, tenantId, host.ResourceId, fieldMask, resource); err != nil {
+		slog.Warn("failed to deauthorize host", "tenantId", tenantId, "host uuid", hostUUID, "error", err)
+		return ErrFailedInventoryGetResource
 	}
 
 	return nil
