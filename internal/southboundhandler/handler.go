@@ -254,11 +254,6 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 	case pb.UpdateClusterStatusRequest_ACTIVE:
 		hostState = infrastructurev1alpha1.HostStateActive
 
-		// If IntelMachine is being deleted, need to clean up the node
-		if !intelmachine.DeletionTimestamp.IsZero() {
-			action = pb.UpdateClusterStatusResponse_DEREGISTER
-		}
-
 	case pb.UpdateClusterStatusRequest_DEREGISTERING, pb.UpdateClusterStatusRequest_UNINSTALL_IN_PROGRESS:
 		hostState = infrastructurev1alpha1.HostStateInProgress
 
@@ -401,21 +396,10 @@ func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (str
 }
 
 // Determine the uninstall command from the bootstrap kind
-func getUninstall(kind string) (string, error) {
+func getUninstall(_ string) (string, error) {
 	uninstall := ""
-	var err error = nil
-
-	switch kind {
-	case configTypeKubeadm:
-		uninstall = "sudo /usr/local/bin/kubeadm-uninstall.sh"
-	case configTypeKThrees:
-		uninstall = "sudo /usr/local/bin/k3s-uninstall.sh"
-	case configTypeRKE2:
-		uninstall = "if [ -f /usr/local/bin/rke2-uninstall.sh ]; then sudo /usr/local/bin/rke2-uninstall.sh; else sudo /opt/rke2/bin/rke2-uninstall.sh; fi"
-	default:
-		err = fmt.Errorf("unknown bootstrap provider: %s", kind)
-	}
-	return uninstall, err
+	// uninstall is not supported; reprovision the host and create new cluster
+	return uninstall, nil
 }
 
 func encodeContents(path, contents string) string {
