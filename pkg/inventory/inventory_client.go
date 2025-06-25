@@ -453,6 +453,7 @@ func (c *InventoryClient) deauthorizeHost(ctx context.Context, tenantId, hostUUI
 		slog.Warn("failed to get host by uuid", "tenantId", tenantId, "host uuid", hostUUID, "error", err)
 		return err
 	}
+	slog.Debug("read host from inventory", "tenantId", tenantId, "host uuid", hostUUID, "host id", host.ResourceId)
 	host.DesiredState = computev1.HostState_HOST_STATE_UNTRUSTED
 
 	resource := &inventoryv1.Resource{
