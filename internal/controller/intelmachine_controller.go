@@ -153,6 +153,19 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}()
 
+	// Add finalizers to the IntelMachine if they are not already present.
+	if !controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) ||
+		!controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer) {
+		rc.log.Info("Adding finalizers to IntelMachine", "finalizers", []string{
+			infrastructurev1alpha1.FreeInstanceFinalizer,
+			infrastructurev1alpha1.DeauthHostFinalizer,
+		})
+		// FreeInstanceFinalizer is used to remove the instance from the Workload in Inventory.
+		controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
+		// DeauthHostFinalizer is used to deauthorize the host in Inventory.
+		controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer)
+	}
+
 	// Handle deleted machines
 	if !rc.intelMachine.ObjectMeta.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, r.reconcileDelete(rc)
@@ -162,6 +175,7 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if requeue := r.reconcileNormal(rc); requeue {
 		return ctrl.Result{RequeueAfter: defaultRequeueAfter}, nil
 	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -201,6 +215,11 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 	conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, clusterv1.DeletingReason, clusterv1.ConditionSeverityInfo, "")
 	if err := patchIntelMachine(rc.ctx, patchHelper, rc.intelMachine); err != nil {
 		return errors.Wrap(err, "failed to patch IntelMachine")
+	}
+
+	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer) {
+		// upgrade scenario: remove the obsolete HostCleanupFinalizer
+		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
 	}
 
 	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) {
@@ -331,12 +350,6 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	rc.intelMachine.Spec.ProviderID = &gmRes.Instance.Id
 	rc.intelMachine.Annotations[infrastructurev1alpha1.HostIdAnnotation] = gmRes.Host.Id
 	conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition)
-
-	// Add finalizers.
-	// The FreeInstanceFinalizer is removed by the IntelMachine Reconciler after the host is freed in Inventory.
-	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
-	// The DeauthHostFinalizer is removed by the IntelMachine Reconciler after the host is deauthorized in Inventory.
-	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer)
 	return false
 }
 
