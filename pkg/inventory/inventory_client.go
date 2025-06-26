@@ -459,6 +459,7 @@ func (c *InventoryClient) deauthorizeHost(ctx context.Context, tenantId, hostUUI
 			Host: &computev1.HostResource{
 				ResourceId:   host.ResourceId,
 				DesiredState: computev1.HostState_HOST_STATE_UNTRUSTED,
+				Note:         "Deauthorized by Cluster API Provider Intel because the cluster was deleted",
 			},
 		},
 	}
