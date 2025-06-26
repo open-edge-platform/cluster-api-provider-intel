@@ -230,7 +230,7 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 			InstanceId: *rc.intelMachine.Spec.ProviderID,
 		}
 		res := r.InventoryClient.DeleteInstanceFromWorkload(req)
-		if res.Err != nil {
+		if res.Err != nil && !errors.Is(res.Err, inventory.ErrInvalidWorkloadMembers) {
 			rc.log.Error(res.Err, "Failed to delete instance from workload in Inventory")
 			return res.Err
 		}
