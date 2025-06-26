@@ -153,6 +153,11 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}()
 
+	// Handle deleted machines
+	if !rc.intelMachine.ObjectMeta.DeletionTimestamp.IsZero() {
+		return ctrl.Result{}, r.reconcileDelete(rc)
+	}
+
 	// Add finalizers to the IntelMachine if they are not already present.
 	if !controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) ||
 		!controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer) {
@@ -164,11 +169,6 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
 		// DeauthHostFinalizer is used to deauthorize the host in Inventory.
 		controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer)
-	}
-
-	// Handle deleted machines
-	if !rc.intelMachine.ObjectMeta.DeletionTimestamp.IsZero() {
-		return ctrl.Result{}, r.reconcileDelete(rc)
 	}
 
 	// Handle non-deleted machines
