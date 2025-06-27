@@ -21,7 +21,8 @@ import (
 
 const (
 	defaultTenantID         = "53cd37b9-66b2-4cc8-b080-3722ed7af64a"
-	defaultHostID           = "12345678-1234-1234-1234-123456789012"
+	defaultHostUUID         = "12345678-1234-1234-1234-123456789012"
+	defaultHostID           = "host-12345678"
 	defaultWorkloadID       = "workload-12345678"
 	defaultWorkloadMemberID = "workloadmember-12345678"
 	defaultInstanceID       = "inst-12345678"
@@ -309,9 +310,9 @@ func GetStubClient() client.TenantAwareInventoryClient {
 	if tenantID == "" {
 		tenantID = defaultTenantID
 	}
-	hostID := os.Getenv("HOST_ID")
-	if hostID == "" {
-		hostID = defaultHostID
+	hostUUID := os.Getenv("HOST_UUID")
+	if hostUUID == "" {
+		hostUUID = defaultHostUUID
 	}
 
 	stubClient := &StubTenantAwareInventoryClient{
@@ -319,7 +320,7 @@ func GetStubClient() client.TenantAwareInventoryClient {
 	}
 
 	// Populate stubbed responses for GetHostByUUID
-	stubClient.StubbedResponses[fmt.Sprintf("GetHostByUUID:%s:%s", tenantID, hostID)] = StubResponse{
+	stubClient.StubbedResponses[fmt.Sprintf("GetHostByUUID:%s:%s", tenantID, hostUUID)] = StubResponse{
 		Response: &computev1.HostResource{
 			Instance: &computev1.InstanceResource{
 				ResourceId: defaultInstanceID,
@@ -328,6 +329,7 @@ func GetStubClient() client.TenantAwareInventoryClient {
 				},
 			},
 			SerialNumber: "SN123456",
+			ResourceId:   defaultHostID,
 		},
 		Error: nil,
 	}
@@ -393,6 +395,19 @@ func GetStubClient() client.TenantAwareInventoryClient {
 	stubClient.StubbedResponses[fmt.Sprintf("Delete:%s:%s", tenantID, defaultWorkloadMemberID)] = StubResponse{
 		Response: &inv_v1.DeleteResourceResponse{},
 		Error:    nil,
+	}
+
+	// Populate stubbed responses for Host Update (host deauth)
+	stubClient.StubbedResponses[fmt.Sprintf("Update:%s:%s", tenantID, defaultHostID)] = StubResponse{
+		Response: &inv_v1.Resource{
+			Resource: &inv_v1.Resource_Host{
+				Host: &computev1.HostResource{
+					ResourceId:   defaultHostID,
+					DesiredState: computev1.HostState_HOST_STATE_UNTRUSTED,
+				},
+			},
+		},
+		Error: nil,
 	}
 	return stubClient
 }

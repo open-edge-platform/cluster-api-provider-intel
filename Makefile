@@ -556,7 +556,7 @@ coder-redeploy: helm-build kind-load ## Redeploy local charts in the Coder KinD 
 		--set manager.extraArgs.use-inv-stub=${USE_INV_STUB} \
 		--set manager.extraEnv[0].name=TENANT_ID \
 		--set manager.extraEnv[0].value=${PROJECTID} \
-		--set manager.extraEnv[1].name=HOST_ID \
+		--set manager.extraEnv[1].name=HOST_UUID \
 		--set manager.extraEnv[1].value=${NODEGUID} \
 		-f test/coder/traefik-values.yaml
 	helm -n ${CHART_NS} ls
