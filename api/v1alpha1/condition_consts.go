@@ -58,6 +58,17 @@ const (
 )
 
 const (
+	// SecureTunnelEstablishedCondition reports whether the secure tunnel connection to the IntelCluster is established.
+	SecureTunnelEstablishedCondition clusterv1.ConditionType = "SecureTunnelEstablished"
+
+	// SecureTunnelNotEstablishedReason (Severity=Warning) indicates that the secure tunnel connection to the IntelCluster is not established or the connection is unhealthy.
+	SecureTunnelNotEstablishedReason = "ConnectAgentDisconnected"
+
+	// SecureTunnelUnknownReason (Severity=Info) indicates that the secure tunnel connection status has not been checked yet.
+	SecureTunnelUnknownReason = "ConnectAgentUnknown"
+)
+
+const (
 	// ControlPlaneEndpointReadyCondition reports on whether a control plane endpoint was successfully reconciled
 	ControlPlaneEndpointReadyCondition clusterv1.ConditionType = "ControlPlaneEnpointReady"
 	// WaitingForControlPlaneEndpointReason (Severity=Warn) refers to a IntelCluster which is waiting for the control
