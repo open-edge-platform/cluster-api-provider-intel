@@ -183,6 +183,22 @@ func (n *MachineProvider) DeleteInstanceFromWorkload(
 	return DeleteInstanceFromWorkloadOutput{}
 }
 
+func (n *MachineProvider) DeauthorizeHost(in DeauthorizeHostInput) DeauthorizeHostOutput {
+	if in.HostUUID == "" {
+		return DeauthorizeHostOutput{ErrInvalidHostUUIDInput}
+	}
+
+	if in.TenantId == "" {
+		return DeauthorizeHostOutput{ErrInvalidTenantIdInput}
+	}
+
+	if err := n.client.deauthorizeHost(context.Background(), in.TenantId, in.HostUUID); err != nil {
+		return DeauthorizeHostOutput{err}
+	}
+
+	return DeauthorizeHostOutput{}
+}
+
 func (n *MachineProvider) Close() {
 	n.client.close()
 }
