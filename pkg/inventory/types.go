@@ -12,6 +12,7 @@ type InfrastructureProvider interface {
 	GetInstanceByMachineId(in GetInstanceByMachineIdInput) GetInstanceByMachineIdOutput
 	AddInstanceToWorkload(in AddInstanceToWorkloadInput) AddInstanceToWorkloadOutput
 	DeleteInstanceFromWorkload(in DeleteInstanceFromWorkloadInput) DeleteInstanceFromWorkloadOutput
+	DeauthorizeHost(in DeauthorizeHostInput) DeauthorizeHostOutput
 }
 
 type Workload struct {
@@ -89,7 +90,17 @@ type DeleteInstanceFromWorkloadOutput struct {
 	Err error
 }
 
+type DeauthorizeHostInput struct {
+	TenantId string
+	HostUUID string
+}
+
+type DeauthorizeHostOutput struct {
+	Err error
+}
+
 var (
+	ErrInvalidHostUUIDInput          = errors.New("invalid host UUID value")
 	ErrInvalidInstanceIdInput        = errors.New("invalid instance id value")
 	ErrInvalidWorkloadIdInput        = errors.New("invalid workload id value")
 	ErrInvalidMachineIdInput         = errors.New("invalid machine id value")
