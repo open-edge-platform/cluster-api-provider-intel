@@ -22,7 +22,6 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
-	cutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
 	pb "github.com/open-edge-platform/cluster-api-provider-intel/pkg/api/proto"
@@ -236,7 +235,6 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 	}
 
 	currentHostState := intelmachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
-	removeFinalizer := false
 
 	// Choose appropriate ActionRequest
 	switch status {
@@ -248,10 +246,6 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 			if intelmachine.Spec.ProviderID != nil {
 				action = pb.UpdateClusterStatusResponse_REGISTER
 			}
-		} else {
-			if cutil.ContainsFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer) {
-				removeFinalizer = true
-			}
 		}
 
 	case pb.UpdateClusterStatusRequest_REGISTERING, pb.UpdateClusterStatusRequest_INSTALL_IN_PROGRESS:
@@ -259,11 +253,6 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 
 	case pb.UpdateClusterStatusRequest_ACTIVE:
 		hostState = infrastructurev1alpha1.HostStateActive
-
-		// If IntelMachine is being deleted, need to clean up the node
-		if !intelmachine.DeletionTimestamp.IsZero() {
-			action = pb.UpdateClusterStatusResponse_DEREGISTER
-		}
 
 	case pb.UpdateClusterStatusRequest_DEREGISTERING, pb.UpdateClusterStatusRequest_UNINSTALL_IN_PROGRESS:
 		hostState = infrastructurev1alpha1.HostStateInProgress
@@ -273,11 +262,7 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 	}
 
 	// Only update IntelMachine if it needs it
-	if currentHostState != hostState || removeFinalizer {
-		if removeFinalizer {
-			cutil.RemoveFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer)
-		}
-
+	if currentHostState != hostState {
 		// Update the IntelMachine annotations
 		if intelmachine.Annotations == nil {
 			intelmachine.Annotations = make(map[string]string)
@@ -411,21 +396,10 @@ func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (str
 }
 
 // Determine the uninstall command from the bootstrap kind
-func getUninstall(kind string) (string, error) {
+func getUninstall(_ string) (string, error) {
 	uninstall := ""
-	var err error = nil
-
-	switch kind {
-	case configTypeKubeadm:
-		uninstall = "sudo /usr/local/bin/kubeadm-uninstall.sh"
-	case configTypeKThrees:
-		uninstall = "sudo /usr/local/bin/k3s-uninstall.sh"
-	case configTypeRKE2:
-		uninstall = "if [ -f /usr/local/bin/rke2-uninstall.sh ]; then sudo /usr/local/bin/rke2-uninstall.sh; else sudo /opt/rke2/bin/rke2-uninstall.sh; fi"
-	default:
-		err = fmt.Errorf("unknown bootstrap provider: %s", kind)
-	}
-	return uninstall, err
+	// uninstall is not supported; reprovision the host and create new cluster
+	return uninstall, nil
 }
 
 func encodeContents(path, contents string) string {
