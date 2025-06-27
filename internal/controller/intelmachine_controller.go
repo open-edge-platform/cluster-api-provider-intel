@@ -158,10 +158,24 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, r.reconcileDelete(rc)
 	}
 
+	// Add finalizers to the IntelMachine if they are not already present.
+	if !controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) ||
+		!controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer) {
+		rc.log.Info("Adding finalizers to IntelMachine", "finalizers", []string{
+			infrastructurev1alpha1.FreeInstanceFinalizer,
+			infrastructurev1alpha1.DeauthHostFinalizer,
+		})
+		// FreeInstanceFinalizer is used to remove the instance from the Workload in Inventory.
+		controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
+		// DeauthHostFinalizer is used to deauthorize the host in Inventory.
+		controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer)
+	}
+
 	// Handle non-deleted machines
 	if requeue := r.reconcileNormal(rc); requeue {
 		return ctrl.Result{RequeueAfter: defaultRequeueAfter}, nil
 	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -203,10 +217,9 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 		return errors.Wrap(err, "failed to patch IntelMachine")
 	}
 
-	// Finalizer will be removed by the SB handler after it has cleaned up the host.
 	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer) {
-		rc.log.Info("Waiting for SB handler to remove IntelMachine's finalizer'")
-		return nil
+		// upgrade scenario: remove the obsolete HostCleanupFinalizer
+		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
 	}
 
 	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) {
@@ -217,12 +230,27 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 			InstanceId: *rc.intelMachine.Spec.ProviderID,
 		}
 		res := r.InventoryClient.DeleteInstanceFromWorkload(req)
-		if res.Err != nil {
+		if res.Err != nil && !errors.Is(res.Err, inventory.ErrInvalidWorkloadMembers) {
 			rc.log.Error(res.Err, "Failed to delete instance from workload in Inventory")
 			return res.Err
 		}
 		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
 	}
+
+	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer) {
+		// Deauthorize the host in Inventory
+		req := inventory.DeauthorizeHostInput{
+			TenantId: rc.intelCluster.Namespace,
+			HostUUID: rc.intelMachine.Spec.NodeGUID,
+		}
+		res := r.InventoryClient.DeauthorizeHost(req)
+		if res.Err != nil {
+			rc.log.Error(res.Err, "Failed to deauthorize host in Inventory")
+			return res.Err
+		}
+		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer)
+	}
+
 	return nil
 }
 
@@ -322,12 +350,6 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	rc.intelMachine.Spec.ProviderID = &gmRes.Instance.Id
 	rc.intelMachine.Annotations[infrastructurev1alpha1.HostIdAnnotation] = gmRes.Host.Id
 	conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition)
-
-	// Add finalizers.  The HostCleanupFinalizer is removed by the SB Handler after it has cleaned up the host.
-	// The FreeInstanceFinalizer is removed by the IntelMachine Reconciler after the host is freed in Inventory.
-	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
-	controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
-
 	return false
 }
 
