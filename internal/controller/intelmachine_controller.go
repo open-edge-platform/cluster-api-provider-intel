@@ -249,7 +249,7 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 		}
 		res := r.InventoryClient.DeauthorizeHost(req)
 		if res.Err != nil {
-			rc.log.Error(res.Err, "Failed to deauthorize host in Inventory")
+			rc.log.Error(res.Err, "Failed to deauthorize host in Inventory", "NodeGUID", rc.intelMachine.Spec.NodeGUID)
 			return res.Err
 		}
 		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer)
