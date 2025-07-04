@@ -224,29 +224,37 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 
 	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) {
 		// Remove the instance from the workload in Inventory
-		req := inventory.DeleteInstanceFromWorkloadInput{
-			TenantId:   rc.intelCluster.Namespace,
-			WorkloadId: rc.intelCluster.Spec.ProviderId,
-			InstanceId: *rc.intelMachine.Spec.ProviderID,
-		}
-		res := r.InventoryClient.DeleteInstanceFromWorkload(req)
-		if res.Err != nil && !errors.Is(res.Err, inventory.ErrInvalidWorkloadMembers) {
-			rc.log.Error(res.Err, "Failed to delete instance from workload in Inventory")
-			return res.Err
+		if rc.intelMachine.Spec.ProviderID != nil {
+			req := inventory.DeleteInstanceFromWorkloadInput{
+				TenantId:   rc.intelCluster.Namespace,
+				WorkloadId: rc.intelCluster.Spec.ProviderId,
+				InstanceId: *rc.intelMachine.Spec.ProviderID,
+			}
+			res := r.InventoryClient.DeleteInstanceFromWorkload(req)
+			if res.Err != nil && !errors.Is(res.Err, inventory.ErrInvalidWorkloadMembers) {
+				rc.log.Error(res.Err, "Failed to delete instance from workload in Inventory")
+				return res.Err
+			}
+		} else {
+			rc.log.Info("ProviderID is nil, skipping instance deletion from workload")
 		}
 		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
 	}
 
 	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer) {
-		// Deauthorize the host in Inventory
-		req := inventory.DeauthorizeHostInput{
-			TenantId: rc.intelCluster.Namespace,
-			HostUUID: rc.intelMachine.Spec.NodeGUID,
-		}
-		res := r.InventoryClient.DeauthorizeHost(req)
-		if res.Err != nil {
-			rc.log.Error(res.Err, "Failed to deauthorize host in Inventory")
-			return res.Err
+		if rc.intelMachine.Spec.NodeGUID != "" {
+			// Deauthorize the host in Inventory
+			req := inventory.DeauthorizeHostInput{
+				TenantId: rc.intelCluster.Namespace,
+				HostUUID: rc.intelMachine.Spec.NodeGUID,
+			}
+			res := r.InventoryClient.DeauthorizeHost(req)
+			if res.Err != nil {
+				rc.log.Error(res.Err, "Failed to deauthorize host in Inventory", "NodeGUID", rc.intelMachine.Spec.NodeGUID)
+				return res.Err
+			}
+		} else {
+			rc.log.Info("NodeGUID is empty, skipping host deauthorization")
 		}
 		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer)
 	}
