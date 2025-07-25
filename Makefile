@@ -164,8 +164,8 @@ test-e2e: manifests generate fmt vet ## Run the e2e tests. Expected an isolated 
 	go test ./test/e2e/ -v -ginkgo.v
 
 .PHONY: fuzz
-fuzz: ## Run Fuzz tests
-	hack/fuzz_all.sh ${FUZZTIME}
+fuzz: envtest ## Run Fuzz tests
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" hack/fuzz_all.sh ${FUZZTIME}
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
