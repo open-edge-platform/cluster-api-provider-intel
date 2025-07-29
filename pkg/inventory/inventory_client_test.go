@@ -129,10 +129,12 @@ func TestGetHostAndInstanceByHostUUIDWithErrors(t *testing.T) {
 			},
 		},
 		{name: "failed get request to inventory",
-			expectedError: ErrFailedInventoryGetHostByUuid,
+			expectedError: errFailedGet,
 			mocks: func() []*mock.Call {
 				return []*mock.Call{
 					mockedClient.On("GetHostByUUID", mock.Anything, mock.Anything, mock.Anything).
+						Return(nil, errFailedGet).Once(),
+					mockedClient.On("Get", mock.Anything, mock.Anything, mock.Anything).
 						Return(nil, errFailedGet).Once(),
 				}
 			},
