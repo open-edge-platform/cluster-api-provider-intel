@@ -117,4 +117,6 @@ var (
 	ErrFailedInventoryGetResource    = errors.New("failed inventory get resource call")
 	ErrFailedInventoryCreateResource = errors.New("failed inventory create resource call")
 	ErrFailedInventoryDeleteResource = errors.New("failed inventory delete resource call")
+	ErrFailedInventoryGetResponse    = errors.New("failed inventory get resource call")
+	ErrFailedInventoryGetHost        = errors.New("failed inventory resource getHost call")
 )
