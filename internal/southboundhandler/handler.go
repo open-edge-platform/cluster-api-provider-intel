@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,6 +26,7 @@ import (
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
 	pb "github.com/open-edge-platform/cluster-api-provider-intel/pkg/api/proto"
+	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/inventory"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/logging"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/tenant"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -76,7 +78,8 @@ func validLabelVal(val string) bool {
 }
 
 type Handler struct {
-	client ctrlclient.Client
+	client          ctrlclient.Client
+	inventoryClient *inventory.InventoryClient
 }
 
 func NewHandler() (*Handler, error) {
@@ -111,7 +114,6 @@ func NewHandler() (*Handler, error) {
 
 	// Use the manager's cached client
 	cachedClient := mgr.GetClient()
-
 	// Start the manager in a separate goroutine
 	go func() {
 		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
@@ -119,7 +121,23 @@ func NewHandler() (*Handler, error) {
 		}
 	}()
 
-	return &Handler{client: cachedClient}, nil
+	inventoryAddress := os.Getenv("INVENTORY_ADDRESS")
+	if inventoryAddress == "" {
+		log.Warn().Msg("INVENTORY_ADDRESS environment variable is not set, inventory client will be disabled")
+		return &Handler{client: cachedClient, inventoryClient: nil}, nil
+	}
+
+	inventoryClient, err := inventory.NewInventoryClientWithOptions(inventory.NewOptionsBuilder().
+		WithInventoryAddress(inventoryAddress).
+		WithWaitGroup(&sync.WaitGroup{}).
+		WithStub(false).
+		Build())
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to create inventory client, continuing without it")
+		return &Handler{client: cachedClient, inventoryClient: nil}, nil
+	}
+
+	return &Handler{client: cachedClient, inventoryClient: inventoryClient}, nil
 }
 
 // Register is called by the CO Agent when registring a new cluster node.
@@ -142,7 +160,7 @@ func (h *Handler) Register(ctx context.Context, nodeGUID string) (*pb.ShellScrip
 	projectId := tenant.GetActiveProjectIdFromContext(ctx)
 
 	// Get IntelMachine in namespace <Project ID> with matching nodeGUID
-	intelmachine, err := getIntelMachine(ctx, h.client, projectId, nodeGUID)
+	intelmachine, err := h.getIntelMachine(ctx, h.client, projectId, nodeGUID)
 	if err != nil {
 		log.Error().Msg("Failed to get IntelMachine")
 		return nil, nil, pb.RegisterClusterResponse_ERROR, err
@@ -224,9 +242,9 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 	projectId := tenant.GetActiveProjectIdFromContext(ctx)
 
 	// Get IntelMachine in namespace <Project ID> with matching nodeGUID
-	intelmachine, err := getIntelMachine(ctx, h.client, projectId, nodeGUID)
+	intelmachine, err := h.getIntelMachine(ctx, h.client, projectId, nodeGUID)
 	if err != nil {
-		log.Error().Msg("Failed to get IntelMachine")
+		log.Error().Msgf("Failed to get IntelMachine %v", err)
 		return pb.UpdateClusterStatusResponse_NONE, err
 	}
 	if intelmachine == nil {
@@ -274,12 +292,12 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 	return action, nil
 }
 
-func getIntelMachine(ctx context.Context, client ctrlclient.Client, projectId string, nodeGUID string) (*infrastructurev1alpha1.IntelMachine, error) {
+func (h *Handler) getIntelMachine(ctx context.Context, client ctrlclient.Client, projectId string, nodeGUID string) (*infrastructurev1alpha1.IntelMachine, error) {
 	if !validLabelVal(nodeGUID) {
 		return nil, errors.New("invalid Node GUID")
 	}
 
-	// Use a label selector to filter IntelMachines by NodeGUID
+	// Use a label selector to filter IntelMachines by UUID
 	intelMachineList := &infrastructurev1alpha1.IntelMachineList{}
 	listOpts := []ctrlclient.ListOption{
 		ctrlclient.InNamespace(projectId),
@@ -291,16 +309,59 @@ func getIntelMachine(ctx context.Context, client ctrlclient.Client, projectId st
 	}
 
 	if len(intelMachineList.Items) < 1 {
-		return nil, nil
+		// Failed to find IntelMachine with provided NodeGUID
+		// Attempt to search by hostID before giving up as the IntelMachine with auto-created cluster has HostID instead of UUID
+		log.Debug().Msgf("No IntelMachine found for UUID %s in the project %s, attempt to search by hostID", nodeGUID, projectId)
+
+		if h.inventoryClient != nil {
+			host, err := h.inventoryClient.Client.GetHostByUUID(ctx, projectId, nodeGUID)
+			if err != nil {
+				log.Debug().Msgf("Failed to get host resource by UUID %s in the project %s", nodeGUID, projectId)
+				return nil, nil
+			}
+
+			if host != nil {
+				listOpts = []ctrlclient.ListOption{ctrlclient.InNamespace(projectId),
+					ctrlclient.MatchingLabels{infrastructurev1alpha1.NodeGUIDKey: host.GetResourceId()},
+				}
+				if err := client.List(ctx, intelMachineList, listOpts...); err != nil {
+					return nil, err
+				}
+
+				// If no valid IntelMachine found by hostID, give up and return nil
+				if len(intelMachineList.Items) < 1 {
+					log.Debug().Msgf("No IntelMachine found for hostID %s in the project %s", host.GetResourceId(), projectId)
+					return nil, nil
+				}
+			} else {
+				return nil, nil
+			}
+		} else {
+			return nil, nil
+		}
 	}
+
 	if len(intelMachineList.Items) > 1 {
 		return nil, errors.New("duplicate IntelMachines found")
 	}
 
-	intelMachine := &intelMachineList.Items[0]
-	if intelMachine.Spec.NodeGUID != nodeGUID {
-		return nil, errors.New("invalid IntelMachine found")
+	// We found a single IntelMachine with the provided NodeGUID
+	// If nodeGUID in the request does not match the label value in the IntelMachine, update it for later use
+	// This can happen for auto-created cluster, where nodeGUID is the hostID not UUID
+	val := intelMachineList.Items[0].Labels[infrastructurev1alpha1.NodeGUIDKey]
+	if val != nodeGUID {
+		intelMachineList.Items[0].Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
+		if err := client.Update(ctx, &intelMachineList.Items[0]); err != nil {
+			log.Warn().Msgf("Failed to update IntelMachine with NodeGUID label: %v", err)
+			return nil, nil
+		}
 	}
+
+	intelMachine := &intelMachineList.Items[0]
+	// This is valid only for manually created clusters, so disable the check.
+	// We'll revisit this code later for permanent fix.
+	// if intelMachine.Spec.NodeGUID != nodeGUID {
+	//	return nil, errors.New("invalid IntelMachine found")
 	return intelMachine, nil
 }
 

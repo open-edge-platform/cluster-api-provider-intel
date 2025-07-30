@@ -20,7 +20,7 @@ const RFC3339Micro = "2006-01-02T15:04:05.000000Z07:00"
 //nolint:gochecknoinits // Using init for defining flags is a valid exception.
 func init() {
 	flag.Func(
-		"globalLogLevel",
+		"logLevel",
 		"Sets the application-wide logging level. Must be a valid zerolog.Level. Defaults to 'info'",
 		handleLogLevel,
 	)

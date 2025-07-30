@@ -355,11 +355,13 @@ func TestGetInstanceByMachineId(t *testing.T) {
 			tenantId: tenantId,
 			expectedOutput: GetInstanceByMachineIdOutput{
 				Instance: &Instance{},
-				Err:      ErrFailedInventoryGetHostByUuid,
+				Err:      ErrGenericInventoryClientErrror,
 			},
 			mocks: func() []*mock.Call {
 				return []*mock.Call{
 					mockedInventoryClient.On("GetHostByUUID", mock.Anything, tenantId, nodeUUId).
+						Return(nil, ErrGenericInventoryClientErrror).Once(),
+					mockedInventoryClient.On("Get", mock.Anything, tenantId, nodeUUId).
 						Return(nil, ErrGenericInventoryClientErrror).Once(),
 				}
 			},
