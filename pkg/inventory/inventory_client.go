@@ -83,7 +83,7 @@ type InventoryClient struct {
 	Client client.TenantAwareInventoryClient
 }
 
-func newInventoryClientWithOptions(opt Options) (*InventoryClient, error) {
+func NewInventoryClientWithOptions(opt Options) (*InventoryClient, error) {
 	var invClient client.TenantAwareInventoryClient
 	var err error
 

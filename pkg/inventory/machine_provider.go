@@ -24,7 +24,7 @@ func NewMachineProvider(wg *sync.WaitGroup, inventoryAddress string,
 		WithStub(useStub).
 		Build()
 
-	client, err := newInventoryClientWithOptions(options)
+	client, err := NewInventoryClientWithOptions(options)
 
 	if err != nil {
 		return nil, err

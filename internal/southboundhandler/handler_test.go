@@ -448,7 +448,7 @@ func TestHandler_UpdateStatus_MachineReady(t *testing.T) {
 			assert.Equal(t, tc.expectedAction, actionReq)
 
 			// Check that IntelMachine has been updated with the correct host state
-			im, err := getIntelMachine(ctx, testHandler.client, projectId, nodeGUID)
+			im, err := testHandler.getIntelMachine(ctx, testHandler.client, projectId, nodeGUID)
 			assert.NoError(t, err)
 			hostStatus, ok := im.Annotations[infrastructurev1alpha1.HostStateAnnotation]
 			assert.True(t, ok)
@@ -541,7 +541,7 @@ func TestHandler_UpdateStatus_MachineDeleted(t *testing.T) {
 			assert.Equal(t, tc.expectedAction, actionReq)
 
 			// Check that IntelMachine has been updated with the correct host state
-			im, err := getIntelMachine(ctx, testHandler.client, projectId, nodeGUID)
+			im, err := testHandler.getIntelMachine(ctx, testHandler.client, projectId, nodeGUID)
 			assert.NoError(t, err)
 			if tc.stillExists {
 				hostStatus, ok := im.Annotations[infrastructurev1alpha1.HostStateAnnotation]

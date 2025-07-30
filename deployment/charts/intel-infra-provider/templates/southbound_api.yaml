@@ -63,6 +63,8 @@ spec:
               value: "{{ .Values.southboundApi.clientRateLimiter.qps }}"
             - name: RATE_LIMITER_BURST
               value: "{{ .Values.southboundApi.clientRateLimiter.burst }}"
+            - name: INVENTORY_ADDRESS
+              value: {{ .Values.manager.inventory.endpoint | quote }}
           ports:
             - name: grpc
               containerPort: {{ .Values.southboundApi.service.grpc.port }}
