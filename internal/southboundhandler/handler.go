@@ -123,7 +123,8 @@ func NewHandler() (*Handler, error) {
 
 	inventoryAddress := os.Getenv("INVENTORY_ADDRESS")
 	if inventoryAddress == "" {
-		return nil, fmt.Errorf("failed to create inventory client: %w", err)
+		log.Warn().Msg("INVENTORY_ADDRESS environment variable is not set, inventory client will be disabled")
+		return &Handler{client: cachedClient, inventoryClient: nil}, nil
 	}
 
 	inventoryClient, err := inventory.NewInventoryClientWithOptions(inventory.NewOptionsBuilder().
@@ -132,7 +133,8 @@ func NewHandler() (*Handler, error) {
 		WithStub(false).
 		Build())
 	if err != nil {
-		return nil, err
+		log.Warn().Err(err).Msg("Failed to create inventory client, continuing without it")
+		return &Handler{client: cachedClient, inventoryClient: nil}, nil
 	}
 
 	return &Handler{client: cachedClient, inventoryClient: inventoryClient}, nil
