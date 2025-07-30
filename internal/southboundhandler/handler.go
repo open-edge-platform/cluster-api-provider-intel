@@ -311,22 +311,30 @@ func (h *Handler) getIntelMachine(ctx context.Context, client ctrlclient.Client,
 		// Attempt to search by hostID before giving up as the IntelMachine with auto-created cluster has HostID instead of UUID
 		log.Debug().Msgf("No IntelMachine found for UUID %s in the project %s, attempt to search by hostID", nodeGUID, projectId)
 
-		host, err := h.inventoryClient.Client.GetHostByUUID(ctx, projectId, nodeGUID)
-		if err != nil {
-			log.Debug().Msgf("Failed to get host resource by UUID %s in the project %s", nodeGUID, projectId)
-			return nil, nil
-		}
+		if h.inventoryClient != nil {
+			host, err := h.inventoryClient.Client.GetHostByUUID(ctx, projectId, nodeGUID)
+			if err != nil {
+				log.Debug().Msgf("Failed to get host resource by UUID %s in the project %s", nodeGUID, projectId)
+				return nil, nil
+			}
 
-		listOpts = []ctrlclient.ListOption{ctrlclient.InNamespace(projectId),
-			ctrlclient.MatchingLabels{infrastructurev1alpha1.NodeGUIDKey: host.GetResourceId()},
-		}
-		if err := client.List(ctx, intelMachineList, listOpts...); err != nil {
-			return nil, err
-		}
+			if host != nil {
+				listOpts = []ctrlclient.ListOption{ctrlclient.InNamespace(projectId),
+					ctrlclient.MatchingLabels{infrastructurev1alpha1.NodeGUIDKey: host.GetResourceId()},
+				}
+				if err := client.List(ctx, intelMachineList, listOpts...); err != nil {
+					return nil, err
+				}
 
-		// If no valid IntelMachine found by hostID, give up and return nil
-		if len(intelMachineList.Items) < 1 {
-			log.Debug().Msgf("No IntelMachine found for hostID %s in the project %s", host.GetResourceId(), projectId)
+				// If no valid IntelMachine found by hostID, give up and return nil
+				if len(intelMachineList.Items) < 1 {
+					log.Debug().Msgf("No IntelMachine found for hostID %s in the project %s", host.GetResourceId(), projectId)
+					return nil, nil
+				}
+			} else {
+				return nil, nil
+			}
+		} else {
 			return nil, nil
 		}
 	}
@@ -350,9 +358,8 @@ func (h *Handler) getIntelMachine(ctx context.Context, client ctrlclient.Client,
 	intelMachine := &intelMachineList.Items[0]
 	// This is valid only for manually created clusters, so disable the check.
 	// We'll revisit this code later for permanent fix.
-	//if intelMachine.Spec.NodeGUID != nodeGUID {
+	// if intelMachine.Spec.NodeGUID != nodeGUID {
 	//	return nil, errors.New("invalid IntelMachine found")
-	//}
 	return intelMachine, nil
 }
 

@@ -48,7 +48,7 @@ func TestGetLogger(t *testing.T) {
 	}
 	for _, tt := range tests {
 		// Set the global log level
-		if err := flag.Set("globalLogLevel", tt.wantLevel.String()); err != nil {
+		if err := flag.Set("logLevel", tt.wantLevel.String()); err != nil {
 			t.Errorf("error setting level")
 			continue
 		}
@@ -90,7 +90,7 @@ func TestGetLoggerWithSetenvHuman(t *testing.T) {
 	os.Setenv("HUMAN", "true")
 	for _, tt := range tests {
 		// Set the global log level
-		if err := flag.Set("globalLogLevel", tt.wantLevel.String()); err != nil {
+		if err := flag.Set("logLevel", tt.wantLevel.String()); err != nil {
 			t.Errorf("error setting level")
 			continue
 		}
