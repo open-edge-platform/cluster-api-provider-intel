@@ -165,13 +165,13 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 		rc.machine.Annotations[SkipRemediationAnnotation] = "true"
 		// Run patch once reconcile is done to ensure the annotation is added.
+		machinePatchHelper, err := patch.NewHelper(rc.machine, r.Client)
+		if err != nil {
+			rc.log.Error(err, "Failed to create patch helper for Machine")
+			return ctrl.Result{}, err
+		}
 		defer func() {
-			patchHelper, err := patch.NewHelper(rc.machine, r.Client)
-			if err != nil {
-				rc.log.Error(err, "Failed to create patch helper for Machine")
-				return
-			}
-			if err := patchHelper.Patch(ctx, rc.machine); err != nil {
+			if err := machinePatchHelper.Patch(ctx, rc.machine); err != nil {
 				rc.log.Error(err, "Failed to patch Machine with skip remediation annotation")
 			}
 		}()
