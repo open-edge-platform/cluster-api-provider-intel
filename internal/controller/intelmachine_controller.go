@@ -163,7 +163,6 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		rc.machine.Annotations[SkipRemediationAnnotation] = "true"
 		// Run patch once reconcile is done to ensure the annotation is added.
 		defer func() {
-			// Patch the Machine to add the annotation to skip remediation.
 			patchHelper, err := patch.NewHelper(rc.machine, r.Client)
 			if err != nil {
 				rc.log.Error(err, "Failed to create patch helper for Machine")
@@ -173,8 +172,6 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				rc.log.Error(err, "Failed to patch Machine with skip remediation annotation")
 			}
 		}()
-		rc.log.Info("Added skip remediation annotation to Machine", "Machine", rc.machine.Name)
-
 	}
 	// Add finalizers to the IntelMachine if they are not already present.
 	if !controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) ||
