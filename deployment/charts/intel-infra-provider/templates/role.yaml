@@ -20,6 +20,7 @@ rules:
   - get
   - list
   - watch
+  - patch
 - apiGroups:
   - infrastructure.cluster.x-k8s.io
   resources:
