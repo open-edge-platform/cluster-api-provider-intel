@@ -160,6 +160,9 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	// Add annotation to skip remediation
 	if _, ok := rc.machine.Annotations[SkipRemediationAnnotation]; !ok {
+		if rc.machine.Annotations == nil {
+			rc.machine.Annotations = make(map[string]string)
+		}
 		rc.machine.Annotations[SkipRemediationAnnotation] = "true"
 		// Run patch once reconcile is done to ensure the annotation is added.
 		defer func() {
