@@ -33,7 +33,8 @@ const (
 	defaultRequeueAfter = 10 * time.Second
 
 	// intelMachineBindingKey is used to index IntelMachineBinding objects.
-	intelMachineBindingKey = ".metadata.intelMachineBindingKey"
+	intelMachineBindingKey    = ".metadata.intelMachineBindingKey"
+	SkipRemediationAnnotation = "cluster.x-k8s.io/skip-remediation"
 )
 
 var (
@@ -157,7 +158,11 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if !rc.intelMachine.ObjectMeta.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, r.reconcileDelete(rc)
 	}
+	// Add annotation to skip remediation
+	if _, ok := rc.intelMachine.Annotations[SkipRemediationAnnotation]; !ok {
+		rc.intelMachine.Annotations[SkipRemediationAnnotation] = "true"
 
+	}
 	// Add finalizers to the IntelMachine if they are not already present.
 	if !controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) ||
 		!controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer) {
