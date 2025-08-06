@@ -64,7 +64,7 @@ type IntelMachineReconcilerContext struct {
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=intelclusters;intelclusters/status,verbs=get;list;watch
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=intelmachinetemplates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters;clusters/status,verbs=get;list;watch
-// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines;machines/status,verbs=get;list;watch
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines;machines/status,verbs=get;list;watch;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -158,6 +158,25 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, r.reconcileDelete(rc)
 	}
 
+	// Add annotation to skip remediation
+	if _, ok := rc.machine.Annotations[clusterv1.MachineSkipRemediationAnnotation]; !ok {
+		machinePatchHelper, err := patch.NewHelper(rc.machine, r.Client)
+		if err != nil {
+			rc.log.Error(err, "Failed to create patch helper for Machine")
+			return ctrl.Result{}, err
+		}
+
+		if rc.machine.Annotations == nil {
+			rc.machine.Annotations = make(map[string]string)
+		}
+		rc.machine.Annotations[clusterv1.MachineSkipRemediationAnnotation] = "true"
+
+		// Immediately patch the Machine.
+		if err := machinePatchHelper.Patch(ctx, rc.machine); err != nil {
+			rc.log.Error(err, "Failed to patch Machine with skip remediation annotation")
+		}
+	}
+
 	// Add finalizers to the IntelMachine if they are not already present.
 	if !controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) ||
 		!controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer) {
@@ -224,29 +243,37 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 
 	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) {
 		// Remove the instance from the workload in Inventory
-		req := inventory.DeleteInstanceFromWorkloadInput{
-			TenantId:   rc.intelCluster.Namespace,
-			WorkloadId: rc.intelCluster.Spec.ProviderId,
-			InstanceId: *rc.intelMachine.Spec.ProviderID,
-		}
-		res := r.InventoryClient.DeleteInstanceFromWorkload(req)
-		if res.Err != nil && !errors.Is(res.Err, inventory.ErrInvalidWorkloadMembers) {
-			rc.log.Error(res.Err, "Failed to delete instance from workload in Inventory")
-			return res.Err
+		if rc.intelMachine.Spec.ProviderID != nil {
+			req := inventory.DeleteInstanceFromWorkloadInput{
+				TenantId:   rc.intelCluster.Namespace,
+				WorkloadId: rc.intelCluster.Spec.ProviderId,
+				InstanceId: *rc.intelMachine.Spec.ProviderID,
+			}
+			res := r.InventoryClient.DeleteInstanceFromWorkload(req)
+			if res.Err != nil && !errors.Is(res.Err, inventory.ErrInvalidWorkloadMembers) {
+				rc.log.Error(res.Err, "Failed to delete instance from workload in Inventory")
+				return res.Err
+			}
+		} else {
+			rc.log.Info("ProviderID is nil, skipping instance deletion from workload")
 		}
 		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
 	}
 
 	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer) {
-		// Deauthorize the host in Inventory
-		req := inventory.DeauthorizeHostInput{
-			TenantId: rc.intelCluster.Namespace,
-			HostUUID: rc.intelMachine.Spec.NodeGUID,
-		}
-		res := r.InventoryClient.DeauthorizeHost(req)
-		if res.Err != nil {
-			rc.log.Error(res.Err, "Failed to deauthorize host in Inventory")
-			return res.Err
+		if rc.intelMachine.Spec.NodeGUID != "" {
+			// Deauthorize the host in Inventory
+			req := inventory.DeauthorizeHostInput{
+				TenantId: rc.intelCluster.Namespace,
+				HostUUID: rc.intelMachine.Spec.NodeGUID,
+			}
+			res := r.InventoryClient.DeauthorizeHost(req)
+			if res.Err != nil {
+				rc.log.Error(res.Err, "Failed to deauthorize host in Inventory", "NodeGUID", rc.intelMachine.Spec.NodeGUID)
+				return res.Err
+			}
+		} else {
+			rc.log.Info("NodeGUID is empty, skipping host deauthorization")
 		}
 		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer)
 	}

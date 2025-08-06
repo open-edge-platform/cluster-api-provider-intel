@@ -83,7 +83,7 @@ type InventoryClient struct {
 	Client client.TenantAwareInventoryClient
 }
 
-func newInventoryClientWithOptions(opt Options) (*InventoryClient, error) {
+func NewInventoryClientWithOptions(opt Options) (*InventoryClient, error) {
 	var invClient client.TenantAwareInventoryClient
 	var err error
 
@@ -147,9 +147,26 @@ func (c *InventoryClient) getHost(ctx context.Context, tenantId, hostUUID string
 
 	respHost, err := c.Client.GetHostByUUID(childCtx, tenantId, hostUUID)
 	if err != nil {
-		slog.Warn("failed to get host from host id",
-			"tenantId", tenantId, "host uuid", hostUUID, "error", err)
-		return nil, ErrFailedInventoryGetHostByUuid
+		slog.Warn("failed to get host from host uuid, attempting to get by resourceid",
+			"tenantId", tenantId, "hostId", hostUUID, "error", err)
+		response, err := c.Client.Get(ctx, tenantId, hostUUID)
+		if err != nil {
+			slog.Warn("failed to get host by resourceId", "error", err, "tenantId", tenantId, "hostId", hostUUID)
+			return nil, err
+		}
+
+		resource := response.GetResource()
+		if resource == nil {
+			slog.Warn("response resource is nil", "tenantId", tenantId, "hostUuid", hostUUID)
+			return nil, ErrFailedInventoryGetResponse
+		}
+		respHost = resource.GetHost()
+		if respHost == nil {
+			slog.Warn("host in response resource is nil", "tenantId", tenantId, "hostUuid", hostUUID)
+			return nil, ErrFailedInventoryGetHost
+		}
+
+		slog.Debug("success in getting resourceId", "tenantId", tenantId, "hostUuid", hostUUID)
 	}
 
 	if err := c.validateHostResource(respHost); err != nil {

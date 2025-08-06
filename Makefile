@@ -36,7 +36,7 @@ DOCKER_IMAGE_MANAGER    ?= ${REGISTRY}/${REGISTRY_NO_AUTH}/${REPOSITORY}/capi-pr
 DOCKER_IMAGE_SOUTHBOUND ?= ${REGISTRY}/${REGISTRY_NO_AUTH}/${REPOSITORY}/capi-provider-intel-southbound:${DOCKER_TAG}
 
 ## Labels to add Docker/Helm/Service CI meta-data.
-LABEL_SOURCE       ?= $(shell git remote get-url $(shell git remote))
+LABEL_SOURCE       ?= $(shell git remote get-url $(shell git remote) | sed 's|://[^@/]*@|://|g') # Strip credentials from git URLs
 LABEL_REVISION     = $(shell git rev-parse HEAD)
 LABEL_CREATED      ?= $(shell date -u "+%Y-%m-%dT%H:%M:%SZ")
 
@@ -164,8 +164,8 @@ test-e2e: manifests generate fmt vet ## Run the e2e tests. Expected an isolated 
 	go test ./test/e2e/ -v -ginkgo.v
 
 .PHONY: fuzz
-fuzz: ## Run Fuzz tests
-	hack/fuzz_all.sh ${FUZZTIME}
+fuzz: envtest ## Run Fuzz tests
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" hack/fuzz_all.sh ${FUZZTIME}
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
