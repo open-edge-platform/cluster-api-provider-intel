@@ -7,7 +7,7 @@ toolchain go1.24.2
 replace github.com/google/cel-go => github.com/google/cel-go v0.22.1
 
 require (
-	entgo.io/ent v0.14.4
+	entgo.io/ent v0.14.5
 	github.com/bnkamalesh/errors v0.11.1
 	github.com/envoyproxy/protoc-gen-validate v1.2.1
 	github.com/getkin/kin-openapi v0.132.0
@@ -41,7 +41,7 @@ require (
 )
 
 require (
-	ariga.io/atlas v0.32.0 // indirect
+	ariga.io/atlas v0.32.1-0.20250325101103-175b25e1c1b9 // indirect
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.6-20250307204501-0409229c3780.1 // indirect
 	cel.dev/expr v0.23.0 // indirect
 	entgo.io/contrib v0.6.0 // indirect
