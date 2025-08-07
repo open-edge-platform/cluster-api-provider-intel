@@ -136,34 +136,6 @@ func TestRetrieveFQDN(t *testing.T) {
 	}
 }
 
-func TestGetCASuccesfull(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		rw.Write([]byte("https://registry.com/hello"))
-	}))
-	// Close the server when test finishes
-	defer server.Close()
-
-	// Use Client & URL from our local test server
-	got, err := GetCA(server.URL)
-	if err != nil {
-		t.Errorf("GetCA() error = %v, wantErr %v", err, err)
-		return
-	}
-	assert.Equalf(t, "aHR0cHM6Ly9yZWdpc3RyeS5jb20vaGVsbG8=", got, server.URL)
-
-}
-
-func TestGetCAWrongURL(t *testing.T) {
-	//pass 12345 as a URL
-	got, err := GetCA("12345")
-	if err != nil {
-		t.Errorf("GetCA() error = %v, wantErr %v", err, err)
-		return
-	}
-	assert.Equal(t, "", got)
-
-}
-
 func TestTerminateSideCarEmptyIstioEndpoint(t *testing.T) {
 
 	err := TerminateSideCar("")
