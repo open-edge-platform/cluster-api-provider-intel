@@ -24,7 +24,7 @@ jobs:
       VERSION: ${{ github.head_ref }}  # Use the component branch that triggered the action for the test
     steps:
       - name: Checkout orch ci
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: open-edge-platform/orch-ci
           path: ci
@@ -33,7 +33,7 @@ jobs:
           persist-credentials: false
 
       - name: Checkout cluster-tests for integration tests
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: open-edge-platform/cluster-tests
           path: cluster-tests
