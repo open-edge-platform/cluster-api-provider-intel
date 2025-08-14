@@ -34,7 +34,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.60.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.62.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.37.0
-	k8s.io/apimachinery v0.33.2
+	k8s.io/apimachinery v0.33.4
 	k8s.io/client-go v0.33.2
 	sigs.k8s.io/cluster-api/test/infrastructure/docker v0.0.0-20210602185643-40841d9837b8
 	sigs.k8s.io/controller-runtime v0.21.0
