@@ -31,7 +31,7 @@ const (
 	secretFormat     = cloudConfigFormat
 	nodeGUID         = "test-nodeGUID"
 	ownerRefKind     = "Machine"
-	bootstrapKind    = configTypeRKE2
+	bootstrapKind    = configTypeKThrees
 )
 
 var (
@@ -257,7 +257,7 @@ func TestHandler_Register(t *testing.T) {
 			intelmachine.OwnerReferences[0].Kind = tc.ownerRefKind
 
 			// Create Secret
-			secret := utils.NewRKE2BootstrapSecret(tc.namespace, secretName)
+			secret := utils.NewK3SBootstrapSecret(tc.namespace, secretName)
 			if tc.secretFormat == "" {
 				delete(secret.Data, "format")
 			} else {
@@ -323,7 +323,7 @@ func FuzzHandlerRegister(f *testing.F) {
 		intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
 
 		// Create Secret
-		secret := utils.NewRKE2BootstrapSecret(projectId, secretName)
+		secret := utils.NewK3SBootstrapSecret(projectId, secretName)
 
 		testHandler := &Handler{
 			client: k8sClient,
@@ -723,7 +723,7 @@ func TestHandler_GetCommand(t *testing.T) {
 
 }
 
-func Test_RKE2ExtractBootstrapScript(t *testing.T) {
+/* func Test_RKE2ExtractBootstrapScript(t *testing.T) {
 	projectId := "00000000-0000-0000-0000-00000000600"
 	// Create Secret
 	secret := utils.NewRKE2BootstrapSecret(projectId, secretName)
@@ -734,7 +734,7 @@ func Test_RKE2ExtractBootstrapScript(t *testing.T) {
 
 	// Save the result to a file for further inspection / testing
 	assert.NoError(t, os.WriteFile("/tmp/rke2bootstrap.sh", []byte(bs), 0644))
-}
+} */
 
 func Test_K3SExtractBootstrapScript(t *testing.T) {
 	projectId := "00000000-0000-0000-0000-00000000700"

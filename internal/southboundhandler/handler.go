@@ -46,11 +46,11 @@ const (
 	// Known config types
 	configTypeKubeadm = "KubeadmConfig"
 	configTypeKThrees = "KThreesConfig"
-	configTypeRKE2    = "RKE2Config"
+	// configTypeRKE2    = "RKE2Config"
 
 	// Configuration paths
-	configDirRKE2 = "/etc/rancher/rke2/config.yaml.d/"
-	configDirK3S  = "/etc/rancher/k3s/config.yaml.d/"
+	// configDirRKE2 = "/etc/rancher/rke2/config.yaml.d/"
+	configDirK3S = "/etc/rancher/k3s/config.yaml.d/"
 
 	// Secret formats
 	cloudConfigFormat = "cloud-config"
@@ -435,9 +435,9 @@ func extractBootstrapScript(secret *corev1.Secret, kind, providerID string) (str
 	case configTypeKThrees:
 		newcmds := providerIDCommands(configDirK3S, providerID)
 		commands = append(newcmds, commands...)
-	case configTypeRKE2:
+		/* 	case configTypeRKE2:
 		newcmds := providerIDCommands(configDirRKE2, providerID)
-		commands = append(newcmds, commands...)
+		commands = append(newcmds, commands...) */
 	default:
 		return "", fmt.Errorf("unsupported bootstrap provider: %s", kind)
 	}
@@ -476,7 +476,7 @@ func encodeContents(path, contents string) string {
 }
 
 // Convert a cloudinit.Cmd to a runnable shell command.
-// This is bare-bones at present but seems adequate for the RKE2 Bootstrap script.
+// This is bare-bones at present but seems adequate for the K3S Bootstrap script.
 func getCommand(cmd cloudinit.Cmd) (string, error) {
 	switch cmd.Cmd {
 	case "mkdir", "chmod":

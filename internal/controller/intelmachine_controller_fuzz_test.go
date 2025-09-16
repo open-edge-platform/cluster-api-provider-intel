@@ -31,7 +31,7 @@ func FuzzMachineReconcile(f *testing.F) {
 		machineTemplateName     = "test-machinetemplate"
 		workloadId              = "test-workload-id"
 		instanceId              = "test-instance-id"
-		bootstrapKind           = "RKE2Config"
+		bootstrapKind           = "KThreesConfig"
 		nodeGUID                = "1234567890"
 	)
 	scheme := runtime.NewScheme()

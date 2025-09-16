@@ -27,7 +27,7 @@ import (
 
 const (
 	namespace     = "default"
-	bootstrapKind = "RKE2Config"
+	bootstrapKind = "KThreesConfig"
 )
 
 var _ = Describe("IntelMachine Controller", func() {
