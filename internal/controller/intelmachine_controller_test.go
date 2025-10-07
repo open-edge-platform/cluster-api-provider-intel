@@ -467,3 +467,7 @@ var _ = Describe("Reconcile loop errors", func() {
 		})
 	})
 })
+
+func trigger(){
+	
+}

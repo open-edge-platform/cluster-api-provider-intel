@@ -39,7 +39,9 @@ const (
 var (
 	ErrNoCluster = fmt.Errorf("no %q label present", clusterv1.ClusterNameLabel)
 )
-
+func dummychange(){
+	
+}
 // IntelMachineReconciler reconciles a IntelMachine object
 type IntelMachineReconciler struct {
 	client.Client
