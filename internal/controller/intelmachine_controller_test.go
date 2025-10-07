@@ -239,6 +239,12 @@ var _ = Describe("IntelMachine Controller", func() {
 				g.Expect(conditions.IsTrue(resource, infrastructurev1alpha1.BootstrapExecSucceededCondition)).To(BeTrue())
 				g.Expect(conditions.IsTrue(resource, clusterv1.ReadyCondition)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
+
+			By("Checking that the owner Machine has skip-remediation annotation")
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: machineName, Namespace: namespace}, machine)).To(Succeed())
+				g.Expect(machine.Annotations).To(HaveKey(clusterv1.MachineSkipRemediationAnnotation))
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 })

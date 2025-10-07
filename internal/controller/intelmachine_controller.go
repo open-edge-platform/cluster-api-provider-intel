@@ -66,7 +66,7 @@ type IntelMachineReconcilerContext struct {
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=intelclusters;intelclusters/status,verbs=get;list;watch
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=intelmachinetemplates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters;clusters/status,verbs=get;list;watch
-// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines;machines/status,verbs=get;list;watch
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines;machines/status,verbs=get;list;watch;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -158,6 +158,25 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Handle deleted machines
 	if !rc.intelMachine.ObjectMeta.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, r.reconcileDelete(rc)
+	}
+
+	// Add annotation to skip remediation
+	if _, ok := rc.machine.Annotations[clusterv1.MachineSkipRemediationAnnotation]; !ok {
+		machinePatchHelper, err := patch.NewHelper(rc.machine, r.Client)
+		if err != nil {
+			rc.log.Error(err, "Failed to create patch helper for Machine")
+			return ctrl.Result{}, err
+		}
+
+		if rc.machine.Annotations == nil {
+			rc.machine.Annotations = make(map[string]string)
+		}
+		rc.machine.Annotations[clusterv1.MachineSkipRemediationAnnotation] = "true"
+
+		// Immediately patch the Machine.
+		if err := machinePatchHelper.Patch(ctx, rc.machine); err != nil {
+			rc.log.Error(err, "Failed to patch Machine with skip remediation annotation")
+		}
 	}
 
 	// Add finalizers to the IntelMachine if they are not already present.
