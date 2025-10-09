@@ -1,6 +1,6 @@
 module github.com/open-edge-platform/cluster-api-provider-intel
 
-go 1.24.6
+go 1.24.8
 
 replace github.com/google/cel-go => github.com/google/cel-go v0.22.1
 
