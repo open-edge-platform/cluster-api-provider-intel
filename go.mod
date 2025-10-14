@@ -20,7 +20,7 @@ require (
 	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/naughtygopher/errors v1.0.1
 	github.com/oapi-codegen/echo-middleware v1.0.2
-	github.com/onsi/ginkgo/v2 v2.25.1
+	github.com/onsi/ginkgo/v2 v2.26.0
 	github.com/onsi/gomega v1.38.2
 	github.com/open-edge-platform/cluster-connect-gateway v1.2.3
 	github.com/open-edge-platform/infra-core/inventory/v2 v2.30.10
