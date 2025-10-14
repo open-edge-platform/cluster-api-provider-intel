@@ -15,7 +15,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.1
 	github.com/hashicorp/vault/api v1.21.0
-	github.com/labstack/echo-jwt/v4 v4.3.0
+	github.com/labstack/echo-jwt/v4 v4.3.1
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/naughtygopher/errors v1.0.1
