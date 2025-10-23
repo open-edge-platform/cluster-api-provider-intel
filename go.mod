@@ -1,8 +1,16 @@
 module github.com/open-edge-platform/cluster-api-provider-intel
 
-go 1.24.8
+go 1.24.4
 
-replace github.com/google/cel-go => github.com/google/cel-go v0.22.1
+replace (
+	ariga.io/atlas => ariga.io/atlas v0.32.0
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go => buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.6-20250307204501-0409229c3780.1
+	github.com/google/cel-go => github.com/google/cel-go v0.22.1
+	github.com/open-edge-platform/infra-core/inventory/v2 => github.com/open-edge-platform/infra-core/inventory/v2 v2.23.0
+	github.com/open-edge-platform/orch-library/ => github.com/open-edge-platform/orch-library/go v0.5.29
+	github.com/open-edge-platform/orch-utils/tenancy-datamodel => github.com/open-edge-platform/orch-utils/tenancy-datamodel v0.0.0-20250401180309-9c2571c45857
+	github.com/open-policy-agent/opa => github.com/open-policy-agent/opa v1.4.0
+)
 
 require (
 	entgo.io/ent v0.14.5
@@ -23,9 +31,9 @@ require (
 	github.com/onsi/ginkgo/v2 v2.26.0
 	github.com/onsi/gomega v1.38.2
 	github.com/open-edge-platform/cluster-connect-gateway v1.2.3
-	github.com/open-edge-platform/infra-core/inventory/v2 v2.30.10
-	github.com/open-edge-platform/orch-library/go v0.6.1
-	github.com/open-policy-agent/opa v1.9.0
+	github.com/open-edge-platform/infra-core/inventory/v2 v2.0.0-00010101000000-000000000000
+	github.com/open-edge-platform/orch-library/go v0.5.29
+	github.com/open-policy-agent/opa v1.3.0
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.11.1
 	github.com/undefinedlabs/go-mpatch v1.0.7
@@ -41,7 +49,6 @@ require (
 require (
 	ariga.io/atlas v0.37.0 // indirect
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.9-20250912141014-52f32327d4b0.1 // indirect
-	buf.build/go/protovalidate v1.0.0 // indirect
 	cel.dev/expr v0.24.0 // indirect
 	entgo.io/contrib v0.7.0 // indirect
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
@@ -49,6 +56,7 @@ require (
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/bmatcuk/doublestar v1.3.4 // indirect
+	github.com/bufbuild/protovalidate-go v0.9.2 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
@@ -80,15 +88,10 @@ require (
 	github.com/labstack/echo-contrib v0.17.4 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
-	github.com/lestrrat-go/dsig v1.0.0 // indirect
-	github.com/lestrrat-go/dsig-secp256k1 v1.0.0 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/httprc v1.0.6 // indirect
-	github.com/lestrrat-go/httprc/v3 v3.0.1 // indirect
 	github.com/lestrrat-go/iter v1.0.2 // indirect
-	github.com/lestrrat-go/jwx/v3 v3.0.11 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
-	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -112,9 +115,7 @@ require (
 	github.com/tchap/go-patricia/v2 v2.3.3 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fastjson v1.6.4 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
-	github.com/vektah/gqlparser/v2 v2.5.30 // indirect
 	github.com/woodsbury/decimal128 v1.3.0 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
