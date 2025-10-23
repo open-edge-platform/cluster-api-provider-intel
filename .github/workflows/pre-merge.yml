@@ -10,7 +10,7 @@ on:
     branches:
       - main
       - release-*
-  workflow_dispatch: 
+  workflow_dispatch:
 
 permissions: {}
 
@@ -20,61 +20,61 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout PR
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ github.head_ref }}
-        persist-credentials: false
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          persist-credentials: false
 
-    - name: "Setup"
-      uses: open-edge-platform/orch-ci/.github/actions/bootstrap@main
-      with:
-        gh_token: ${{ secrets.SYS_ORCH_GITHUB }}
-        bootstrap_tools: "go,gotools,nodejs"
+      - name: "Setup"
+        uses: open-edge-platform/orch-ci/.github/actions/bootstrap@main
+        with:
+          gh_token: ${{ secrets.SYS_ORCH_GITHUB }}
+          bootstrap_tools: "go,gotools,nodejs"
 
-    - name: Lint code
-      run: make lint
+      - name: Lint code
+        run: make lint
 
   build:
     permissions:
       contents: read
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout PR
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ github.head_ref }}
-        persist-credentials: false
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          persist-credentials: false
 
-    - name: "Setup"
-      uses: open-edge-platform/orch-ci/.github/actions/bootstrap@main
-      with:
-        gh_token: ${{ secrets.SYS_ORCH_GITHUB }}
-        bootstrap_tools: "go,gotools"
+      - name: "Setup"
+        uses: open-edge-platform/orch-ci/.github/actions/bootstrap@main
+        with:
+          gh_token: ${{ secrets.SYS_ORCH_GITHUB }}
+          bootstrap_tools: "go,gotools"
 
-    - name: Build code
-      run: make build
+      - name: Build code
+        run: make build
 
   test:
     permissions:
       contents: read
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout PR
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ github.head_ref }}
-        persist-credentials: false
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          persist-credentials: false
 
-    - name: "Setup"
-      uses: open-edge-platform/orch-ci/.github/actions/bootstrap@main
-      with:
-        gh_token: ${{ secrets.SYS_ORCH_GITHUB }}
-        bootstrap_tools: "go,gotools" 
+      - name: "Setup"
+        uses: open-edge-platform/orch-ci/.github/actions/bootstrap@main
+        with:
+          gh_token: ${{ secrets.SYS_ORCH_GITHUB }}
+          bootstrap_tools: "go,gotools"
 
-    - name: Test code
-      run: make test
-  
+      - name: Test code
+        run: make test
+
   pre-merge:
     permissions:
       contents: read
