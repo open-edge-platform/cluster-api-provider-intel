@@ -1,15 +1,10 @@
 module github.com/open-edge-platform/cluster-api-provider-intel
 
-go 1.24.4
+go 1.24.6
 
 replace (
-	ariga.io/atlas => ariga.io/atlas v0.32.0
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go => buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.6-20250307204501-0409229c3780.1
 	github.com/google/cel-go => github.com/google/cel-go v0.22.1
-	github.com/open-edge-platform/infra-core/inventory/v2 => github.com/open-edge-platform/infra-core/inventory/v2 v2.23.0
-	github.com/open-edge-platform/orch-library/ => github.com/open-edge-platform/orch-library/go v0.5.29
-	github.com/open-edge-platform/orch-utils/tenancy-datamodel => github.com/open-edge-platform/orch-utils/tenancy-datamodel v0.0.0-20250401180309-9c2571c45857
-	github.com/open-policy-agent/opa => github.com/open-policy-agent/opa v1.4.0
 )
 
 require (
@@ -31,7 +26,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.26.0
 	github.com/onsi/gomega v1.38.2
 	github.com/open-edge-platform/cluster-connect-gateway v1.2.3
-	github.com/open-edge-platform/infra-core/inventory/v2 v2.0.0-00010101000000-000000000000
+	github.com/open-edge-platform/infra-core/inventory/v2 v2.23.0
 	github.com/open-edge-platform/orch-library/go v0.5.29
 	github.com/open-policy-agent/opa v1.3.0
 	github.com/rs/zerolog v1.34.0
