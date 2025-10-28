@@ -11,10 +11,8 @@ import (
 const (
 	// FreeInstanceFinalizer allows ReconcileIntelMachine to remove the instance from the Workload in the Inventory
 	FreeInstanceFinalizer = "intelmachine.infrastructure.cluster.x-k8s.io/free-instance"
-	// HostCleanupFinalizer - no longer used, but kept for backward compatibility
+	// HostCleanupFinalizer allows ReconcileIntelMachine to trigger a cleanup on the host
 	HostCleanupFinalizer = "intelmachine.infrastructure.cluster.x-k8s.io/host-cleanup"
-	// DeauthHostFinalizer allows ReconcileIntelMachine to deauthorize the host in the Inventory
-	DeauthHostFinalizer = "intelmachine.infrastructure.cluster.x-k8s.io/deauth-host"
 
 	// HostState is used by the SB Handler to report the cluster status posted by the agent as an annotation.
 	HostStateAnnotation = "intelmachine.infrastructure.cluster.x-k8s.io/agent-status"

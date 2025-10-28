@@ -183,6 +183,7 @@ func (n *MachineProvider) DeleteInstanceFromWorkload(
 	return DeleteInstanceFromWorkloadOutput{}
 }
 
+//nolint:unused
 func (n *MachineProvider) DeauthorizeHost(in DeauthorizeHostInput) DeauthorizeHostOutput {
 	if in.HostUUID == "" {
 		return DeauthorizeHostOutput{ErrInvalidHostUUIDInput}

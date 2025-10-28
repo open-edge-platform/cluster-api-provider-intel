@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	cloudinit "sigs.k8s.io/cluster-api/test/infrastructure/docker/cloudinit"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
@@ -297,7 +298,7 @@ func TestHandler_Register(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, pb.RegisterClusterResponse_SUCCESS, resp)
 				assert.NotEmpty(t, installCmd)
-				assert.Empty(t, uninstallCmd)
+				assert.NotEmpty(t, uninstallCmd)
 			} else {
 				_, _, _, err := testHandler.Register(ctx, tc.nodeGUID)
 				assert.Error(t, err)
@@ -478,6 +479,8 @@ func TestHandler_UpdateStatus_MachineDeleted(t *testing.T) {
 
 	// Create IntelMachine
 	intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
+	assert.True(t, controllerutil.AddFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer))
+	assert.True(t, controllerutil.ContainsFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer))
 	intelmachine.Spec.NodeGUID = nodeGUID
 	intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
 	intelmachine.Status.Ready = false
@@ -519,10 +522,10 @@ func TestHandler_UpdateStatus_MachineDeleted(t *testing.T) {
 		{
 			name:               "Deregister host when intelmachine is being deleted",
 			status:             pb.UpdateClusterStatusRequest_ACTIVE,
-			expectedAction:     pb.UpdateClusterStatusResponse_NONE,
+			expectedAction:     pb.UpdateClusterStatusResponse_DEREGISTER,
 			expectedHostState:  infrastructurev1alpha1.HostStateActive,
-			expectedFinalizers: nil,
-			stillExists:        false,
+			expectedFinalizers: []string{infrastructurev1alpha1.HostCleanupFinalizer},
+			stillExists:        true,
 		},
 		{
 			name:               "Remove finalizer after host is deregistered",
