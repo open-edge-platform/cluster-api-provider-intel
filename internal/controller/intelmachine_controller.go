@@ -233,7 +233,6 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 
 	// HostCleanupFinalizer will be removed by the SB handler after it has cleaned up the host.
 	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer) {
-		rc.log.Info("Waiting for SB handler to remove IntelMachine's finalizer'")
 		return nil
 	}
 
