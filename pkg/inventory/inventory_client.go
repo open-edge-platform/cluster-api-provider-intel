@@ -14,7 +14,6 @@ import (
 	inventoryv1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/inventory/v1"
 	"github.com/open-edge-platform/infra-core/inventory/v2/pkg/client"
 	"github.com/open-edge-platform/infra-core/inventory/v2/pkg/validator"
-	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 const (
@@ -454,40 +453,6 @@ func (c *InventoryClient) deleteWorkloadMember(ctx context.Context, tenantId, wo
 		slog.Warn("failed to delete workload member", "tenantId", tenantId, "workload member id",
 			workloadMemberId, "error", err)
 		return ErrFailedInventoryDeleteResource
-	}
-
-	return nil
-}
-
-func (c *InventoryClient) deauthorizeHost(ctx context.Context, tenantId, hostUUID string) error {
-	slog.Debug("deauthorizeHost", "tenantID", tenantId, "host id", hostUUID)
-
-	childCtx, cancel := context.WithTimeout(ctx, defaultInventoryTimeout)
-	defer cancel()
-
-	host, err := c.getHost(childCtx, tenantId, hostUUID)
-	if err != nil {
-		slog.Warn("failed to get host by uuid", "tenantId", tenantId, "host uuid", hostUUID, "error", err)
-		return err
-	}
-	slog.Debug("read host from inventory", "tenantId", tenantId, "host uuid", hostUUID, "host id", host.ResourceId)
-	resource := &inventoryv1.Resource{
-		Resource: &inventoryv1.Resource_Host{
-			Host: &computev1.HostResource{
-				ResourceId:   host.ResourceId,
-				DesiredState: computev1.HostState_HOST_STATE_UNTRUSTED,
-				Note:         "Deauthorized by Cluster API Provider Intel because the cluster was deleted",
-			},
-		},
-	}
-
-	fieldMask := &fieldmaskpb.FieldMask{
-		Paths: []string{"desired_state"},
-	}
-
-	if _, err = c.Client.Update(childCtx, tenantId, host.ResourceId, fieldMask, resource); err != nil {
-		slog.Warn("failed to deauthorize host", "tenantId", tenantId, "host uuid", hostUUID, "error", err)
-		return ErrFailedInventoryGetResource
 	}
 
 	return nil

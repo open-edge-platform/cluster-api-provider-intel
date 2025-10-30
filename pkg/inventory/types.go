@@ -12,7 +12,6 @@ type InfrastructureProvider interface {
 	GetInstanceByMachineId(in GetInstanceByMachineIdInput) GetInstanceByMachineIdOutput
 	AddInstanceToWorkload(in AddInstanceToWorkloadInput) AddInstanceToWorkloadOutput
 	DeleteInstanceFromWorkload(in DeleteInstanceFromWorkloadInput) DeleteInstanceFromWorkloadOutput
-	DeauthorizeHost(in DeauthorizeHostInput) DeauthorizeHostOutput
 }
 
 type Workload struct {

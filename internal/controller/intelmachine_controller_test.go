@@ -146,11 +146,19 @@ var _ = Describe("IntelMachine Controller", func() {
 			By("deleting the IntelMachine")
 			Expect(k8sClient.Delete(ctx, intelmachine)).To(Succeed())
 
-			By("Waiting for the IntelMachine to be removed")
+			By("Waiting for conditions HostProvisionedCondition and Ready to be False")
 			Eventually(func(g Gomega) {
 				resource := &infrastructurev1alpha1.IntelMachine{}
-				g.Expect(errors.IsNotFound(k8sClient.Get(ctx, typeNamespacedName, resource))).To(BeTrue())
+				g.Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
+				g.Expect(resource.DeletionTimestamp.IsZero()).To(BeFalse())
+				g.Expect(conditions.IsFalse(resource, infrastructurev1alpha1.HostProvisionedCondition)).To(BeTrue())
+				g.Expect(conditions.IsFalse(resource, clusterv1.ReadyCondition)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
+
+			By("Removing the IntelMachine's HostCleanupFinalizer")
+			Expect(k8sClient.Get(ctx, typeNamespacedName, intelmachine)).To(Succeed())
+			cutil.RemoveFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer)
+			Expect(k8sClient.Update(ctx, intelmachine)).To(Succeed())
 
 			By("Deleting the other custom resources")
 			Expect(k8sClient.Delete(ctx, intelmachinebinding)).To(Succeed())
@@ -217,6 +225,7 @@ var _ = Describe("IntelMachine Controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
 				g.Expect(cutil.ContainsFinalizer(resource, infrastructurev1alpha1.FreeInstanceFinalizer)).To(BeTrue())
+				g.Expect(cutil.ContainsFinalizer(resource, infrastructurev1alpha1.HostCleanupFinalizer)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			By("Updating the Host State annotation")

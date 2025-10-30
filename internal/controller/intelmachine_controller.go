@@ -178,16 +178,11 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Add finalizers to the IntelMachine if they are not already present.
-	if !controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) ||
-		!controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer) {
-		rc.log.Info("Adding finalizers to IntelMachine", "finalizers", []string{
-			infrastructurev1alpha1.FreeInstanceFinalizer,
-			infrastructurev1alpha1.DeauthHostFinalizer,
-		})
-		// FreeInstanceFinalizer is used to remove the instance from the Workload in Inventory.
-		controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
-		// DeauthHostFinalizer is used to deauthorize the host in Inventory.
-		controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer)
+	if controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) {
+		rc.log.Info("added finalizer to IntelMachine", "finalizer", infrastructurev1alpha1.FreeInstanceFinalizer)
+	}
+	if controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer) {
+		rc.log.Info("added finalizer to IntelMachine", "finalizer", infrastructurev1alpha1.HostCleanupFinalizer)
 	}
 
 	// Handle non-deleted machines
@@ -236,9 +231,9 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 		return errors.Wrap(err, "failed to patch IntelMachine")
 	}
 
+	// HostCleanupFinalizer will be removed by the SB handler after it has cleaned up the host.
 	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer) {
-		// upgrade scenario: remove the obsolete HostCleanupFinalizer
-		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer)
+		return nil
 	}
 
 	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) {
@@ -258,24 +253,6 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 			rc.log.Info("ProviderID is nil, skipping instance deletion from workload")
 		}
 		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
-	}
-
-	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer) {
-		if rc.intelMachine.Spec.NodeGUID != "" {
-			// Deauthorize the host in Inventory
-			req := inventory.DeauthorizeHostInput{
-				TenantId: rc.intelCluster.Namespace,
-				HostUUID: rc.intelMachine.Spec.NodeGUID,
-			}
-			res := r.InventoryClient.DeauthorizeHost(req)
-			if res.Err != nil {
-				rc.log.Error(res.Err, "Failed to deauthorize host in Inventory", "NodeGUID", rc.intelMachine.Spec.NodeGUID)
-				return res.Err
-			}
-		} else {
-			rc.log.Info("NodeGUID is empty, skipping host deauthorization")
-		}
-		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthHostFinalizer)
 	}
 
 	return nil
