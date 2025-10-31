@@ -29,7 +29,7 @@ require (
 	github.com/open-edge-platform/cluster-connect-gateway v1.2.3
 	github.com/open-edge-platform/infra-core/inventory/v2 v2.31.1
 	github.com/open-edge-platform/orch-library/go v0.6.1
-	github.com/open-policy-agent/opa v1.9.0
+	github.com/open-policy-agent/opa v1.10.0
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.11.1
 	github.com/undefinedlabs/go-mpatch v1.0.7
