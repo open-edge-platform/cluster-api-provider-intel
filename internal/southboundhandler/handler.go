@@ -24,6 +24,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	cutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
 	pb "github.com/open-edge-platform/cluster-api-provider-intel/pkg/api/proto"
@@ -32,6 +33,7 @@ import (
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/tenant"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	cloudinit "sigs.k8s.io/cluster-api/test/infrastructure/docker/cloudinit"
+	"sigs.k8s.io/cluster-api/util/patch"
 )
 
 const (
@@ -55,6 +57,8 @@ const (
 
 	// Secret formats
 	cloudConfigFormat = "cloud-config"
+
+	nodeGUIDKey = "spec.nodeGUID"
 )
 
 var (
@@ -106,11 +110,20 @@ func NewHandler() (*Handler, error) {
 	utilruntime.Must(corev1.AddToScheme(scheme))
 
 	// Create a controller-runtime manager
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&zap.Options{Development: true})))
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
 		Scheme: scheme,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create manager: %w", err)
+	}
+
+	if err = mgr.GetFieldIndexer().IndexField(context.Background(), &infrastructurev1alpha1.IntelMachineBinding{},
+		nodeGUIDKey, func(obj ctrlclient.Object) []string {
+			o := obj.(*infrastructurev1alpha1.IntelMachineBinding)
+			return []string{o.Spec.NodeGUID}
+		}); err != nil {
+		return nil, fmt.Errorf("failed to add field indexer for spec.nodeGUID: %w", err)
 	}
 
 	// Use the manager's cached client
@@ -248,9 +261,17 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 		log.Error().Msgf("Failed to get IntelMachine %v", err)
 		return pb.UpdateClusterStatusResponse_NONE, err
 	}
+
+	// IntelMachine for the node doesn't exist yet
 	if intelmachine == nil {
-		// The node has not yet been put into a cluster
-		return pb.UpdateClusterStatusResponse_NONE, nil
+		// check if the cluster exists but paused
+		// unpause the cluster if so
+		cluster, err := h.getCluster(ctx, projectId, nodeGUID)
+		if err != nil && cluster != nil && cluster.Spec.Paused {
+			err = h.unpauseCluster(ctx, projectId, cluster)
+			log.Error().Msgf("Failed to unpause cluster %v", err)
+		}
+		return pb.UpdateClusterStatusResponse_NONE, err
 	}
 
 	currentHostState := intelmachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
@@ -378,6 +399,48 @@ func (h *Handler) getIntelMachine(ctx context.Context, client ctrlclient.Client,
 	// if intelMachine.Spec.NodeGUID != nodeGUID {
 	//	return nil, errors.New("invalid IntelMachine found")
 	return intelMachine, nil
+}
+
+func (h *Handler) getCluster(ctx context.Context, projectId string, nodeID string) (*clusterv1.Cluster, error) {
+	// see if there is machine binding for this node
+	var machineBindingList infrastructurev1alpha1.IntelMachineBindingList
+
+	if err := h.client.List(ctx, &machineBindingList,
+		ctrlclient.InNamespace(projectId),
+		ctrlclient.MatchingFields{nodeGUIDKey: nodeID}); err != nil {
+		return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
+	}
+
+	// no cluster is available for this node
+	if len(machineBindingList.Items) == 0 {
+		return nil, nil
+	}
+
+	cluster := &clusterv1.Cluster{}
+	key := types.NamespacedName{Namespace: projectId, Name: machineBindingList.Items[0].Spec.ClusterName}
+	if err := h.client.Get(ctx, key, cluster); err != nil {
+		return nil, err
+	}
+
+	return cluster, nil
+}
+
+// Check if a cluster exists for the node and unset Paused flag if it is set
+func (h *Handler) unpauseCluster(ctx context.Context, projectId string, cluster *clusterv1.Cluster) error {
+	if cluster != nil && cluster.Spec.Paused {
+		patchHelper, err := patch.NewHelper(cluster, h.client)
+		if err != nil {
+			log.Error().Msgf("Failed to create patch helper: %v", err)
+			return err
+		}
+		cluster.Spec.Paused = false
+		if err := patchHelper.Patch(ctx, cluster); err != nil {
+			log.Error().Msgf("Failed to unpause the cluster: %v", err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 func getMachine(ctx context.Context, client ctrlclient.Client, projectId string, name string) (*clusterv1.Machine, error) {
