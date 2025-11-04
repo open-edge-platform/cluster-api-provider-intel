@@ -21,6 +21,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	cloudinit "sigs.k8s.io/cluster-api/test/infrastructure/docker/cloudinit"
+	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	cutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -31,9 +34,6 @@ import (
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/inventory"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/logging"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/tenant"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	cloudinit "sigs.k8s.io/cluster-api/test/infrastructure/docker/cloudinit"
-	"sigs.k8s.io/cluster-api/util/patch"
 )
 
 const (
@@ -264,12 +264,10 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 
 	// IntelMachine for the node doesn't exist yet
 	if intelmachine == nil {
-		// check if the cluster exists but paused
-		// unpause the cluster if so
+		// unpause the cluster if paused
 		cluster, err := h.getCluster(ctx, projectId, nodeGUID)
 		if err != nil && cluster != nil && cluster.Spec.Paused {
 			err = h.unpauseCluster(ctx, projectId, cluster)
-			log.Error().Msgf("Failed to unpause cluster %v", err)
 		}
 		return pb.UpdateClusterStatusResponse_NONE, err
 	}
