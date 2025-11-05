@@ -267,7 +267,7 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 		// unpause the cluster if paused
 		cluster, err := h.getCluster(ctx, projectId, nodeGUID)
 		if err != nil && cluster != nil && cluster.Spec.Paused {
-			err = h.unpauseCluster(ctx, projectId, cluster)
+			err = h.unpauseCluster(ctx, cluster)
 		}
 		return pb.UpdateClusterStatusResponse_NONE, err
 	}
@@ -424,7 +424,7 @@ func (h *Handler) getCluster(ctx context.Context, projectId string, nodeID strin
 }
 
 // Check if a cluster exists for the node and unset Paused flag if it is set
-func (h *Handler) unpauseCluster(ctx context.Context, projectId string, cluster *clusterv1.Cluster) error {
+func (h *Handler) unpauseCluster(ctx context.Context, cluster *clusterv1.Cluster) error {
 	if cluster != nil && cluster.Spec.Paused {
 		patchHelper, err := patch.NewHelper(cluster, h.client)
 		if err != nil {
