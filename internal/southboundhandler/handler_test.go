@@ -571,16 +571,13 @@ func TestHandler_UpdateStatus_Error(t *testing.T) {
 			namespace:     "00000000-0000-0000-0000-000000000400",
 			nodeGUID:      "x",
 			nodeGUIDLabel: nodeGUID,
-			// Fixed: Changed expectError from true to false because UpdateStatus should not
-			// return an error when no IntelMachine is found - it's a valid case where the
-			// node is not part of any cluster yet or the machine was deleted
-			expectError: false,
+			expectError:   true,
 		}, {
 			name:          "Wrong NodeGUID label",
 			namespace:     "00000000-0000-0000-0000-000000000401",
 			nodeGUID:      nodeGUID,
 			nodeGUIDLabel: "x",
-			expectError:   false,
+			expectError:   true,
 		},
 	}
 	for _, tc := range cases {
