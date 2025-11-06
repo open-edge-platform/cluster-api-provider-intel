@@ -21,7 +21,7 @@ func TestGetHostByUUID(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, host)
 	assert.Equal(t, defaultInstanceID, host.Instance.ResourceId)
-	assert.Equal(t, "Linux", host.Instance.CurrentOs.Name)
+	assert.Equal(t, "Linux", host.Instance.Os.Name)
 	assert.Equal(t, "SN123456", host.SerialNumber)
 }
 
@@ -31,7 +31,7 @@ func TestGet(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, defaultInstanceID, resp.Resource.GetInstance().ResourceId)
-	assert.Equal(t, "Linux", resp.Resource.GetInstance().CurrentOs.Name)
+	assert.Equal(t, "Linux", resp.Resource.GetInstance().Os.Name)
 }
 
 func TestCreate(t *testing.T) {

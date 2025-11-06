@@ -305,7 +305,7 @@ func TestGetInstanceByMachineId(t *testing.T) {
 							SerialNumber: hostSerialNumber,
 							Instance: &computev1.InstanceResource{
 								ResourceId: instanceResourceId,
-								CurrentOs: &osv1.OperatingSystemResource{
+								Os: &osv1.OperatingSystemResource{
 									Name: instanceOsName,
 								},
 							},

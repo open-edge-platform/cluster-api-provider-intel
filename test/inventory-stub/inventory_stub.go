@@ -324,7 +324,7 @@ func GetStubClient() client.TenantAwareInventoryClient {
 		Response: &computev1.HostResource{
 			Instance: &computev1.InstanceResource{
 				ResourceId: defaultInstanceID,
-				CurrentOs: &osv1.OperatingSystemResource{
+				Os: &osv1.OperatingSystemResource{
 					Name: "Linux",
 				},
 			},
@@ -341,7 +341,7 @@ func GetStubClient() client.TenantAwareInventoryClient {
 				Resource: &inv_v1.Resource_Instance{
 					Instance: &computev1.InstanceResource{
 						ResourceId: defaultInstanceID,
-						CurrentOs: &osv1.OperatingSystemResource{
+						Os: &osv1.OperatingSystemResource{
 							Name: "Linux",
 						},
 						WorkloadMembers: []*computev1.WorkloadMember{
