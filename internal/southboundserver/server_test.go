@@ -54,6 +54,7 @@ func TestRunGrpcServer(t *testing.T) {
 			t.Errorf("patch error: %v", patchErr)
 		}
 
+		// nosemgrep: go.grpc.security.grpc-server-insecure-connection.grpc-server-insecure-connection
 		patchServe, patchErr := mpatch.PatchInstanceMethodByName(reflect.TypeOf(grpc.NewServer()), "Serve", func(this *grpc.Server, lis net.Listener) error {
 			return nil
 		})
@@ -208,6 +209,7 @@ func TestRunGrpcServerFail(t *testing.T) {
 			t.Errorf("patch error: %v", patchErr)
 		}
 
+		// nosemgrep: go.grpc.security.grpc-server-insecure-connection.grpc-server-insecure-connection
 		patchServe, patchErr := mpatch.PatchInstanceMethodByName(reflect.TypeOf(grpc.NewServer()), "Serve", func(this *grpc.Server, lis net.Listener) error {
 			return fmt.Errorf("start grpc server failed")
 		})
