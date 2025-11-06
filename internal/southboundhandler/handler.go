@@ -403,11 +403,15 @@ func getCluster(ctx context.Context, client ctrlclient.Client, projectId string,
 		return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
 	}
 
-	// no cluster is available for this node
 	if len(machineBindingList.Items) == 0 {
+		// no cluster is available for this node
 		return nil, nil
+	} else if len(machineBindingList.Items) > 1 {
+		// this case should never happen
+		return nil, fmt.Errorf("more than one cluster is found for node %s", nodeID)
 	}
 
+	// one cluster is found for the node
 	cluster := &clusterv1.Cluster{}
 	key := types.NamespacedName{Namespace: projectId, Name: machineBindingList.Items[0].Spec.ClusterName}
 	if err := client.Get(ctx, key, cluster); err != nil {
