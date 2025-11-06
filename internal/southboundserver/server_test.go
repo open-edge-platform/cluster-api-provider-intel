@@ -18,6 +18,7 @@ import (
 	"github.com/undefinedlabs/go-mpatch"
 	"google.golang.org/grpc"
 	"k8s.io/client-go/rest"
+	controller "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
 	config "github.com/open-edge-platform/cluster-api-provider-intel/internal/southboundconfig"
@@ -67,6 +68,13 @@ func TestRunGrpcServer(t *testing.T) {
 			t.Errorf("patch error: %v", patchErr)
 		}
 
+		patchConfig, patchErr := mpatch.PatchMethod(controller.GetConfigOrDie, func() *rest.Config {
+			return nil
+		})
+		if patchErr != nil {
+			t.Errorf("patch error: %v", patchErr)
+		}
+
 		patchHandler, patchErr := mpatch.PatchMethod(southboundhandler.NewHandler, func(context.Context, *rest.Config) (*southboundhandler.Handler, error) {
 			return nil, nil
 		})
@@ -74,7 +82,7 @@ func TestRunGrpcServer(t *testing.T) {
 			t.Errorf("patch error: %v", patchErr)
 		}
 
-		return []*mpatch.Patch{patchNetListen, patchServe, patchContext, patchHandler}
+		return []*mpatch.Patch{patchNetListen, patchServe, patchContext, patchConfig, patchHandler}
 	}
 
 	tests := []struct {
@@ -135,6 +143,13 @@ func TestNewGrpcServerFail(t *testing.T) {
 			t.Errorf("patch error: %v", patchErr)
 		}
 
+		patchConfig, patchErr := mpatch.PatchMethod(controller.GetConfigOrDie, func() *rest.Config {
+			return nil
+		})
+		if patchErr != nil {
+			t.Errorf("patch error: %v", patchErr)
+		}
+
 		patchHandler, patchErr := mpatch.PatchMethod(southboundhandler.NewHandler, func(context.Context, *rest.Config) (*southboundhandler.Handler, error) {
 			return nil, nil
 		})
@@ -142,7 +157,7 @@ func TestNewGrpcServerFail(t *testing.T) {
 			t.Errorf("patch error: %v", patchErr)
 		}
 
-		return []*mpatch.Patch{patchNetListen, patchContext, patchHandler}
+		return []*mpatch.Patch{patchNetListen, patchContext, patchConfig, patchHandler}
 	}
 
 	tests := []struct {
@@ -207,6 +222,13 @@ func TestRunGrpcServerFail(t *testing.T) {
 			t.Errorf("patch error: %v", patchErr)
 		}
 
+		patchConfig, patchErr := mpatch.PatchMethod(controller.GetConfigOrDie, func() *rest.Config {
+			return nil
+		})
+		if patchErr != nil {
+			t.Errorf("patch error: %v", patchErr)
+		}
+
 		patchHandler, patchErr := mpatch.PatchMethod(southboundhandler.NewHandler, func(context.Context, *rest.Config) (*southboundhandler.Handler, error) {
 			return nil, nil
 		})
@@ -214,7 +236,7 @@ func TestRunGrpcServerFail(t *testing.T) {
 			t.Errorf("patch error: %v", patchErr)
 		}
 
-		return []*mpatch.Patch{patchNetListen, patchServe, patchContext, patchHandler}
+		return []*mpatch.Patch{patchNetListen, patchServe, patchContext, patchConfig, patchHandler}
 	}
 	tests := []struct {
 		name           string
