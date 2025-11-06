@@ -1,12 +1,6 @@
 module github.com/open-edge-platform/cluster-api-provider-intel
 
-go 1.24.6
-
-replace (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go => buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.10-20250912141014-52f32327d4b0.1
-	github.com/bufbuild/protovalidate-go => github.com/bufbuild/protovalidate-go v1.11.0
-	github.com/google/cel-go => github.com/google/cel-go v0.22.1
-)
+go 1.24.9
 
 require (
 	entgo.io/ent v0.14.5
@@ -17,7 +11,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/golang/mock v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
-	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.1
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/hashicorp/vault/api v1.22.0
 	github.com/labstack/echo-jwt/v4 v4.3.1
 	github.com/labstack/echo/v4 v4.13.4
@@ -26,10 +20,10 @@ require (
 	github.com/oapi-codegen/echo-middleware v1.0.2
 	github.com/onsi/ginkgo/v2 v2.27.2
 	github.com/onsi/gomega v1.38.2
-	github.com/open-edge-platform/cluster-connect-gateway v1.2.3
+	github.com/open-edge-platform/cluster-connect-gateway v1.2.4
 	github.com/open-edge-platform/infra-core/inventory/v2 v2.31.1
 	github.com/open-edge-platform/orch-library/go v0.6.1
-	github.com/open-policy-agent/opa v1.9.0
+	github.com/open-policy-agent/opa v1.10.1
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.11.1
 	github.com/undefinedlabs/go-mpatch v1.0.7
@@ -39,7 +33,7 @@ require (
 	k8s.io/apimachinery v0.34.1
 	k8s.io/client-go v0.34.1
 	sigs.k8s.io/cluster-api/test/infrastructure/docker v0.0.0-20210602185643-40841d9837b8
-	sigs.k8s.io/controller-runtime v0.22.3
+	sigs.k8s.io/controller-runtime v0.22.4
 )
 
 require (
