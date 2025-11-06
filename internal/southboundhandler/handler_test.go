@@ -7,6 +7,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -627,8 +628,48 @@ func TestHandler_UpdateStatus_Error(t *testing.T) {
 	}
 }
 
-func FuzzHandlerUpdateStatus(f *testing.F) {
+func TestHandler_UpdateStatus_UnpauseCluster(t *testing.T) {
 	projectId := "00000000-0000-0000-0000-000000000500"
+
+	// Define test Cluster
+	cluster := utils.NewCluster(projectId, clusterName)
+	cluster.Spec.Paused = true
+
+	// Define test IntelMachineBinding
+	machineBinding := utils.NewIntelMachineBinding(projectId, clusterName, nodeGUID, clusterName, "test-template")
+
+	// Setup test handler with the controller-manager's client
+	err := os.Setenv("INVENTORY_ADDRESS", "")
+	assert.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.TODO())
+	testHandler, err := NewHandler(ctx, testEnv.Config)
+	assert.NoError(t, err)
+	defer cancel()
+
+	// Create test project and resources
+	ctx = tenant.AddActiveProjectIdToContext(ctx, projectId)
+	assert.NoError(t, testHandler.client.Create(ctx, &corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: projectId}}))
+	assert.NoError(t, testHandler.client.Create(ctx, cluster))
+	assert.NoError(t, testHandler.client.Create(ctx, machineBinding))
+
+	t.Run("Unpause cluster upon first host update request", func(t *testing.T) {
+		actionReq, err := testHandler.UpdateStatus(ctx, nodeGUID, pb.UpdateClusterStatusRequest_INACTIVE)
+		assert.NoError(t, err)
+		assert.Equal(t, pb.UpdateClusterStatusResponse_NONE, actionReq)
+
+		// Check that Cluster Pause flag has been updated
+		updatedCluster := clusterv1.Cluster{}
+		assert.Eventually(t, func() bool {
+			err = testHandler.client.Get(ctx, client.ObjectKey{Name: clusterName, Namespace: projectId},
+				&updatedCluster)
+			assert.NoError(t, err)
+			return updatedCluster.Spec.Paused == false
+		}, 3*time.Second, 10*time.Millisecond)
+	})
+}
+
+func FuzzHandlerUpdateStatus(f *testing.F) {
+	projectId := "00000000-0000-0000-0000-000000000600"
 
 	f.Add("abc", int32(0))
 	f.Fuzz(func(t *testing.T, nodeGUID string, code int32) {

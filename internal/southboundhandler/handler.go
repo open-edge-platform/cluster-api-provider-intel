@@ -87,13 +87,7 @@ type Handler struct {
 	inventoryClient *inventory.InventoryClient
 }
 
-func NewHandler() (*Handler, error) {
-	// Create the in-cluster config
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-
+func NewHandler(ctx context.Context, cfg *rest.Config) (*Handler, error) {
 	// Set rate limiter parameters
 	qpsValue, burstValue, err := getRateLimiterParams()
 	if err != nil {
@@ -101,8 +95,8 @@ func NewHandler() (*Handler, error) {
 	}
 	log.Info().Msgf("rate limiter params: qps: %v, burst: %v", qpsValue, burstValue)
 
-	config.QPS = float32(qpsValue)
-	config.Burst = int(burstValue)
+	cfg.QPS = float32(qpsValue)
+	cfg.Burst = int(burstValue)
 
 	scheme := runtime.NewScheme()
 	utilruntime.Must(infrastructurev1alpha1.AddToScheme(scheme))
@@ -111,14 +105,14 @@ func NewHandler() (*Handler, error) {
 
 	// Create a controller-runtime manager
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&zap.Options{Development: true})))
-	mgr, err := ctrl.NewManager(config, ctrl.Options{
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create manager: %w", err)
 	}
 
-	if err = mgr.GetFieldIndexer().IndexField(context.Background(), &infrastructurev1alpha1.IntelMachineBinding{},
+	if err = mgr.GetFieldIndexer().IndexField(ctx, &infrastructurev1alpha1.IntelMachineBinding{},
 		nodeGUIDKey, func(obj ctrlclient.Object) []string {
 			o := obj.(*infrastructurev1alpha1.IntelMachineBinding)
 			return []string{o.Spec.NodeGUID}
@@ -130,7 +124,7 @@ func NewHandler() (*Handler, error) {
 	cachedClient := mgr.GetClient()
 	// Start the manager in a separate goroutine
 	go func() {
-		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		if err := mgr.Start(ctx); err != nil {
 			log.Fatal().Err(err).Msg("failed to start manager")
 		}
 	}()
@@ -265,9 +259,9 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 	// IntelMachine for the node doesn't exist yet
 	if intelmachine == nil {
 		// unpause the cluster if paused
-		cluster, err := h.getCluster(ctx, projectId, nodeGUID)
-		if err != nil && cluster != nil && cluster.Spec.Paused {
-			err = h.unpauseCluster(ctx, cluster)
+		cluster, err := getCluster(ctx, h.client, projectId, nodeGUID)
+		if cluster != nil && cluster.Spec.Paused {
+			err = unpauseCluster(ctx, h.client, cluster)
 		}
 		return pb.UpdateClusterStatusResponse_NONE, err
 	}
@@ -399,11 +393,11 @@ func (h *Handler) getIntelMachine(ctx context.Context, client ctrlclient.Client,
 	return intelMachine, nil
 }
 
-func (h *Handler) getCluster(ctx context.Context, projectId string, nodeID string) (*clusterv1.Cluster, error) {
+func getCluster(ctx context.Context, client ctrlclient.Client, projectId string, nodeID string) (*clusterv1.Cluster, error) {
 	// see if there is machine binding for this node
 	var machineBindingList infrastructurev1alpha1.IntelMachineBindingList
 
-	if err := h.client.List(ctx, &machineBindingList,
+	if err := client.List(ctx, &machineBindingList,
 		ctrlclient.InNamespace(projectId),
 		ctrlclient.MatchingFields{nodeGUIDKey: nodeID}); err != nil {
 		return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
@@ -416,7 +410,7 @@ func (h *Handler) getCluster(ctx context.Context, projectId string, nodeID strin
 
 	cluster := &clusterv1.Cluster{}
 	key := types.NamespacedName{Namespace: projectId, Name: machineBindingList.Items[0].Spec.ClusterName}
-	if err := h.client.Get(ctx, key, cluster); err != nil {
+	if err := client.Get(ctx, key, cluster); err != nil {
 		return nil, err
 	}
 
@@ -424,9 +418,9 @@ func (h *Handler) getCluster(ctx context.Context, projectId string, nodeID strin
 }
 
 // Check if a cluster exists for the node and unset Paused flag if it is set
-func (h *Handler) unpauseCluster(ctx context.Context, cluster *clusterv1.Cluster) error {
+func unpauseCluster(ctx context.Context, client ctrlclient.Client, cluster *clusterv1.Cluster) error {
 	if cluster != nil && cluster.Spec.Paused {
-		patchHelper, err := patch.NewHelper(cluster, h.client)
+		patchHelper, err := patch.NewHelper(cluster, client)
 		if err != nil {
 			log.Error().Msgf("Failed to create patch helper: %v", err)
 			return err

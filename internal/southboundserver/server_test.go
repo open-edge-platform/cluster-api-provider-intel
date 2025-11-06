@@ -17,6 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/undefinedlabs/go-mpatch"
 	"google.golang.org/grpc"
+	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
 	config "github.com/open-edge-platform/cluster-api-provider-intel/internal/southboundconfig"
 	"github.com/open-edge-platform/cluster-api-provider-intel/internal/southboundhandler"
@@ -58,14 +60,21 @@ func TestRunGrpcServer(t *testing.T) {
 			t.Errorf("patch error: %v", patchErr)
 		}
 
-		patchHandler, patchErr := mpatch.PatchMethod(southboundhandler.NewHandler, func() (*southboundhandler.Handler, error) {
+		patchContext, patchErr := mpatch.PatchMethod(signals.SetupSignalHandler, func() context.Context {
+			return t.Context()
+		})
+		if patchErr != nil {
+			t.Errorf("patch error: %v", patchErr)
+		}
+
+		patchHandler, patchErr := mpatch.PatchMethod(southboundhandler.NewHandler, func(context.Context, *rest.Config) (*southboundhandler.Handler, error) {
 			return nil, nil
 		})
 		if patchErr != nil {
 			t.Errorf("patch error: %v", patchErr)
 		}
 
-		return []*mpatch.Patch{patchNetListen, patchServe, patchHandler}
+		return []*mpatch.Patch{patchNetListen, patchServe, patchContext, patchHandler}
 	}
 
 	tests := []struct {
@@ -119,14 +128,21 @@ func TestNewGrpcServerFail(t *testing.T) {
 			t.Errorf("patch error: %v", patchErr)
 		}
 
-		patchHandler, patchErr := mpatch.PatchMethod(southboundhandler.NewHandler, func() (*southboundhandler.Handler, error) {
+		patchContext, patchErr := mpatch.PatchMethod(signals.SetupSignalHandler, func() context.Context {
+			return t.Context()
+		})
+		if patchErr != nil {
+			t.Errorf("patch error: %v", patchErr)
+		}
+
+		patchHandler, patchErr := mpatch.PatchMethod(southboundhandler.NewHandler, func(context.Context, *rest.Config) (*southboundhandler.Handler, error) {
 			return nil, nil
 		})
 		if patchErr != nil {
 			t.Errorf("patch error: %v", patchErr)
 		}
 
-		return []*mpatch.Patch{patchNetListen, patchHandler}
+		return []*mpatch.Patch{patchNetListen, patchContext, patchHandler}
 	}
 
 	tests := []struct {
@@ -184,14 +200,21 @@ func TestRunGrpcServerFail(t *testing.T) {
 			t.Errorf("patch error: %v", patchErr)
 		}
 
-		patchHandler, patchErr := mpatch.PatchMethod(southboundhandler.NewHandler, func() (*southboundhandler.Handler, error) {
+		patchContext, patchErr := mpatch.PatchMethod(signals.SetupSignalHandler, func() context.Context {
+			return t.Context()
+		})
+		if patchErr != nil {
+			t.Errorf("patch error: %v", patchErr)
+		}
+
+		patchHandler, patchErr := mpatch.PatchMethod(southboundhandler.NewHandler, func(context.Context, *rest.Config) (*southboundhandler.Handler, error) {
 			return nil, nil
 		})
 		if patchErr != nil {
 			t.Errorf("patch error: %v", patchErr)
 		}
 
-		return []*mpatch.Patch{patchNetListen, patchServe, patchHandler}
+		return []*mpatch.Patch{patchNetListen, patchServe, patchContext, patchHandler}
 	}
 	tests := []struct {
 		name           string
