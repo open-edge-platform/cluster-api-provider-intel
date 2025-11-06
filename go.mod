@@ -1,12 +1,6 @@
 module github.com/open-edge-platform/cluster-api-provider-intel
 
-go 1.24.6
-
-replace (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go => buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.10-20250912141014-52f32327d4b0.1
-	github.com/bufbuild/protovalidate-go => github.com/bufbuild/protovalidate-go v1.11.0
-	github.com/google/cel-go => github.com/google/cel-go v0.22.1
-)
+go 1.24.9
 
 require (
 	entgo.io/ent v0.14.5
