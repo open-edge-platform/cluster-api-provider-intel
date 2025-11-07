@@ -5,8 +5,8 @@ apiVersion: v2
 name: intel-infra-provider
 description: The Intel Cluster API Provider
 type: application
-version: 1.2.7-dev
+version: 1.2.7-dev-a2ca4714
 annotations:
-  revision: 408f03ae9d6cca95e9e489ddbb2aca06bbd2c849
-  created: "2025-10-31T16:38:20Z"
-appVersion: 1.2.7-dev
+  revision: a2ca47144e36e33c602bd99927d55885d968b9f7
+  created: "2025-11-05T21:44:54Z"
+appVersion: 1.2.7-dev-a2ca4714

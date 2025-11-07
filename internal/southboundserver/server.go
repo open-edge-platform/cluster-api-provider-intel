@@ -17,6 +17,8 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
 	config "github.com/open-edge-platform/cluster-api-provider-intel/internal/southboundconfig"
 	sbhandler "github.com/open-edge-platform/cluster-api-provider-intel/internal/southboundhandler"
@@ -47,7 +49,7 @@ func NewGrpcServer(cfg config.Config, regoFilePath string) (*grpc.Server, net.Li
 		log.Fatal().Msgf("Failed to start RBAC OPA server: %v", err)
 	}
 
-	handler, err := sbhandler.NewHandler()
+	handler, err := sbhandler.NewHandler(signals.SetupSignalHandler(), ctrl.GetConfigOrDie())
 	if err != nil {
 		log.Fatal().Msgf("Failed to create handler: %v", err)
 	}

@@ -21,17 +21,19 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	cloudinit "sigs.k8s.io/cluster-api/test/infrastructure/docker/cloudinit"
+	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	cutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
 	pb "github.com/open-edge-platform/cluster-api-provider-intel/pkg/api/proto"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/inventory"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/logging"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/tenant"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	cloudinit "sigs.k8s.io/cluster-api/test/infrastructure/docker/cloudinit"
 )
 
 const (
@@ -55,6 +57,8 @@ const (
 
 	// Secret formats
 	cloudConfigFormat = "cloud-config"
+
+	nodeGUIDKey = "spec.nodeGUID"
 )
 
 var (
@@ -83,13 +87,7 @@ type Handler struct {
 	inventoryClient *inventory.InventoryClient
 }
 
-func NewHandler() (*Handler, error) {
-	// Create the in-cluster config
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-
+func NewHandler(ctx context.Context, cfg *rest.Config) (*Handler, error) {
 	// Set rate limiter parameters
 	qpsValue, burstValue, err := getRateLimiterParams()
 	if err != nil {
@@ -97,8 +95,8 @@ func NewHandler() (*Handler, error) {
 	}
 	log.Info().Msgf("rate limiter params: qps: %v, burst: %v", qpsValue, burstValue)
 
-	config.QPS = float32(qpsValue)
-	config.Burst = int(burstValue)
+	cfg.QPS = float32(qpsValue)
+	cfg.Burst = int(burstValue)
 
 	scheme := runtime.NewScheme()
 	utilruntime.Must(infrastructurev1alpha1.AddToScheme(scheme))
@@ -106,18 +104,27 @@ func NewHandler() (*Handler, error) {
 	utilruntime.Must(corev1.AddToScheme(scheme))
 
 	// Create a controller-runtime manager
-	mgr, err := ctrl.NewManager(config, ctrl.Options{
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&zap.Options{Development: true})))
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create manager: %w", err)
 	}
 
+	if err = mgr.GetFieldIndexer().IndexField(ctx, &infrastructurev1alpha1.IntelMachineBinding{},
+		nodeGUIDKey, func(obj ctrlclient.Object) []string {
+			o := obj.(*infrastructurev1alpha1.IntelMachineBinding)
+			return []string{o.Spec.NodeGUID}
+		}); err != nil {
+		return nil, fmt.Errorf("failed to add field indexer for spec.nodeGUID: %w", err)
+	}
+
 	// Use the manager's cached client
 	cachedClient := mgr.GetClient()
 	// Start the manager in a separate goroutine
 	go func() {
-		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		if err := mgr.Start(ctx); err != nil {
 			log.Fatal().Err(err).Msg("failed to start manager")
 		}
 	}()
@@ -248,9 +255,15 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 		log.Error().Msgf("Failed to get IntelMachine %v", err)
 		return pb.UpdateClusterStatusResponse_NONE, err
 	}
+
+	// IntelMachine for the node doesn't exist yet
 	if intelmachine == nil {
-		// The node has not yet been put into a cluster
-		return pb.UpdateClusterStatusResponse_NONE, nil
+		// unpause the cluster if paused
+		cluster, err := getCluster(ctx, h.client, projectId, nodeGUID)
+		if cluster != nil && cluster.Spec.Paused {
+			err = unpauseCluster(ctx, h.client, cluster)
+		}
+		return pb.UpdateClusterStatusResponse_NONE, err
 	}
 
 	currentHostState := intelmachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
@@ -378,6 +391,52 @@ func (h *Handler) getIntelMachine(ctx context.Context, client ctrlclient.Client,
 	// if intelMachine.Spec.NodeGUID != nodeGUID {
 	//	return nil, errors.New("invalid IntelMachine found")
 	return intelMachine, nil
+}
+
+func getCluster(ctx context.Context, client ctrlclient.Client, projectId string, nodeID string) (*clusterv1.Cluster, error) {
+	// see if there is machine binding for this node
+	var machineBindingList infrastructurev1alpha1.IntelMachineBindingList
+
+	if err := client.List(ctx, &machineBindingList,
+		ctrlclient.InNamespace(projectId),
+		ctrlclient.MatchingFields{nodeGUIDKey: nodeID}); err != nil {
+		return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
+	}
+
+	if len(machineBindingList.Items) == 0 {
+		// no cluster is available for this node
+		return nil, nil
+	} else if len(machineBindingList.Items) > 1 {
+		// this case should never happen
+		return nil, fmt.Errorf("more than one cluster is found for node %s", nodeID)
+	}
+
+	// one cluster is found for the node
+	cluster := &clusterv1.Cluster{}
+	key := types.NamespacedName{Namespace: projectId, Name: machineBindingList.Items[0].Spec.ClusterName}
+	if err := client.Get(ctx, key, cluster); err != nil {
+		return nil, err
+	}
+
+	return cluster, nil
+}
+
+// Check if a cluster exists for the node and unset Paused flag if it is set
+func unpauseCluster(ctx context.Context, client ctrlclient.Client, cluster *clusterv1.Cluster) error {
+	if cluster != nil && cluster.Spec.Paused {
+		patchHelper, err := patch.NewHelper(cluster, client)
+		if err != nil {
+			log.Error().Msgf("Failed to create patch helper: %v", err)
+			return err
+		}
+		cluster.Spec.Paused = false
+		if err := patchHelper.Patch(ctx, cluster); err != nil {
+			log.Error().Msgf("Failed to unpause the cluster: %v", err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 func getMachine(ctx context.Context, client ctrlclient.Client, projectId string, name string) (*clusterv1.Machine, error) {

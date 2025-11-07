@@ -142,7 +142,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet envtest gocov helm-test ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ${GO_TESTABLES} -race -gcflags -l -coverprofile cover.out -covermode atomic -short
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ${GO_TESTABLES} -v -race -gcflags -l -coverprofile cover.out -covermode atomic -short
 	${GOBIN}/gocov convert cover.out | ${GOBIN}/gocov-xml > coverage.xml
 	go tool cover -html=cover.out -o coverage.html
 
