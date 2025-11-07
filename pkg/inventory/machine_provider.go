@@ -108,7 +108,7 @@ func (n *MachineProvider) GetInstanceByMachineId(in GetInstanceByMachineIdInput)
 		&Instance{
 			Id:        instance.GetResourceId(),
 			SerialNo:  host.GetSerialNumber(),
-			Os:        instance.GetCurrentOs().GetName(),
+			Os:        instance.GetOs().GetName(),
 			MachineId: in.MachineId},
 		nil}
 }

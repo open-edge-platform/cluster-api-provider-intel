@@ -59,7 +59,7 @@ func TestGetHostAndInstanceByHostUUID(t *testing.T) {
 				SerialNumber: hostSerialNumber,
 				Instance: &computev1.InstanceResource{
 					ResourceId: instanceResourceId,
-					CurrentOs: &osv1.OperatingSystemResource{
+					Os: &osv1.OperatingSystemResource{
 						Name: instanceOsName,
 					},
 				},
@@ -72,7 +72,7 @@ func TestGetHostAndInstanceByHostUUID(t *testing.T) {
 							SerialNumber: hostSerialNumber,
 							Instance: &computev1.InstanceResource{
 								ResourceId: instanceResourceId,
-								CurrentOs: &osv1.OperatingSystemResource{
+								Os: &osv1.OperatingSystemResource{
 									Name: instanceOsName,
 								},
 							},
@@ -94,7 +94,7 @@ func TestGetHostAndInstanceByHostUUID(t *testing.T) {
 			assert.Equal(t, tc.expectedHost.GetSerialNumber(), host.GetSerialNumber())
 			require.NotNil(t, host.GetInstance())
 			assert.Equal(t, tc.expectedHost.GetInstance().GetResourceId(), host.GetInstance().GetResourceId())
-			assert.Equal(t, tc.expectedHost.GetInstance().GetCurrentOs().GetName(), host.GetInstance().GetCurrentOs().GetName())
+			assert.Equal(t, tc.expectedHost.GetInstance().GetOs().GetName(), host.GetInstance().GetOs().GetName())
 		})
 	}
 }
@@ -171,7 +171,7 @@ func TestGetInstance(t *testing.T) {
 			tenantId:   tenantId,
 			expectedInstance: &computev1.InstanceResource{
 				ResourceId: instanceResourceId,
-				CurrentOs: &osv1.OperatingSystemResource{
+				Os: &osv1.OperatingSystemResource{
 					Name: instanceOsName,
 				},
 			},
@@ -183,7 +183,7 @@ func TestGetInstance(t *testing.T) {
 								Resource: &inventoryv1.Resource_Instance{
 									Instance: &computev1.InstanceResource{
 										ResourceId: instanceResourceId,
-										CurrentOs: &osv1.OperatingSystemResource{
+										Os: &osv1.OperatingSystemResource{
 											Name: instanceOsName,
 										},
 									},
@@ -204,7 +204,7 @@ func TestGetInstance(t *testing.T) {
 			require.Nil(t, err)
 			require.NotNil(t, out)
 			assert.Equal(t, out.GetResourceId(), tc.instanceId)
-			assert.Equal(t, tc.expectedInstance.GetCurrentOs().GetName(), out.GetCurrentOs().GetName())
+			assert.Equal(t, tc.expectedInstance.GetOs().GetName(), out.GetOs().GetName())
 		})
 	}
 }
