@@ -3,7 +3,7 @@ module github.com/open-edge-platform/cluster-api-provider-intel
 go 1.24.9
 
 require (
-	entgo.io/ent v0.14.5
+	entgo.io/ent v0.14.6-0.20251106044941-a777c08cdda4
 	github.com/bnkamalesh/errors v0.11.1
 	github.com/envoyproxy/protoc-gen-validate v1.2.1
 	github.com/getkin/kin-openapi v0.133.0
@@ -21,7 +21,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.27.2
 	github.com/onsi/gomega v1.38.2
 	github.com/open-edge-platform/cluster-connect-gateway v1.2.4
-	github.com/open-edge-platform/infra-core/inventory/v2 v2.32.0
+	github.com/open-edge-platform/infra-core/inventory/v2 v2.33.1
 	github.com/open-edge-platform/orch-library/go v0.6.2
 	github.com/open-policy-agent/opa v1.10.1
 	github.com/rs/zerolog v1.34.0
@@ -37,7 +37,7 @@ require (
 )
 
 require (
-	ariga.io/atlas v0.37.0 // indirect
+	ariga.io/atlas v0.38.0 // indirect
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.10-20250912141014-52f32327d4b0.1 // indirect
 	buf.build/go/protovalidate v1.0.0 // indirect
 	cel.dev/expr v0.24.0 // indirect
@@ -90,7 +90,7 @@ require (
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mennanov/fmutils v0.3.3 // indirect
+	github.com/mennanov/fmutils v0.3.4 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.1-0.20231216201459-8508981c8b6c // indirect
@@ -170,7 +170,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.67.1 // indirect
+	github.com/prometheus/common v0.67.2 // indirect
 	github.com/prometheus/procfs v0.17.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stoewer/go-strcase v1.3.1 // indirect
@@ -186,7 +186,7 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/net v0.46.0 // indirect
-	golang.org/x/oauth2 v0.31.0 // indirect
+	golang.org/x/oauth2 v0.32.0 // indirect
 	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/term v0.36.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
