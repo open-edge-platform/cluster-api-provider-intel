@@ -20,7 +20,7 @@ jobs:
       contents: read
       security-events: write
       id-token: write
-    uses: open-edge-platform/orch-ci/.github/workflows/post-merge.yml@53353264e8204c0dc538008275d898536c85aa24  #cosign-fix
+    uses: open-edge-platform/orch-ci/.github/workflows/post-merge.yml@f3394df2102cb55c3cb68e899f019dc473cdaa37  #cosign-fix
     with:
       cache_go: true
       remove_cache_go: true
