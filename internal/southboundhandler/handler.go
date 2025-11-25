@@ -259,13 +259,11 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 	// IntelMachine for the node doesn't exist yet
 	if intelmachine == nil {
 		// unpause the cluster if paused
-		log.Info().Msgf("IntelMachine not found for node %s, checking cluster to unpause if needed", nodeGUID)
 		cluster, err := h.getCluster(ctx, projectId, nodeGUID)
-		log.Info().Msgf("Cluster found: %v", cluster != nil)
 		if cluster != nil && cluster.Spec.Paused {
-			log.Info().Msgf("Unpausing cluster %s/%s", cluster.Namespace, cluster.Name)
+			log.Debug().Msgf("Unpausing cluster %s/%s", cluster.Namespace, cluster.Name)
 			err = unpauseCluster(ctx, h.client, cluster)
-			log.Info().Msgf("Cluster unpause result: %v", err)
+			log.Debug().Msgf("Cluster unpause result: %v", err)
 		}
 		return pb.UpdateClusterStatusResponse_NONE, err
 	}
