@@ -9,8 +9,8 @@ import (
 
 // IntelMachineBindingSpec defines the desired state of IntelMachineBinding.
 type IntelMachineBindingSpec struct {
-	// NodeGUID contains the GUID of the node
-	NodeGUID string `json:"nodeGUID"`
+	// HostId contains the resource identifier of the host
+	HostId string `json:"hostID"`
 
 	// ClusterName contains the name of the cluster to which the node is bound
 	ClusterName string `json:"clusterName"`
@@ -28,7 +28,7 @@ type IntelMachineBindingStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Cluster Name",type=string,JSONPath=`.spec.clusterName`
-// +kubebuilder:printcolumn:name="Node GUID",type=string,JSONPath=`.spec.nodeGUID`
+// +kubebuilder:printcolumn:name="Host ID",type=string,JSONPath=`.spec.hostID`
 // +kubebuilder:printcolumn:name="Template Name",type=string,JSONPath=`.spec.intelMachineTemplateName`
 // +kubebuilder:printcolumn:name="Allocated",type=boolean,JSONPath=`.status.allocated`
 

@@ -135,7 +135,7 @@ func NewIntelMachine(namespace, intelMachineName string, machine *clusterv1.Mach
 					UID:        machine.UID,
 				},
 			},
-			Labels: map[string]string{infrastructurev1alpha1.NodeGUIDKey: ""},
+			Labels: map[string]string{infrastructurev1alpha1.HostIdKey: ""},
 		},
 	}
 }
@@ -148,7 +148,7 @@ func NewIntelMachineBinding(namespace, intelMachineBindingName, nodeGUID, cluste
 			Namespace: namespace,
 		},
 		Spec: infrastructurev1alpha1.IntelMachineBindingSpec{
-			NodeGUID:                 nodeGUID,
+			HostId:                   nodeGUID,
 			ClusterName:              clusterName,
 			IntelMachineTemplateName: machineTemplateName,
 		},

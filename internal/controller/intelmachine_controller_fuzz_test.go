@@ -32,7 +32,7 @@ func FuzzMachineReconcile(f *testing.F) {
 		workloadId              = "test-workload-id"
 		instanceId              = "test-instance-id"
 		bootstrapKind           = "RKE2Config"
-		nodeGUID                = "1234567890"
+		hostId                  = "test-host-12345678"
 	)
 	scheme := runtime.NewScheme()
 	if err := infrastructurev1alpha1.AddToScheme(scheme); err != nil {
@@ -45,7 +45,7 @@ func FuzzMachineReconcile(f *testing.F) {
 	cluster.Status.InfrastructureReady = true
 	intelcluster := utils.NewIntelCluster(namespace, intelClusterName, workloadId, cluster)
 	machine := utils.NewMachine(namespace, clusterName, machineName, bootstrapKind)
-	intelmachinebinding := utils.NewIntelMachineBinding(namespace, intelMachineBindingName, nodeGUID, clusterName, machineTemplateName)
+	intelmachinebinding := utils.NewIntelMachineBinding(namespace, intelMachineBindingName, hostId, clusterName, machineTemplateName)
 	intelmachine := utils.NewIntelMachine(namespace, intelMachineName, machine)
 	intelmachine.Annotations = map[string]string{
 		clusterv1.TemplateClonedFromNameAnnotation: machineTemplateName,

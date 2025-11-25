@@ -58,7 +58,7 @@ const (
 	// Secret formats
 	cloudConfigFormat = "cloud-config"
 
-	nodeGUIDKey = "spec.nodeGUID"
+	hostIdKey = "spec.hostID"
 )
 
 var (
@@ -113,11 +113,11 @@ func NewHandler(ctx context.Context, cfg *rest.Config) (*Handler, error) {
 	}
 
 	if err = mgr.GetFieldIndexer().IndexField(ctx, &infrastructurev1alpha1.IntelMachineBinding{},
-		nodeGUIDKey, func(obj ctrlclient.Object) []string {
+		hostIdKey, func(obj ctrlclient.Object) []string {
 			o := obj.(*infrastructurev1alpha1.IntelMachineBinding)
-			return []string{o.Spec.NodeGUID}
+			return []string{o.Spec.HostId}
 		}); err != nil {
-		return nil, fmt.Errorf("failed to add field indexer for spec.nodeGUID: %w", err)
+		return nil, fmt.Errorf("failed to add field indexer for spec.hostID: %w", err)
 	}
 
 	// Use the manager's cached client
@@ -154,21 +154,27 @@ func NewHandler(ctx context.Context, cfg *rest.Config) (*Handler, error) {
 //
 // Parameters:
 // - ctx: The context for the request.
-// - nodeGUID: The GUID of the node to be registered.
+// - hostId: The host identifier of the node to be registered.
 //
 // Returns:
 // - installCmd: The command to install the node.
 // - uninstallCmd: The command to uninstall the node.
 // - result: The result of the registration process.
 // - err: Any error encountered during the registration process.
-func (h *Handler) Register(ctx context.Context, nodeGUID string) (*pb.ShellScriptCommand, *pb.ShellScriptCommand, pb.RegisterClusterResponse_Result, error) {
-	log.Info().Msgf("Registering node %s\n", nodeGUID)
-
+func (h *Handler) Register(ctx context.Context, hostUuid string) (*pb.ShellScriptCommand, *pb.ShellScriptCommand, pb.RegisterClusterResponse_Result, error) {
 	// Get Project ID from context
 	projectId := tenant.GetActiveProjectIdFromContext(ctx)
 
-	// Get IntelMachine in namespace <Project ID> with matching nodeGUID
-	intelmachine, err := h.getIntelMachine(ctx, h.client, projectId, nodeGUID)
+	hostId, err := getHostIdFromUuid(ctx, h.inventoryClient, projectId, hostUuid)
+	if err != nil {
+		log.Error().Msgf("Failed to get HostID from inventory: %v", err)
+		return nil, nil, pb.RegisterClusterResponse_ERROR, err
+	}
+
+	log.Info().Msgf("Registering host %s\n", hostId)
+
+	// Get IntelMachine in namespace <Project ID> with matching HostID
+	intelmachine, err := h.getIntelMachine(ctx, h.client, projectId, hostId)
 	if err != nil {
 		log.Error().Msg("Failed to get IntelMachine")
 		return nil, nil, pb.RegisterClusterResponse_ERROR, err
@@ -234,13 +240,13 @@ func (h *Handler) Register(ctx context.Context, nodeGUID string) (*pb.ShellScrip
 //
 // Parameters:
 //   - ctx: The context for the request.
-//   - nodeGUID: The unique identifier of the node.
+//   - hostId: The host identifier of the node to be updated.
 //   - status: The status code from the CO Agent.
 //
 // Returns:
 //   - pb.UpdateClusterStatusResponse_ActionRequest: The action request to be taken based on the status update.
 //   - error: An error if the status update fails.
-func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.UpdateClusterStatusRequest_Code) (pb.UpdateClusterStatusResponse_ActionRequest, error) {
+func (h *Handler) UpdateStatus(ctx context.Context, hostUuid string, status pb.UpdateClusterStatusRequest_Code) (pb.UpdateClusterStatusResponse_ActionRequest, error) {
 	var hostState string
 
 	// Default action is NONE
@@ -249,8 +255,14 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 	// Get Project ID from context
 	projectId := tenant.GetActiveProjectIdFromContext(ctx)
 
-	// Get IntelMachine in namespace <Project ID> with matching nodeGUID
-	intelmachine, err := h.getIntelMachine(ctx, h.client, projectId, nodeGUID)
+	hostId, err := getHostIdFromUuid(ctx, h.inventoryClient, projectId, hostUuid)
+	if err != nil {
+		log.Error().Msgf("Failed to get HostID from inventory: %v", err)
+		return pb.UpdateClusterStatusResponse_NONE, err
+	}
+
+	// Get IntelMachine in namespace <Project ID> with matching HostID
+	intelmachine, err := h.getIntelMachine(ctx, h.client, projectId, hostId)
 	if err != nil {
 		log.Error().Msgf("Failed to get IntelMachine %v", err)
 		return pb.UpdateClusterStatusResponse_NONE, err
@@ -259,7 +271,7 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 	// IntelMachine for the node doesn't exist yet
 	if intelmachine == nil {
 		// unpause the cluster if paused
-		cluster, err := getCluster(ctx, h.client, projectId, nodeGUID)
+		cluster, err := getCluster(ctx, h.client, projectId, hostId)
 		if cluster != nil && cluster.Spec.Paused {
 			err = unpauseCluster(ctx, h.client, cluster)
 		}
@@ -320,77 +332,30 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 	return action, nil
 }
 
-func (h *Handler) getIntelMachine(ctx context.Context, client ctrlclient.Client, projectId string, nodeGUID string) (*infrastructurev1alpha1.IntelMachine, error) {
-	if !validLabelVal(nodeGUID) {
-		return nil, errors.New("invalid Node GUID")
+func (h *Handler) getIntelMachine(ctx context.Context, client ctrlclient.Client, projectId string, hostId string) (*infrastructurev1alpha1.IntelMachine, error) {
+	if !validLabelVal(hostId) {
+		return nil, fmt.Errorf("invalid label value for HostID '%s'", hostId)
 	}
 
-	// Use a label selector to filter IntelMachines by UUID
+	// Use a label selector to filter IntelMachines by host resource identifier
 	intelMachineList := &infrastructurev1alpha1.IntelMachineList{}
 	listOpts := []ctrlclient.ListOption{
 		ctrlclient.InNamespace(projectId),
-		ctrlclient.MatchingLabels{infrastructurev1alpha1.NodeGUIDKey: nodeGUID},
+		ctrlclient.MatchingLabels{infrastructurev1alpha1.HostIdKey: hostId},
 	}
-
 	if err := client.List(ctx, intelMachineList, listOpts...); err != nil {
 		return nil, err
 	}
 
 	if len(intelMachineList.Items) < 1 {
-		// Failed to find IntelMachine with provided NodeGUID
-		// Attempt to search by hostID before giving up as the IntelMachine with auto-created cluster has HostID instead of UUID
-		log.Debug().Msgf("No IntelMachine found for UUID %s in the project %s, attempt to search by hostID", nodeGUID, projectId)
-
-		if h.inventoryClient != nil {
-			host, err := h.inventoryClient.Client.GetHostByUUID(ctx, projectId, nodeGUID)
-			if err != nil {
-				log.Debug().Msgf("Failed to get host resource by UUID %s in the project %s", nodeGUID, projectId)
-				return nil, nil
-			}
-
-			if host != nil {
-				listOpts = []ctrlclient.ListOption{ctrlclient.InNamespace(projectId),
-					ctrlclient.MatchingLabels{infrastructurev1alpha1.NodeGUIDKey: host.GetResourceId()},
-				}
-				if err := client.List(ctx, intelMachineList, listOpts...); err != nil {
-					return nil, err
-				}
-
-				// If no valid IntelMachine found by hostID, give up and return nil
-				if len(intelMachineList.Items) < 1 {
-					log.Debug().Msgf("No IntelMachine found for hostID %s in the project %s", host.GetResourceId(), projectId)
-					return nil, nil
-				}
-			} else {
-				return nil, nil
-			}
-		} else {
-			return nil, nil
-		}
+		return nil, fmt.Errorf("no IntelMachine with HostID '%s' found in project '%s'", hostId, projectId)
 	}
 
 	if len(intelMachineList.Items) > 1 {
-		return nil, errors.New("duplicate IntelMachines found")
+		return nil, fmt.Errorf("duplicate IntelMachines found with HostID '%s' found in project '%s'", hostId, projectId)
 	}
 
-	// We found a single IntelMachine with the provided NodeGUID
-	// If nodeGUID in the request does not match the label value in the IntelMachine, update it for later use
-	// This can happen for auto-created cluster, where nodeGUID is the hostID not UUID
-	val := intelMachineList.Items[0].Labels[infrastructurev1alpha1.NodeGUIDKey]
-	if val != nodeGUID {
-		intelMachineList.Items[0].Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
-		if err := client.Update(ctx, &intelMachineList.Items[0]); err != nil {
-			log.Warn().Msgf("Failed to update IntelMachine with NodeGUID label: %v", err)
-			return nil, nil
-		}
-	}
-
-	intelMachine := &intelMachineList.Items[0]
-	// This is valid only for manually created clusters, so disable the check.
-	// We'll revisit this code later for permanent fix.
-	// if intelMachine.Spec.NodeGUID != nodeGUID {
-	//	return nil, errors.New("invalid IntelMachine found")
-	return intelMachine, nil
+	return &intelMachineList.Items[0], nil
 }
 
 func getCluster(ctx context.Context, client ctrlclient.Client, projectId string, nodeID string) (*clusterv1.Cluster, error) {
@@ -399,7 +364,7 @@ func getCluster(ctx context.Context, client ctrlclient.Client, projectId string,
 
 	if err := client.List(ctx, &machineBindingList,
 		ctrlclient.InNamespace(projectId),
-		ctrlclient.MatchingFields{nodeGUIDKey: nodeID}); err != nil {
+		ctrlclient.MatchingFields{hostIdKey: nodeID}); err != nil {
 		return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
 	}
 
@@ -596,4 +561,17 @@ func getRateLimiterParams() (float64, int64, error) {
 		return defaultQPS, defaultBurst, err
 	}
 	return qpsValue, burstValue, nil
+}
+
+func getHostIdFromUuid(ctx context.Context, client *inventory.InventoryClient, projectId string, hostUuid string) (string, error) {
+	hostResource, err := client.Client.GetHostByUUID(ctx, projectId, hostUuid)
+	if err != nil {
+		log.Error().Msgf("Failed to get host resource from inventory: %v", err)
+		return "", err
+	} else if hostResource == nil {
+		log.Error().Msgf("Host resource not found in inventory for UUID: %s", hostUuid)
+		return "", fmt.Errorf("host resource not found with uuid: %s", hostUuid)
+	}
+
+	return hostResource.ResourceId, nil
 }

@@ -280,26 +280,26 @@ func TestGetInstanceByMachineId(t *testing.T) {
 	cases := []struct {
 		name           string
 		tenantId       string
-		nodeUUId       string
+		hostUuid       string
 		expectedOutput GetInstanceByMachineIdOutput
 		mocks          func() []*mock.Call
 	}{
 		{
 			name:     "successful, no errors",
-			nodeUUId: nodeUUId,
+			hostUuid: hostUuid,
 			tenantId: tenantId,
 			expectedOutput: GetInstanceByMachineIdOutput{
 				Instance: &Instance{
 					Id:        instanceResourceId,
 					Os:        instanceOsName,
 					SerialNo:  hostSerialNumber,
-					MachineId: nodeUUId,
+					MachineId: hostUuid,
 				},
 				Err: nil,
 			},
 			mocks: func() []*mock.Call {
 				return []*mock.Call{
-					mockedInventoryClient.On("GetHostByUUID", mock.Anything, tenantId, nodeUUId).
+					mockedInventoryClient.On("GetHostByUUID", mock.Anything, tenantId, hostUuid).
 						Return(&computev1.HostResource{
 							ResourceId:   hostResourceId,
 							SerialNumber: hostSerialNumber,
@@ -315,7 +315,7 @@ func TestGetInstanceByMachineId(t *testing.T) {
 		},
 		{
 			name:     "successful, empty instance",
-			nodeUUId: nodeUUId,
+			hostUuid: hostUuid,
 			tenantId: tenantId,
 			expectedOutput: GetInstanceByMachineIdOutput{
 				Instance: &Instance{},
@@ -323,7 +323,7 @@ func TestGetInstanceByMachineId(t *testing.T) {
 			},
 			mocks: func() []*mock.Call {
 				return []*mock.Call{
-					mockedInventoryClient.On("GetHostByUUID", mock.Anything, tenantId, nodeUUId).
+					mockedInventoryClient.On("GetHostByUUID", mock.Anything, tenantId, hostUuid).
 						Return(&computev1.HostResource{
 							ResourceId:   hostResourceId,
 							SerialNumber: hostSerialNumber,
@@ -333,7 +333,7 @@ func TestGetInstanceByMachineId(t *testing.T) {
 		},
 		{
 			name:     "failed with invalid machine id",
-			nodeUUId: "",
+			hostUuid: "",
 			tenantId: tenantId,
 			expectedOutput: GetInstanceByMachineIdOutput{
 				Instance: &Instance{},
@@ -342,7 +342,7 @@ func TestGetInstanceByMachineId(t *testing.T) {
 		},
 		{
 			name:     "failed with invalid tenant id",
-			nodeUUId: nodeUUId,
+			hostUuid: hostUuid,
 			tenantId: "",
 			expectedOutput: GetInstanceByMachineIdOutput{
 				Instance: &Instance{},
@@ -351,7 +351,7 @@ func TestGetInstanceByMachineId(t *testing.T) {
 		},
 		{
 			name:     "failed with client error",
-			nodeUUId: nodeUUId,
+			hostUuid: hostUuid,
 			tenantId: tenantId,
 			expectedOutput: GetInstanceByMachineIdOutput{
 				Instance: &Instance{},
@@ -359,9 +359,9 @@ func TestGetInstanceByMachineId(t *testing.T) {
 			},
 			mocks: func() []*mock.Call {
 				return []*mock.Call{
-					mockedInventoryClient.On("GetHostByUUID", mock.Anything, tenantId, nodeUUId).
+					mockedInventoryClient.On("GetHostByUUID", mock.Anything, tenantId, hostUuid).
 						Return(nil, ErrGenericInventoryClientErrror).Once(),
-					mockedInventoryClient.On("Get", mock.Anything, tenantId, nodeUUId).
+					mockedInventoryClient.On("Get", mock.Anything, tenantId, hostUuid).
 						Return(nil, ErrGenericInventoryClientErrror).Once(),
 				}
 			},
@@ -375,7 +375,7 @@ func TestGetInstanceByMachineId(t *testing.T) {
 			}
 			out := machineProvider.GetInstanceByMachineId(GetInstanceByMachineIdInput{
 				TenantId:  tc.tenantId,
-				MachineId: tc.nodeUUId})
+				MachineId: tc.hostUuid})
 			require.NotNil(t, out)
 
 			if tc.expectedOutput.Err == nil {

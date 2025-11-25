@@ -104,8 +104,8 @@ func (s *server) RegisterCluster(ctx context.Context, in *pb.RegisterClusterRequ
 		log.Error().Msgf("error validating incoming request: %v", err)
 		return nil, err
 	}
-	log.Info().Msgf("Get register cluster request from cluster agent in node: %v", in.GetNodeGuid())
 
+	log.Info().Msgf("Get register cluster request from cluster agent in node: %v", in.GetNodeGuid())
 	installCommand, uninstallCommand, res, _ := s.handler.Register(ctx, in.GetNodeGuid())
 
 	return &pb.RegisterClusterResponse{

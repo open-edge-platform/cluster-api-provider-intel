@@ -31,7 +31,7 @@ const (
 	clusterName      = "test-cluster"
 	secretName       = "test-secret"
 	secretFormat     = cloudConfigFormat
-	nodeGUID         = "test-nodeGUID"
+	testHostId       = "test-host-id"
 	ownerRefKind     = "Machine"
 	bootstrapKind    = configTypeRKE2
 )
@@ -90,153 +90,153 @@ func TestMain(m *testing.M) {
 
 func TestHandler_Register(t *testing.T) {
 	cases := []struct {
-		name          string
-		nodeGUID      string
-		nodeGUIDLabel string
-		providerID    *string
-		ownerRefKind  string
-		namespace     string
-		bootstrapKind string
-		secretName    string
-		secretFormat  string
-		secretValueEn bool
-		err           bool
+		name             string
+		hostId           string
+		hostIdLabelValue string
+		providerID       *string
+		ownerRefKind     string
+		namespace        string
+		bootstrapKind    string
+		secretName       string
+		secretFormat     string
+		secretValueEn    bool
+		err              bool
 	}{
 		{
-			name:          "Success",
-			nodeGUID:      nodeGUID,
-			nodeGUIDLabel: nodeGUID,
-			providerID:    &providerID,
-			ownerRefKind:  ownerRefKind,
-			namespace:     "00000000-0000-0000-0000-000000000001",
-			bootstrapKind: bootstrapKind,
-			secretName:    secretName,
-			secretFormat:  secretFormat,
-			secretValueEn: true,
-			err:           false,
+			name:             "Success",
+			hostId:           testHostId,
+			hostIdLabelValue: testHostId,
+			providerID:       &providerID,
+			ownerRefKind:     ownerRefKind,
+			namespace:        "00000000-0000-0000-0000-000000000001",
+			bootstrapKind:    bootstrapKind,
+			secretName:       secretName,
+			secretFormat:     secretFormat,
+			secretValueEn:    true,
+			err:              false,
 		}, {
-			name:          "No IntelMachine - wrong NodeGUID",
-			nodeGUID:      "x",
-			nodeGUIDLabel: nodeGUID,
-			providerID:    &providerID,
-			ownerRefKind:  ownerRefKind,
-			namespace:     "00000000-0000-0000-0000-000000000002",
-			bootstrapKind: bootstrapKind,
-			secretName:    secretName,
-			secretFormat:  secretFormat,
-			secretValueEn: true,
-			err:           true,
+			name:             "No IntelMachine - wrong HostID",
+			hostId:           "x",
+			hostIdLabelValue: testHostId,
+			providerID:       &providerID,
+			ownerRefKind:     ownerRefKind,
+			namespace:        "00000000-0000-0000-0000-000000000002",
+			bootstrapKind:    bootstrapKind,
+			secretName:       secretName,
+			secretFormat:     secretFormat,
+			secretValueEn:    true,
+			err:              true,
 		}, {
-			name:          "No IntelMachine - wrong NodeGUID label",
-			nodeGUID:      nodeGUID,
-			nodeGUIDLabel: "x",
-			providerID:    &providerID,
-			ownerRefKind:  ownerRefKind,
-			namespace:     "00000000-0000-0000-0000-000000000003",
-			bootstrapKind: bootstrapKind,
-			secretName:    secretName,
-			secretFormat:  secretFormat,
-			secretValueEn: true,
-			err:           true,
+			name:             "No IntelMachine - wrong HostID label value",
+			hostId:           testHostId,
+			hostIdLabelValue: "x",
+			providerID:       &providerID,
+			ownerRefKind:     ownerRefKind,
+			namespace:        "00000000-0000-0000-0000-000000000003",
+			bootstrapKind:    bootstrapKind,
+			secretName:       secretName,
+			secretFormat:     secretFormat,
+			secretValueEn:    true,
+			err:              true,
 		}, {
-			name:          "No Owner",
-			nodeGUID:      nodeGUID,
-			nodeGUIDLabel: nodeGUID,
-			providerID:    &providerID,
-			ownerRefKind:  "x",
-			namespace:     "00000000-0000-0000-0000-000000000004",
-			bootstrapKind: bootstrapKind,
-			secretName:    secretName,
-			secretFormat:  secretFormat,
-			secretValueEn: true,
-			err:           true,
+			name:             "No Owner",
+			hostId:           testHostId,
+			hostIdLabelValue: testHostId,
+			providerID:       &providerID,
+			ownerRefKind:     "x",
+			namespace:        "00000000-0000-0000-0000-000000000004",
+			bootstrapKind:    bootstrapKind,
+			secretName:       secretName,
+			secretFormat:     secretFormat,
+			secretValueEn:    true,
+			err:              true,
 		}, {
-			name:          "No ProviderID",
-			nodeGUID:      nodeGUID,
-			nodeGUIDLabel: nodeGUID,
-			providerID:    nil,
-			ownerRefKind:  ownerRefKind,
-			namespace:     "00000000-0000-0000-0000-000000000005",
-			bootstrapKind: bootstrapKind,
-			secretName:    secretName,
-			secretFormat:  secretFormat,
-			secretValueEn: true,
-			err:           true,
+			name:             "No ProviderID",
+			hostId:           testHostId,
+			hostIdLabelValue: testHostId,
+			providerID:       nil,
+			ownerRefKind:     ownerRefKind,
+			namespace:        "00000000-0000-0000-0000-000000000005",
+			bootstrapKind:    bootstrapKind,
+			secretName:       secretName,
+			secretFormat:     secretFormat,
+			secretValueEn:    true,
+			err:              true,
 		}, {
-			name:          "No Data Secret",
-			nodeGUID:      nodeGUID,
-			nodeGUIDLabel: nodeGUID,
-			providerID:    &providerID,
-			ownerRefKind:  ownerRefKind,
-			namespace:     "00000000-0000-0000-0000-000000000006",
-			bootstrapKind: bootstrapKind,
-			secretName:    "",
-			secretFormat:  secretFormat,
-			secretValueEn: true,
-			err:           true,
+			name:             "No Data Secret",
+			hostId:           testHostId,
+			hostIdLabelValue: testHostId,
+			providerID:       &providerID,
+			ownerRefKind:     ownerRefKind,
+			namespace:        "00000000-0000-0000-0000-000000000006",
+			bootstrapKind:    bootstrapKind,
+			secretName:       "",
+			secretFormat:     secretFormat,
+			secretValueEn:    true,
+			err:              true,
 		}, {
-			name:          "No Bootstrap Secret",
-			nodeGUID:      nodeGUID,
-			nodeGUIDLabel: nodeGUID,
-			providerID:    &providerID,
-			ownerRefKind:  ownerRefKind,
-			namespace:     "00000000-0000-0000-0000-000000000007",
-			bootstrapKind: bootstrapKind,
-			secretName:    "x",
-			secretFormat:  secretFormat,
-			secretValueEn: true,
-			err:           true,
+			name:             "No Bootstrap Secret",
+			hostId:           testHostId,
+			hostIdLabelValue: testHostId,
+			providerID:       &providerID,
+			ownerRefKind:     ownerRefKind,
+			namespace:        "00000000-0000-0000-0000-000000000007",
+			bootstrapKind:    bootstrapKind,
+			secretName:       "x",
+			secretFormat:     secretFormat,
+			secretValueEn:    true,
+			err:              true,
 		}, {
 			// This is a special case where the secret format is not specified
 			// and the secret value is not empty. The handler should assume
 			// that the secret format is cloud-config.
-			name:          "No Secret Format",
-			nodeGUID:      nodeGUID,
-			nodeGUIDLabel: nodeGUID,
-			providerID:    &providerID,
-			ownerRefKind:  ownerRefKind,
-			namespace:     "00000000-0000-0000-0000-000000000008",
-			bootstrapKind: bootstrapKind,
-			secretName:    secretName,
-			secretFormat:  "",
-			secretValueEn: true,
-			err:           false,
+			name:             "No Secret Format",
+			hostId:           testHostId,
+			hostIdLabelValue: testHostId,
+			providerID:       &providerID,
+			ownerRefKind:     ownerRefKind,
+			namespace:        "00000000-0000-0000-0000-000000000008",
+			bootstrapKind:    bootstrapKind,
+			secretName:       secretName,
+			secretFormat:     "",
+			secretValueEn:    true,
+			err:              false,
 		}, {
-			name:          "Unknown Secret Format",
-			nodeGUID:      nodeGUID,
-			nodeGUIDLabel: nodeGUID,
-			providerID:    &providerID,
-			ownerRefKind:  ownerRefKind,
-			namespace:     "00000000-0000-0000-0000-000000000009",
-			bootstrapKind: bootstrapKind,
-			secretName:    secretName,
-			secretFormat:  "x",
-			secretValueEn: true,
-			err:           true,
+			name:             "Unknown Secret Format",
+			hostId:           testHostId,
+			hostIdLabelValue: testHostId,
+			providerID:       &providerID,
+			ownerRefKind:     ownerRefKind,
+			namespace:        "00000000-0000-0000-0000-000000000009",
+			bootstrapKind:    bootstrapKind,
+			secretName:       secretName,
+			secretFormat:     "x",
+			secretValueEn:    true,
+			err:              true,
 		}, {
-			name:          "No Secret Value",
-			nodeGUID:      nodeGUID,
-			nodeGUIDLabel: nodeGUID,
-			providerID:    &providerID,
-			ownerRefKind:  ownerRefKind,
-			namespace:     "00000000-0000-0000-0000-000000000010",
-			bootstrapKind: bootstrapKind,
-			secretName:    secretName,
-			secretFormat:  secretFormat,
-			secretValueEn: false,
-			err:           true,
+			name:             "No Secret Value",
+			hostId:           testHostId,
+			hostIdLabelValue: testHostId,
+			providerID:       &providerID,
+			ownerRefKind:     ownerRefKind,
+			namespace:        "00000000-0000-0000-0000-000000000010",
+			bootstrapKind:    bootstrapKind,
+			secretName:       secretName,
+			secretFormat:     secretFormat,
+			secretValueEn:    false,
+			err:              true,
 		}, {
-			name:          "Invalid Bootstrap Kind",
-			nodeGUID:      nodeGUID,
-			nodeGUIDLabel: nodeGUID,
-			providerID:    &providerID,
-			ownerRefKind:  ownerRefKind,
-			namespace:     "00000000-0000-0000-0000-000000000011",
-			bootstrapKind: "x",
-			secretName:    secretName,
-			secretFormat:  secretFormat,
-			secretValueEn: true,
-			err:           true,
+			name:             "Invalid Bootstrap Kind",
+			hostId:           testHostId,
+			hostIdLabelValue: testHostId,
+			providerID:       &providerID,
+			ownerRefKind:     ownerRefKind,
+			namespace:        "00000000-0000-0000-0000-000000000011",
+			bootstrapKind:    "x",
+			secretName:       secretName,
+			secretFormat:     secretFormat,
+			secretValueEn:    true,
+			err:              true,
 		},
 	}
 	for _, tc := range cases {
@@ -253,9 +253,9 @@ func TestHandler_Register(t *testing.T) {
 
 			// Create IntelMachine
 			intelmachine := utils.NewIntelMachine(tc.namespace, intelMachineName, machine)
-			intelmachine.Spec.NodeGUID = tc.nodeGUID
+			intelmachine.Spec.HostId = tc.hostId
 			intelmachine.Spec.ProviderID = tc.providerID
-			intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = tc.nodeGUIDLabel
+			intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.HostIdKey] = tc.hostIdLabelValue
 			intelmachine.OwnerReferences[0].Kind = tc.ownerRefKind
 
 			// Create Secret
@@ -295,13 +295,13 @@ func TestHandler_Register(t *testing.T) {
 			assert.NoError(t, err)
 
 			if !tc.err {
-				installCmd, uninstallCmd, resp, err := testHandler.Register(ctx, tc.nodeGUID)
+				installCmd, uninstallCmd, resp, err := testHandler.Register(ctx, tc.hostId)
 				assert.NoError(t, err)
 				assert.Equal(t, pb.RegisterClusterResponse_SUCCESS, resp)
 				assert.NotEmpty(t, installCmd)
 				assert.NotEmpty(t, uninstallCmd)
 			} else {
-				_, _, _, err := testHandler.Register(ctx, tc.nodeGUID)
+				_, _, _, err := testHandler.Register(ctx, tc.hostId)
 				assert.Error(t, err)
 			}
 		})
@@ -311,7 +311,7 @@ func TestHandler_Register(t *testing.T) {
 func FuzzHandlerRegister(f *testing.F) {
 	projectId := "00000000-0000-0000-0000-000000000100"
 	f.Add("abc")
-	f.Fuzz(func(t *testing.T, nodeGUID string) {
+	f.Fuzz(func(t *testing.T, hostId string) {
 
 		// Create Machine
 		machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
@@ -320,9 +320,9 @@ func FuzzHandlerRegister(f *testing.F) {
 
 		// Create IntelMachine
 		intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
-		intelmachine.Spec.NodeGUID = nodeGUID
+		intelmachine.Spec.HostId = hostId
 		intelmachine.Spec.ProviderID = &providerID
-		intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
+		intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.HostIdKey] = hostId
 
 		// Create Secret
 		secret := utils.NewRKE2BootstrapSecret(projectId, secretName)
@@ -352,7 +352,7 @@ func FuzzHandlerRegister(f *testing.F) {
 		err = k8sClient.Create(ctx, secret)
 		assert.NoError(t, err)
 
-		_, _, _, _ = testHandler.Register(ctx, nodeGUID)
+		_, _, _, _ = testHandler.Register(ctx, hostId)
 	})
 }
 
@@ -366,8 +366,8 @@ func TestHandler_UpdateStatus_MachineReady(t *testing.T) {
 
 	// Create IntelMachine
 	intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
-	intelmachine.Spec.NodeGUID = nodeGUID
-	intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
+	intelmachine.Spec.HostId = testHostId
+	intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.HostIdKey] = testHostId
 	intelmachine.Spec.ProviderID = &providerID
 
 	// Set up fake dynamic client
@@ -445,12 +445,12 @@ func TestHandler_UpdateStatus_MachineReady(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actionReq, err := testHandler.UpdateStatus(ctx, nodeGUID, tc.status)
+			actionReq, err := testHandler.UpdateStatus(ctx, testHostId, tc.status)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedAction, actionReq)
 
 			// Check that IntelMachine has been updated with the correct host state
-			im, err := testHandler.getIntelMachine(ctx, testHandler.client, projectId, nodeGUID)
+			im, err := testHandler.getIntelMachine(ctx, testHandler.client, projectId, testHostId)
 			assert.NoError(t, err)
 			hostStatus, ok := im.Annotations[infrastructurev1alpha1.HostStateAnnotation]
 			assert.True(t, ok)
@@ -482,8 +482,8 @@ func TestHandler_UpdateStatus_MachineDeleted(t *testing.T) {
 	intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
 	assert.True(t, controllerutil.AddFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer))
 	assert.True(t, controllerutil.ContainsFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer))
-	intelmachine.Spec.NodeGUID = nodeGUID
-	intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
+	intelmachine.Spec.HostId = testHostId
+	intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.HostIdKey] = testHostId
 	intelmachine.Status.Ready = false
 
 	testHandler := &Handler{
@@ -540,12 +540,12 @@ func TestHandler_UpdateStatus_MachineDeleted(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actionReq, err := testHandler.UpdateStatus(ctx, nodeGUID, tc.status)
+			actionReq, err := testHandler.UpdateStatus(ctx, testHostId, tc.status)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedAction, actionReq)
 
 			// Check that IntelMachine has been updated with the correct host state
-			im, err := testHandler.getIntelMachine(ctx, testHandler.client, projectId, nodeGUID)
+			im, err := testHandler.getIntelMachine(ctx, testHandler.client, projectId, testHostId)
 			assert.NoError(t, err)
 			if tc.stillExists {
 				hostStatus, ok := im.Annotations[infrastructurev1alpha1.HostStateAnnotation]
@@ -561,24 +561,24 @@ func TestHandler_UpdateStatus_MachineDeleted(t *testing.T) {
 
 func TestHandler_UpdateStatus_Error(t *testing.T) {
 	cases := []struct {
-		name          string
-		namespace     string
-		nodeGUID      string
-		nodeGUIDLabel string
-		expectError   bool
+		name             string
+		namespace        string
+		hostId           string
+		hostIdLabelValue string
+		expectError      bool
 	}{
 		{
-			name:          "Wrong NodeGUID",
-			namespace:     "00000000-0000-0000-0000-000000000400",
-			nodeGUID:      "x",
-			nodeGUIDLabel: nodeGUID,
-			expectError:   true,
+			name:             "Wrong HostID",
+			namespace:        "00000000-0000-0000-0000-000000000400",
+			hostId:           "x",
+			hostIdLabelValue: testHostId,
+			expectError:      true,
 		}, {
-			name:          "Wrong NodeGUID label",
-			namespace:     "00000000-0000-0000-0000-000000000401",
-			nodeGUID:      nodeGUID,
-			nodeGUIDLabel: "x",
-			expectError:   true,
+			name:             "Wrong HostID label value",
+			namespace:        "00000000-0000-0000-0000-000000000401",
+			hostId:           testHostId,
+			hostIdLabelValue: "x",
+			expectError:      true,
 		},
 	}
 	for _, tc := range cases {
@@ -590,8 +590,8 @@ func TestHandler_UpdateStatus_Error(t *testing.T) {
 
 			// Create IntelMachine
 			intelmachine := utils.NewIntelMachine(tc.namespace, intelMachineName, machine)
-			intelmachine.Spec.NodeGUID = tc.nodeGUID
-			intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = tc.nodeGUIDLabel
+			intelmachine.Spec.HostId = tc.hostId
+			intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.HostIdKey] = tc.hostIdLabelValue
 			intelmachine.Spec.ProviderID = &providerID
 
 			// Set up fake dynamic client
@@ -617,7 +617,7 @@ func TestHandler_UpdateStatus_Error(t *testing.T) {
 			err = k8sClient.Create(ctx, intelmachine)
 			assert.NoError(t, err)
 
-			actionReq, err := testHandler.UpdateStatus(ctx, tc.nodeGUID, pb.UpdateClusterStatusRequest_INACTIVE)
+			actionReq, err := testHandler.UpdateStatus(ctx, tc.hostId, pb.UpdateClusterStatusRequest_INACTIVE)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -636,7 +636,7 @@ func TestHandler_UpdateStatus_UnpauseCluster(t *testing.T) {
 	cluster.Spec.Paused = true
 
 	// Define test IntelMachineBinding
-	machineBinding := utils.NewIntelMachineBinding(projectId, clusterName, nodeGUID, clusterName, "test-template")
+	machineBinding := utils.NewIntelMachineBinding(projectId, clusterName, testHostId, clusterName, "test-template")
 
 	// Setup test handler with the controller-manager's client
 	err := os.Setenv("INVENTORY_ADDRESS", "")
@@ -653,7 +653,7 @@ func TestHandler_UpdateStatus_UnpauseCluster(t *testing.T) {
 	assert.NoError(t, testHandler.client.Create(ctx, machineBinding))
 
 	t.Run("Unpause cluster upon first host update request", func(t *testing.T) {
-		actionReq, err := testHandler.UpdateStatus(ctx, nodeGUID, pb.UpdateClusterStatusRequest_INACTIVE)
+		actionReq, err := testHandler.UpdateStatus(ctx, testHostId, pb.UpdateClusterStatusRequest_INACTIVE)
 		assert.NoError(t, err)
 		assert.Equal(t, pb.UpdateClusterStatusResponse_NONE, actionReq)
 
@@ -672,7 +672,7 @@ func FuzzHandlerUpdateStatus(f *testing.F) {
 	projectId := "00000000-0000-0000-0000-000000000600"
 
 	f.Add("abc", int32(0))
-	f.Fuzz(func(t *testing.T, nodeGUID string, code int32) {
+	f.Fuzz(func(t *testing.T, hostId string, code int32) {
 		// Create Machine
 		machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
 		secretName := secretName
@@ -680,9 +680,9 @@ func FuzzHandlerUpdateStatus(f *testing.F) {
 
 		// Create IntelMachine
 		intelmachine := utils.NewIntelMachine(projectId, intelMachineName, machine)
-		intelmachine.Spec.NodeGUID = nodeGUID
+		intelmachine.Spec.HostId = hostId
 		intelmachine.Spec.ProviderID = &providerID
-		intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = nodeGUID
+		intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.HostIdKey] = hostId
 
 		// Set up fake dynamic client
 		testHandler := &Handler{
@@ -707,7 +707,7 @@ func FuzzHandlerUpdateStatus(f *testing.F) {
 		err = k8sClient.Create(ctx, intelmachine)
 		assert.NoError(t, err)
 
-		_, _ = testHandler.UpdateStatus(ctx, nodeGUID, pb.UpdateClusterStatusRequest_Code(code))
+		_, _ = testHandler.UpdateStatus(ctx, hostId, pb.UpdateClusterStatusRequest_Code(code))
 	})
 }
 

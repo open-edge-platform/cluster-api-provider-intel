@@ -91,7 +91,7 @@ type DeleteInstanceFromWorkloadOutput struct {
 
 type DeauthorizeHostInput struct {
 	TenantId string
-	HostUUID string
+	HostId   string
 }
 
 type DeauthorizeHostOutput struct {
@@ -99,7 +99,7 @@ type DeauthorizeHostOutput struct {
 }
 
 var (
-	ErrInvalidHostUUIDInput          = errors.New("invalid host UUID value")
+	ErrInvalidHostIdInput            = errors.New("invalid host id value")
 	ErrInvalidInstanceIdInput        = errors.New("invalid instance id value")
 	ErrInvalidWorkloadIdInput        = errors.New("invalid workload id value")
 	ErrInvalidMachineIdInput         = errors.New("invalid machine id value")

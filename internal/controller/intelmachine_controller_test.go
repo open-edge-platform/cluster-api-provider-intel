@@ -36,7 +36,6 @@ var _ = Describe("IntelMachine Controller", func() {
 			machineName             = "test-machine"
 			clusterName             = "test-cluster"
 			intelMachineName        = "test-intelmachine"
-			nodeGUID                = "1234567890"
 			intelClusterName        = "test-intelcluster"
 			intelMachineBindingName = "test-intelmachinebinding"
 			machineTemplateName     = "test-machinetemplate"
@@ -94,7 +93,7 @@ var _ = Describe("IntelMachine Controller", func() {
 			// Create the intelmachinebinding after checking that it does not exist
 			key = types.NamespacedName{Name: intelMachineBindingName, Namespace: namespace}
 			Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrastructurev1alpha1.IntelMachineBinding{}))).To(BeTrue())
-			intelmachinebinding = utils.NewIntelMachineBinding(namespace, intelMachineBindingName, nodeGUID, clusterName, machineTemplateName)
+			intelmachinebinding = utils.NewIntelMachineBinding(namespace, intelMachineBindingName, hostId, clusterName, machineTemplateName)
 			Expect(k8sClient.Create(ctx, intelmachinebinding)).To(Succeed())
 
 			// Add mocks before creating IntelMachine
@@ -106,7 +105,7 @@ var _ = Describe("IntelMachine Controller", func() {
 				Id: instanceId,
 			}
 
-			inventoryClient.On("GetInstanceByMachineId", inventory.GetInstanceByMachineIdInput{TenantId: namespace, MachineId: nodeGUID}).
+			inventoryClient.On("GetInstanceByMachineId", inventory.GetInstanceByMachineIdInput{TenantId: namespace, MachineId: hostId}).
 				Return(inventory.GetInstanceByMachineIdOutput{Host: host, Instance: instance, Err: nil}).
 				Once()
 			inventoryClient.On("AddInstanceToWorkload",
@@ -122,7 +121,7 @@ var _ = Describe("IntelMachine Controller", func() {
 				Return(inventory.DeleteWorkloadOutput{Err: nil}).
 				Once()
 			inventoryClient.On("DeauthorizeHost",
-				inventory.DeauthorizeHostInput{TenantId: namespace, HostUUID: nodeGUID}).
+				inventory.DeauthorizeHostInput{TenantId: namespace, HostId: hostId}).
 				Return(inventory.DeauthorizeHostOutput{Err: nil}).
 				Once()
 
@@ -212,8 +211,8 @@ var _ = Describe("IntelMachine Controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
 				g.Expect(resource.Spec.ProviderID).NotTo(BeNil())
-				g.Expect(resource.Spec.NodeGUID).To(Equal(nodeGUID))
-				g.Expect(resource.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey]).To(Equal(nodeGUID))
+				g.Expect(resource.Spec.HostId).To(Equal(hostId))
+				g.Expect(resource.ObjectMeta.Labels[infrastructurev1alpha1.HostIdKey]).To(Equal(hostId))
 				g.Expect(resource.Status.Ready).To(BeFalse())
 				g.Expect(conditions.IsTrue(resource, infrastructurev1alpha1.HostProvisionedCondition)).To(BeTrue())
 				g.Expect(conditions.IsFalse(resource, infrastructurev1alpha1.BootstrapExecSucceededCondition)).To(BeTrue())
@@ -265,7 +264,6 @@ var _ = Describe("Reconcile loop errors", func() {
 			machineName             = "test-machine"
 			clusterName             = "test-cluster"
 			intelMachineName        = "test-intelmachine"
-			nodeGUID                = "1234567890"
 			intelClusterName        = "test-intelcluster"
 			intelMachineBindingName = "test-intelmachinebinding"
 			machineTemplateName     = "test-machinetemplate"
@@ -299,7 +297,7 @@ var _ = Describe("Reconcile loop errors", func() {
 			cluster.Status.InfrastructureReady = true
 			intelcluster = utils.NewIntelCluster(namespace, intelClusterName, workloadId, cluster)
 			machine = utils.NewMachine(namespace, clusterName, machineName, bootstrapKind)
-			intelmachinebinding = utils.NewIntelMachineBinding(namespace, intelMachineBindingName, nodeGUID, clusterName, machineTemplateName)
+			intelmachinebinding = utils.NewIntelMachineBinding(namespace, intelMachineBindingName, hostId, clusterName, machineTemplateName)
 			intelmachine = utils.NewIntelMachine(namespace, intelMachineName, machine)
 			intelmachine.Annotations = map[string]string{
 				clusterv1.TemplateClonedFromNameAnnotation: machineTemplateName,
@@ -339,7 +337,7 @@ var _ = Describe("Reconcile loop errors", func() {
 				Id: instanceId,
 			}
 
-			inventoryClient.On("GetInstanceByMachineId", inventory.GetInstanceByMachineIdInput{TenantId: namespace, MachineId: nodeGUID}).
+			inventoryClient.On("GetInstanceByMachineId", inventory.GetInstanceByMachineIdInput{TenantId: namespace, MachineId: hostId}).
 				Return(inventory.GetInstanceByMachineIdOutput{Host: host, Instance: instance, Err: nil}).
 				Once()
 			inventoryClient.On("AddInstanceToWorkload",
@@ -367,7 +365,7 @@ var _ = Describe("Reconcile loop errors", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(Equal(reconcile.Result{}))
 
-			// GUID is allocated to machine
+			// HostID is allocated to machine
 			res, err = reconciler.Reconcile(ctx, req)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(Equal(reconcile.Result{}))

@@ -317,21 +317,21 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 		return true
 	}
 
-	// Get the NodeGUID for the host to reserve in Inventory.
-	if rc.intelMachine.Spec.NodeGUID == "" {
-		err := r.allocateNodeGUID(rc)
+	// Get the HostID for the host to reserve in Inventory.
+	if rc.intelMachine.Spec.HostId == "" {
+		err := r.allocateHostId(rc)
 		if err != nil {
 			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForMachineBindingReason, clusterv1.ConditionSeverityWarning, "%v", err)
-			rc.log.Info("Error allocating NodeGUID", "error", err)
+			rc.log.Info("Error allocating HostID", "error", err)
 			return true
 		}
-		rc.log.Info("Allocated NodeGUID to IntelMachine", "NodeGUID", rc.intelMachine.Spec.NodeGUID)
+		rc.log.Info("Allocated HostID to IntelMachine", "HostID", rc.intelMachine.Spec.HostId)
 	}
 
 	// Reserve the host in Inventory
 	gmReq := inventory.GetInstanceByMachineIdInput{
 		TenantId:  rc.intelCluster.Namespace,
-		MachineId: rc.intelMachine.Spec.NodeGUID,
+		MachineId: rc.intelMachine.Spec.HostId,
 	}
 	gmRes := r.InventoryClient.GetInstanceByMachineId(gmReq)
 	if gmRes.Err != nil {
@@ -383,10 +383,10 @@ func (r *IntelMachineReconciler) getTemplateName(rc IntelMachineReconcilerContex
 	return templateName, nil
 }
 
-// allocateNodeGUID matches the cluster name and machine template name against unallocated IntelMachineBindings to find
-// a free NodeGUID. It marks the chosen IntelMachineBinding as allocated and sets its owner reference to the IntelMachine.
-// Finally it adds the NodeGUID to the IntelMachine.
-func (r *IntelMachineReconciler) allocateNodeGUID(rc IntelMachineReconcilerContext) error {
+// allocateHostId matches the cluster name and machine template name against unallocated IntelMachineBindings to find
+// a free HostID. It marks the chosen IntelMachineBinding as allocated and sets its owner reference to the IntelMachine.
+// Finally it adds the HostID to the IntelMachine.
+func (r *IntelMachineReconciler) allocateHostId(rc IntelMachineReconcilerContext) error {
 	// Fetch the IntelMachineBindings matching the cluster name and machine template name.
 	// Cluster API core will add clusterv1.TemplateClonedFromNameAnnotation on intelmachine with the machine template name.
 	intelMachineBindingList := &infrastructurev1alpha1.IntelMachineBindingList{}
@@ -418,8 +418,8 @@ func (r *IntelMachineReconciler) allocateNodeGUID(rc IntelMachineReconcilerConte
 		return err
 	}
 
-	rc.intelMachine.Spec.NodeGUID = intelmachinebinding.Spec.NodeGUID
-	rc.intelMachine.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey] = intelmachinebinding.Spec.NodeGUID
+	rc.intelMachine.Spec.HostId = intelmachinebinding.Spec.HostId
+	rc.intelMachine.ObjectMeta.Labels[infrastructurev1alpha1.HostIdKey] = intelmachinebinding.Spec.HostId
 	return nil
 }
 
@@ -437,7 +437,7 @@ func selectIntelMachineBinding(rc IntelMachineReconcilerContext, intelMachineBin
 		imb := &intelMachineBindingList.Items[i]
 		// If an IntelMachineBinding is already owned by the reference, return it
 		if util.HasOwnerRef(imb.OwnerReferences, ref) {
-			log.Info("IntelMachineBinding already allocated to IntelMachine", "NodeGUID", imb.Spec.NodeGUID)
+			log.Info("IntelMachineBinding already allocated to IntelMachine", "HostID", imb.Spec.HostId)
 			return imb
 		}
 	}

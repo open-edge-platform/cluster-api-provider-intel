@@ -35,7 +35,7 @@ var _ = Describe("IntelCluster Controller", func() {
 			clusterUID      = "275ecb36-5aa8-4c2a-9c47-d8bb681b9a12"
 			intelClusterUID = "275ecb36-5aa8-4c2a-9c47-d8bb681b9a13"
 			workloadId      = "w1"
-			hostUUID        = "88888888-5aa8-4c2a-9c47-d8bb681b9a14"
+			hostId          = "host-12345678"
 			host            = "http://edge-connect-gateway.infra.test"
 			port            = int32(3000)
 
@@ -91,7 +91,7 @@ var _ = Describe("IntelCluster Controller", func() {
 				Return(inventory.DeleteWorkloadOutput{Err: nil}).
 				Once()
 			inventoryClient.On("DeauthorizeHost",
-				inventory.DeauthorizeHostInput{TenantId: namespaceName, HostUUID: hostUUID}).
+				inventory.DeauthorizeHostInput{TenantId: namespaceName, HostId: hostId}).
 				Return(inventory.DeauthorizeHostOutput{Err: nil}).
 				Once()
 
