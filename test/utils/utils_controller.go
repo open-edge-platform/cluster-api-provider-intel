@@ -140,7 +140,7 @@ func NewIntelMachine(namespace, intelMachineName string, machine *clusterv1.Mach
 	}
 }
 
-func NewIntelMachineBinding(namespace, intelMachineBindingName, nodeGUID, clusterName, machineTemplateName string) *infrastructurev1alpha1.IntelMachineBinding { //nolint:lll
+func NewIntelMachineBinding(namespace, intelMachineBindingName, hostId, clusterName, machineTemplateName string) *infrastructurev1alpha1.IntelMachineBinding { //nolint:lll
 	return &infrastructurev1alpha1.IntelMachineBinding{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
@@ -148,7 +148,7 @@ func NewIntelMachineBinding(namespace, intelMachineBindingName, nodeGUID, cluste
 			Namespace: namespace,
 		},
 		Spec: infrastructurev1alpha1.IntelMachineBindingSpec{
-			HostId:                   nodeGUID,
+			HostId:                   hostId,
 			ClusterName:              clusterName,
 			IntelMachineTemplateName: machineTemplateName,
 		},

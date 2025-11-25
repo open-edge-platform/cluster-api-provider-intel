@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	hostUuid                      = "3c7ef083-0e9e-4d05-b5a6-5bcd72261000"
+	hostId                        = "3c7ef083-0e9e-4d05-b5a6-5bcd72261000"
 	hostResourceId                = "host-3c7ef083"
 	hostSerialNumber              = "host-serial-number-1"
 	invalidHostResourceId         = "3c7ef083-0e9e-4d05-b5a6-5bcd72261001"
@@ -52,7 +52,7 @@ func TestGetHostAndInstanceByHostId(t *testing.T) {
 	}{
 		{
 			name:     "successful with valid result",
-			hostId:   hostUuid,
+			hostId:   hostId,
 			tenantId: tenantId,
 			expectedHost: &computev1.HostResource{
 				ResourceId:   hostResourceId,
@@ -66,7 +66,7 @@ func TestGetHostAndInstanceByHostId(t *testing.T) {
 			},
 			mocks: func() []*mock.Call {
 				return []*mock.Call{
-					mockedClient.On("GetHostByUUID", mock.Anything, tenantId, hostUuid).
+					mockedClient.On("Get", mock.Anything, tenantId, hostId).
 						Return(&computev1.HostResource{
 							ResourceId:   hostResourceId,
 							SerialNumber: hostSerialNumber,
@@ -146,7 +146,7 @@ func TestGetHostAndInstanceByHostIdWithErrors(t *testing.T) {
 			if tc.mocks != nil {
 				tc.mocks()
 			}
-			host, err := inventoryClient.getHost(context.TODO(), tenantId, hostUuid)
+			host, err := inventoryClient.getHost(context.TODO(), tenantId, hostId)
 			require.Nil(t, host)
 			require.NotNil(t, err)
 			assert.Equal(t, tc.expectedError, err)
