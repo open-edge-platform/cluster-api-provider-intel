@@ -299,14 +299,20 @@ func TestGetInstanceByMachineId(t *testing.T) {
 			},
 			mocks: func() []*mock.Call {
 				return []*mock.Call{
-					mockedInventoryClient.On("GetHostByUUID", mock.Anything, tenantId, hostId).
-						Return(&computev1.HostResource{
-							ResourceId:   hostResourceId,
-							SerialNumber: hostSerialNumber,
-							Instance: &computev1.InstanceResource{
-								ResourceId: instanceResourceId,
-								Os: &osv1.OperatingSystemResource{
-									Name: instanceOsName,
+					mockedInventoryClient.On("Get", mock.Anything, tenantId, hostId).
+						Return(&inventoryv1.GetResourceResponse{
+							Resource: &inventoryv1.Resource{
+								Resource: &inventoryv1.Resource_Host{
+									Host: &computev1.HostResource{
+										ResourceId:   hostResourceId,
+										SerialNumber: hostSerialNumber,
+										Instance: &computev1.InstanceResource{
+											ResourceId: instanceResourceId,
+											Os: &osv1.OperatingSystemResource{
+												Name: instanceOsName,
+											},
+										},
+									},
 								},
 							},
 						}, nil).Once(),
@@ -323,10 +329,16 @@ func TestGetInstanceByMachineId(t *testing.T) {
 			},
 			mocks: func() []*mock.Call {
 				return []*mock.Call{
-					mockedInventoryClient.On("GetHostByUUID", mock.Anything, tenantId, hostId).
-						Return(&computev1.HostResource{
-							ResourceId:   hostResourceId,
-							SerialNumber: hostSerialNumber,
+					mockedInventoryClient.On("Get", mock.Anything, tenantId, hostId).
+						Return(&inventoryv1.GetResourceResponse{
+							Resource: &inventoryv1.Resource{
+								Resource: &inventoryv1.Resource_Host{
+									Host: &computev1.HostResource{
+										ResourceId:   hostResourceId,
+										SerialNumber: hostSerialNumber,
+									},
+								},
+							},
 						}, nil).Once(),
 				}
 			},
@@ -359,8 +371,6 @@ func TestGetInstanceByMachineId(t *testing.T) {
 			},
 			mocks: func() []*mock.Call {
 				return []*mock.Call{
-					mockedInventoryClient.On("GetHostByUUID", mock.Anything, tenantId, hostId).
-						Return(nil, ErrGenericInventoryClientErrror).Once(),
 					mockedInventoryClient.On("Get", mock.Anything, tenantId, hostId).
 						Return(nil, ErrGenericInventoryClientErrror).Once(),
 				}
