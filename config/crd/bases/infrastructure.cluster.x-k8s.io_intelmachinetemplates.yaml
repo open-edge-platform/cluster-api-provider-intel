@@ -49,8 +49,9 @@ spec:
                   spec:
                     description: IntelMachineSpec defines the desired state of IntelMachine.
                     properties:
-                      nodeGUID:
-                        description: NodeGUID contains the GUID of the node.
+                      hostID:
+                        description: HostId contains the resource identifier of the
+                          host.
                         type: string
                       providerID:
                         description: ProviderID must match the provider ID as seen

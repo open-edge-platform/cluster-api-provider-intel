@@ -18,8 +18,8 @@ spec:
     - jsonPath: .spec.clusterName
       name: Cluster Name
       type: string
-    - jsonPath: .spec.nodeGUID
-      name: Node GUID
+    - jsonPath: .spec.hostID
+      name: Host ID
       type: string
     - jsonPath: .spec.intelMachineTemplateName
       name: Template Name
@@ -57,17 +57,17 @@ spec:
                 description: ClusterName contains the name of the cluster to which
                   the node is bound
                 type: string
+              hostID:
+                description: HostId contains the resource identifier of the host
+                type: string
               intelMachineTemplateName:
                 description: IntelMachineTemplateName contains the name of the IntelMachineTemplate
                   for the node
                 type: string
-              nodeGUID:
-                description: NodeGUID contains the GUID of the node
-                type: string
             required:
             - clusterName
+            - hostID
             - intelMachineTemplateName
-            - nodeGUID
             type: object
           status:
             description: IntelMachineBindingStatus defines the observed state of IntelMachineBinding.
