@@ -259,9 +259,13 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 	// IntelMachine for the node doesn't exist yet
 	if intelmachine == nil {
 		// unpause the cluster if paused
-		cluster, err := getCluster(ctx, h.client, projectId, nodeGUID)
+		log.Info().Msgf("IntelMachine not found for node %s, checking cluster to unpause if needed", nodeGUID)
+		cluster, err := h.getCluster(ctx, projectId, nodeGUID)
+		log.Info().Msgf("Cluster found: %v", cluster != nil)
 		if cluster != nil && cluster.Spec.Paused {
+			log.Info().Msgf("Unpausing cluster %s/%s", cluster.Namespace, cluster.Name)
 			err = unpauseCluster(ctx, h.client, cluster)
+			log.Info().Msgf("Cluster unpause result: %v", err)
 		}
 		return pb.UpdateClusterStatusResponse_NONE, err
 	}
@@ -393,14 +397,29 @@ func (h *Handler) getIntelMachine(ctx context.Context, client ctrlclient.Client,
 	return intelMachine, nil
 }
 
-func getCluster(ctx context.Context, client ctrlclient.Client, projectId string, nodeID string) (*clusterv1.Cluster, error) {
+func (h *Handler) getCluster(ctx context.Context, projectId string, nodeID string) (*clusterv1.Cluster, error) {
 	// see if there is machine binding for this node
 	var machineBindingList infrastructurev1alpha1.IntelMachineBindingList
 
-	if err := client.List(ctx, &machineBindingList,
-		ctrlclient.InNamespace(projectId),
-		ctrlclient.MatchingFields{nodeGUIDKey: nodeID}); err != nil {
+	// TODO: always convert nodeID(GUID format) to hostID before search the cluster once host
+	// unification from cluster-manager is done. For 3.2 release, try to get
+	// hostID by UUID if no machine binding is found.
+	if err := h.client.List(ctx, &machineBindingList, ctrlclient.InNamespace(projectId), ctrlclient.MatchingFields{nodeGUIDKey: nodeID}); err != nil {
 		return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
+	}
+
+	if len(machineBindingList.Items) == 0 && h.inventoryClient != nil {
+		log.Debug().Msgf("No IntelMachineBinding found for node %s in project %s, attempt to get hostID by UUID", nodeID, projectId)
+		host, err := h.inventoryClient.Client.GetHostByUUID(ctx, projectId, nodeID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get host resource by UUID: %w", err)
+		}
+
+		if err := h.client.List(ctx, &machineBindingList,
+			ctrlclient.InNamespace(projectId),
+			ctrlclient.MatchingFields{nodeGUIDKey: host.GetResourceId()}); err != nil {
+			return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
+		}
 	}
 
 	if len(machineBindingList.Items) == 0 {
@@ -412,9 +431,10 @@ func getCluster(ctx context.Context, client ctrlclient.Client, projectId string,
 	}
 
 	// one cluster is found for the node
+	log.Debug().Msgf("Found cluster for node %s %s/%s", nodeID, projectId, machineBindingList.Items[0].Spec.ClusterName)
 	cluster := &clusterv1.Cluster{}
 	key := types.NamespacedName{Namespace: projectId, Name: machineBindingList.Items[0].Spec.ClusterName}
-	if err := client.Get(ctx, key, cluster); err != nil {
+	if err := h.client.Get(ctx, key, cluster); err != nil {
 		return nil, err
 	}
 
