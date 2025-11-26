@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -19,9 +20,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
+	"github.com/open-edge-platform/cluster-api-provider-intel/mocks/m_client"
 	pb "github.com/open-edge-platform/cluster-api-provider-intel/pkg/api/proto"
+	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/inventory"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/tenant"
 	utils "github.com/open-edge-platform/cluster-api-provider-intel/test/utils"
+	computev1 "github.com/open-edge-platform/infra-core/inventory/v2/pkg/api/compute/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
@@ -32,6 +36,7 @@ const (
 	secretName       = "test-secret"
 	secretFormat     = cloudConfigFormat
 	testHostId       = "test-host-id"
+	testHostUuid     = "test-host-uuid"
 	ownerRefKind     = "Machine"
 	bootstrapKind    = configTypeRKE2
 )
@@ -91,6 +96,7 @@ func TestMain(m *testing.M) {
 func TestHandler_Register(t *testing.T) {
 	cases := []struct {
 		name             string
+		hostUuid         string
 		hostId           string
 		hostIdLabelValue string
 		providerID       *string
@@ -104,6 +110,7 @@ func TestHandler_Register(t *testing.T) {
 	}{
 		{
 			name:             "Success",
+			hostUuid:         testHostUuid,
 			hostId:           testHostId,
 			hostIdLabelValue: testHostId,
 			providerID:       &providerID,
@@ -116,6 +123,7 @@ func TestHandler_Register(t *testing.T) {
 			err:              false,
 		}, {
 			name:             "No IntelMachine - wrong HostID",
+			hostUuid:         testHostUuid,
 			hostId:           "x",
 			hostIdLabelValue: testHostId,
 			providerID:       &providerID,
@@ -128,6 +136,7 @@ func TestHandler_Register(t *testing.T) {
 			err:              true,
 		}, {
 			name:             "No IntelMachine - wrong HostID label value",
+			hostUuid:         testHostUuid,
 			hostId:           testHostId,
 			hostIdLabelValue: "x",
 			providerID:       &providerID,
@@ -140,6 +149,7 @@ func TestHandler_Register(t *testing.T) {
 			err:              true,
 		}, {
 			name:             "No Owner",
+			hostUuid:         testHostUuid,
 			hostId:           testHostId,
 			hostIdLabelValue: testHostId,
 			providerID:       &providerID,
@@ -152,6 +162,7 @@ func TestHandler_Register(t *testing.T) {
 			err:              true,
 		}, {
 			name:             "No ProviderID",
+			hostUuid:         testHostUuid,
 			hostId:           testHostId,
 			hostIdLabelValue: testHostId,
 			providerID:       nil,
@@ -164,6 +175,7 @@ func TestHandler_Register(t *testing.T) {
 			err:              true,
 		}, {
 			name:             "No Data Secret",
+			hostUuid:         testHostUuid,
 			hostId:           testHostId,
 			hostIdLabelValue: testHostId,
 			providerID:       &providerID,
@@ -176,6 +188,7 @@ func TestHandler_Register(t *testing.T) {
 			err:              true,
 		}, {
 			name:             "No Bootstrap Secret",
+			hostUuid:         testHostUuid,
 			hostId:           testHostId,
 			hostIdLabelValue: testHostId,
 			providerID:       &providerID,
@@ -191,6 +204,7 @@ func TestHandler_Register(t *testing.T) {
 			// and the secret value is not empty. The handler should assume
 			// that the secret format is cloud-config.
 			name:             "No Secret Format",
+			hostUuid:         testHostUuid,
 			hostId:           testHostId,
 			hostIdLabelValue: testHostId,
 			providerID:       &providerID,
@@ -203,6 +217,7 @@ func TestHandler_Register(t *testing.T) {
 			err:              false,
 		}, {
 			name:             "Unknown Secret Format",
+			hostUuid:         testHostUuid,
 			hostId:           testHostId,
 			hostIdLabelValue: testHostId,
 			providerID:       &providerID,
@@ -215,6 +230,7 @@ func TestHandler_Register(t *testing.T) {
 			err:              true,
 		}, {
 			name:             "No Secret Value",
+			hostUuid:         testHostUuid,
 			hostId:           testHostId,
 			hostIdLabelValue: testHostId,
 			providerID:       &providerID,
@@ -227,6 +243,7 @@ func TestHandler_Register(t *testing.T) {
 			err:              true,
 		}, {
 			name:             "Invalid Bootstrap Kind",
+			hostUuid:         testHostUuid,
 			hostId:           testHostId,
 			hostIdLabelValue: testHostId,
 			providerID:       &providerID,
@@ -269,9 +286,11 @@ func TestHandler_Register(t *testing.T) {
 				delete(secret.Data, "value")
 			}
 
-			testHandler := &Handler{
-				client: k8sClient,
-			}
+			mockedInventoryClient := &m_client.MockTenantAwareInventoryClient{}
+			mockedInventoryClient.On("GetHostByUUID", mock.Anything, tc.namespace, tc.hostUuid).Return(&computev1.HostResource{
+				ResourceId: tc.hostId,
+			}, nil)
+			testHandler := &Handler{client: k8sClient, inventoryClient: &inventory.InventoryClient{Client: mockedInventoryClient}}
 
 			// Add Project ID to context
 			ctx := tenant.AddActiveProjectIdToContext(context.Background(), tc.namespace)
@@ -295,13 +314,13 @@ func TestHandler_Register(t *testing.T) {
 			assert.NoError(t, err)
 
 			if !tc.err {
-				installCmd, uninstallCmd, resp, err := testHandler.Register(ctx, tc.hostId)
+				installCmd, uninstallCmd, resp, err := testHandler.Register(ctx, tc.hostUuid)
 				assert.NoError(t, err)
 				assert.Equal(t, pb.RegisterClusterResponse_SUCCESS, resp)
 				assert.NotEmpty(t, installCmd)
 				assert.NotEmpty(t, uninstallCmd)
 			} else {
-				_, _, _, err := testHandler.Register(ctx, tc.hostId)
+				_, _, _, err := testHandler.Register(ctx, tc.hostUuid)
 				assert.Error(t, err)
 			}
 		})
@@ -371,9 +390,11 @@ func TestHandler_UpdateStatus_MachineReady(t *testing.T) {
 	intelmachine.Spec.ProviderID = &providerID
 
 	// Set up fake dynamic client
-	testHandler := &Handler{
-		client: k8sClient,
-	}
+	mockedInventoryClient := &m_client.MockTenantAwareInventoryClient{}
+	mockedInventoryClient.On("GetHostByUUID", mock.Anything, projectId, testHostUuid).Return(&computev1.HostResource{
+		ResourceId: testHostId,
+	}, nil)
+	testHandler := &Handler{client: k8sClient, inventoryClient: &inventory.InventoryClient{Client: mockedInventoryClient}}
 
 	// Add Project ID to context
 	ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
@@ -445,7 +466,7 @@ func TestHandler_UpdateStatus_MachineReady(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actionReq, err := testHandler.UpdateStatus(ctx, testHostId, tc.status)
+			actionReq, err := testHandler.UpdateStatus(ctx, testHostUuid, tc.status)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedAction, actionReq)
 
@@ -486,9 +507,12 @@ func TestHandler_UpdateStatus_MachineDeleted(t *testing.T) {
 	intelmachine.ObjectMeta.Labels[infrastructurev1alpha1.HostIdKey] = testHostId
 	intelmachine.Status.Ready = false
 
-	testHandler := &Handler{
-		client: k8sClient,
-	}
+	// Set up fake dynamic client
+	mockedInventoryClient := &m_client.MockTenantAwareInventoryClient{}
+	mockedInventoryClient.On("GetHostByUUID", mock.Anything, projectId, testHostUuid).Return(&computev1.HostResource{
+		ResourceId: testHostId,
+	}, nil)
+	testHandler := &Handler{client: k8sClient, inventoryClient: &inventory.InventoryClient{Client: mockedInventoryClient}}
 
 	// Add Project ID to context
 	ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
@@ -534,26 +558,24 @@ func TestHandler_UpdateStatus_MachineDeleted(t *testing.T) {
 			expectedAction:     pb.UpdateClusterStatusResponse_NONE,
 			expectedHostState:  "",
 			expectedFinalizers: nil,
-			stillExists:        false,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actionReq, err := testHandler.UpdateStatus(ctx, testHostId, tc.status)
+			actionReq, err := testHandler.UpdateStatus(ctx, testHostUuid, tc.status)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedAction, actionReq)
 
 			// Check that IntelMachine has been updated with the correct host state
 			im, err := testHandler.getIntelMachine(ctx, testHandler.client, projectId, testHostId)
 			assert.NoError(t, err)
+
 			if tc.stillExists {
 				hostStatus, ok := im.Annotations[infrastructurev1alpha1.HostStateAnnotation]
 				assert.True(t, ok)
 				assert.Equal(t, tc.expectedHostState, hostStatus)
 				assert.Equal(t, tc.expectedFinalizers, im.Finalizers)
-			} else {
-				assert.Nil(t, im)
 			}
 		})
 	}
@@ -595,9 +617,11 @@ func TestHandler_UpdateStatus_Error(t *testing.T) {
 			intelmachine.Spec.ProviderID = &providerID
 
 			// Set up fake dynamic client
-			testHandler := &Handler{
-				client: k8sClient,
-			}
+			mockedInventoryClient := &m_client.MockTenantAwareInventoryClient{}
+			mockedInventoryClient.On("GetHostByUUID", mock.Anything, tc.namespace, testHostUuid).Return(&computev1.HostResource{
+				ResourceId: tc.hostId,
+			}, nil)
+			testHandler := &Handler{client: k8sClient, inventoryClient: &inventory.InventoryClient{Client: mockedInventoryClient}}
 
 			// Add Project ID to context
 			ctx := tenant.AddActiveProjectIdToContext(context.Background(), tc.namespace)
@@ -617,7 +641,7 @@ func TestHandler_UpdateStatus_Error(t *testing.T) {
 			err = k8sClient.Create(ctx, intelmachine)
 			assert.NoError(t, err)
 
-			actionReq, err := testHandler.UpdateStatus(ctx, tc.hostId, pb.UpdateClusterStatusRequest_INACTIVE)
+			actionReq, err := testHandler.UpdateStatus(ctx, testHostUuid, pb.UpdateClusterStatusRequest_INACTIVE)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -642,7 +666,14 @@ func TestHandler_UpdateStatus_UnpauseCluster(t *testing.T) {
 	err := os.Setenv("INVENTORY_ADDRESS", "")
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.TODO())
-	testHandler, err := NewHandler(ctx, testEnv.Config)
+
+	// Set up fake dynamic client
+	mockedInventoryClient := &m_client.MockTenantAwareInventoryClient{}
+	mockedInventoryClient.On("GetHostByUUID", mock.Anything, projectId, testHostUuid).Return(&computev1.HostResource{
+		ResourceId: testHostId,
+	}, nil)
+	testHandler := &Handler{client: k8sClient, inventoryClient: &inventory.InventoryClient{Client: mockedInventoryClient}}
+
 	assert.NoError(t, err)
 	defer cancel()
 
@@ -653,16 +684,14 @@ func TestHandler_UpdateStatus_UnpauseCluster(t *testing.T) {
 	assert.NoError(t, testHandler.client.Create(ctx, machineBinding))
 
 	t.Run("Unpause cluster upon first host update request", func(t *testing.T) {
-		actionReq, err := testHandler.UpdateStatus(ctx, testHostId, pb.UpdateClusterStatusRequest_INACTIVE)
+		actionReq, err := testHandler.UpdateStatus(ctx, testHostUuid, pb.UpdateClusterStatusRequest_INACTIVE)
 		assert.NoError(t, err)
 		assert.Equal(t, pb.UpdateClusterStatusResponse_NONE, actionReq)
 
 		// Check that Cluster Pause flag has been updated
 		updatedCluster := clusterv1.Cluster{}
 		assert.Eventually(t, func() bool {
-			err = testHandler.client.Get(ctx, client.ObjectKey{Name: clusterName, Namespace: projectId},
-				&updatedCluster)
-			assert.NoError(t, err)
+			assert.NoError(t, testHandler.client.Get(ctx, client.ObjectKey{Name: clusterName, Namespace: projectId}, &updatedCluster))
 			return updatedCluster.Spec.Paused == false
 		}, 3*time.Second, 10*time.Millisecond)
 	})

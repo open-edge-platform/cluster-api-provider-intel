@@ -348,23 +348,28 @@ func (h *Handler) getIntelMachine(ctx context.Context, client ctrlclient.Client,
 	}
 
 	if len(intelMachineList.Items) < 1 {
-		return nil, fmt.Errorf("no IntelMachine with HostID '%s' found in project '%s'", hostId, projectId)
+		log.Warn().Msgf("no IntelMachine with HostID '%s' in project '%s'", hostId, projectId)
+		return nil, nil
 	}
 
 	if len(intelMachineList.Items) > 1 {
-		return nil, fmt.Errorf("duplicate IntelMachines found with HostID '%s' found in project '%s'", hostId, projectId)
+		return nil, fmt.Errorf("duplicate IntelMachines with HostID '%s' in project '%s'", hostId, projectId)
 	}
 
 	return &intelMachineList.Items[0], nil
 }
 
-func getCluster(ctx context.Context, client ctrlclient.Client, projectId string, nodeID string) (*clusterv1.Cluster, error) {
+func getCluster(ctx context.Context, client ctrlclient.Client, projectId string, hostId string) (*clusterv1.Cluster, error) {
 	// see if there is machine binding for this node
 	var machineBindingList infrastructurev1alpha1.IntelMachineBindingList
 
-	if err := client.List(ctx, &machineBindingList,
-		ctrlclient.InNamespace(projectId),
-		ctrlclient.MatchingFields{hostIdKey: nodeID}); err != nil {
+	if err := client.List(ctx, &machineBindingList, ctrlclient.InNamespace(projectId)); err != nil {
+		return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
+	}
+
+	fmt.Println("machineBindingList:", machineBindingList)
+
+	if err := client.List(ctx, &machineBindingList, ctrlclient.InNamespace(projectId), ctrlclient.MatchingFields{hostIdKey: hostId}); err != nil {
 		return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
 	}
 
@@ -373,7 +378,7 @@ func getCluster(ctx context.Context, client ctrlclient.Client, projectId string,
 		return nil, nil
 	} else if len(machineBindingList.Items) > 1 {
 		// this case should never happen
-		return nil, fmt.Errorf("more than one cluster is found for node %s", nodeID)
+		return nil, fmt.Errorf("more than one cluster is found for node %s", hostId)
 	}
 
 	// one cluster is found for the node
@@ -575,3 +580,27 @@ func getHostIdFromUuid(ctx context.Context, client *inventory.InventoryClient, p
 
 	return hostResource.ResourceId, nil
 }
+
+// func getHost(ctx context.Context, client *inventory.InventoryClient, projectId string, hostId string) (*computev1.HostResource, error) {
+// 	response, err := c.Client.Get(ctx, projectId, hostId)
+// 	if err != nil {
+// 		log.Warn().Msgf("failed to get host resource by host id", "error", err, "projectId", projectId, "hostId", hostId)
+// 		return nil, err
+// 	}
+
+// 	resource := response.GetResource()
+// 	if resource == nil {
+// 		msg := fmt.Sprintf("resource in response is nil for host id %s in project %s", hostId, projectId)
+// 		log.Warn().Msg(msg)
+// 		return nil, errors.New(msg)
+// 	}
+
+// 	host := resource.GetHost()
+// 	if host == nil {
+// 		msg := fmt.Sprintf("host in resource is nil for host id %s in project %s", hostId, projectId)
+// 		log.Warn().Msg(msg)
+// 		return nil, errors.New(msg)
+// 	}
+
+// 	return host, nil
+// }
