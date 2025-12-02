@@ -271,9 +271,11 @@ func (h *Handler) UpdateStatus(ctx context.Context, hostUuid string, status pb.U
 	// IntelMachine for the node doesn't exist yet
 	if intelmachine == nil {
 		// unpause the cluster if paused
-		cluster, err := getCluster(ctx, h.client, projectId, hostId)
+		cluster, err := h.getCluster(ctx, projectId, hostUuid)
 		if cluster != nil && cluster.Spec.Paused {
+			log.Debug().Msgf("Unpausing cluster %s/%s", cluster.Namespace, cluster.Name)
 			err = unpauseCluster(ctx, h.client, cluster)
+			log.Debug().Msgf("Cluster unpause result: %v", err)
 		}
 		return pb.UpdateClusterStatusResponse_NONE, err
 	}
@@ -359,17 +361,17 @@ func (h *Handler) getIntelMachine(ctx context.Context, client ctrlclient.Client,
 	return &intelMachineList.Items[0], nil
 }
 
-func getCluster(ctx context.Context, client ctrlclient.Client, projectId string, hostId string) (*clusterv1.Cluster, error) {
+func (h *Handler) getCluster(ctx context.Context, projectId string, hostId string) (*clusterv1.Cluster, error) {
 	// see if there is machine binding for this node
 	var machineBindingList infrastructurev1alpha1.IntelMachineBindingList
 
-	if err := client.List(ctx, &machineBindingList, ctrlclient.InNamespace(projectId)); err != nil {
-		return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
-	}
+	// if err := h.client.List(ctx, &machineBindingList, ctrlclient.InNamespace(projectId)); err != nil {
+	// 	return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
+	// }
 
-	fmt.Println("machineBindingList:", machineBindingList)
+	// fmt.Println("machineBindingList:", machineBindingList)
 
-	if err := client.List(ctx, &machineBindingList, ctrlclient.InNamespace(projectId), ctrlclient.MatchingFields{hostIdKey: hostId}); err != nil {
+	if err := h.client.List(ctx, &machineBindingList, ctrlclient.InNamespace(projectId), ctrlclient.MatchingFields{hostIdKey: hostId}); err != nil {
 		return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
 	}
 
@@ -382,9 +384,10 @@ func getCluster(ctx context.Context, client ctrlclient.Client, projectId string,
 	}
 
 	// one cluster is found for the node
+	log.Debug().Msgf("Found cluster for node %s %s/%s", hostId, projectId, machineBindingList.Items[0].Spec.ClusterName)
 	cluster := &clusterv1.Cluster{}
 	key := types.NamespacedName{Namespace: projectId, Name: machineBindingList.Items[0].Spec.ClusterName}
-	if err := client.Get(ctx, key, cluster); err != nil {
+	if err := h.client.Get(ctx, key, cluster); err != nil {
 		return nil, err
 	}
 

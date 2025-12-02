@@ -231,6 +231,11 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 		return errors.Wrap(err, "failed to patch IntelMachine")
 	}
 
+	// Remove DeauthFinalizer to unblock deletion of clusters created with 3.1 release.
+	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthFinalizer) {
+		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthFinalizer)
+	}
+
 	// HostCleanupFinalizer will be removed by the SB handler after it has cleaned up the host.
 	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer) {
 		return nil
