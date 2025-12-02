@@ -129,6 +129,11 @@ func NewHandler(ctx context.Context, cfg *rest.Config) (*Handler, error) {
 		}
 	}()
 
+	// Wait for the cache to sync
+	if !mgr.GetCache().WaitForCacheSync(ctx) {
+		return nil, fmt.Errorf("failed to sync cache")
+	}
+
 	inventoryAddress := os.Getenv("INVENTORY_ADDRESS")
 	if inventoryAddress == "" {
 		log.Warn().Msg("INVENTORY_ADDRESS environment variable is not set, inventory client will be disabled")
@@ -271,7 +276,7 @@ func (h *Handler) UpdateStatus(ctx context.Context, hostUuid string, status pb.U
 	// IntelMachine for the node doesn't exist yet
 	if intelmachine == nil {
 		// unpause the cluster if paused
-		cluster, err := h.getCluster(ctx, projectId, hostUuid)
+		cluster, err := h.getCluster(ctx, projectId, hostId)
 		if cluster != nil && cluster.Spec.Paused {
 			log.Debug().Msgf("Unpausing cluster %s/%s", cluster.Namespace, cluster.Name)
 			err = unpauseCluster(ctx, h.client, cluster)
@@ -365,14 +370,8 @@ func (h *Handler) getCluster(ctx context.Context, projectId string, hostId strin
 	// see if there is machine binding for this node
 	var machineBindingList infrastructurev1alpha1.IntelMachineBindingList
 
-	// if err := h.client.List(ctx, &machineBindingList, ctrlclient.InNamespace(projectId)); err != nil {
-	// 	return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
-	// }
-
-	// fmt.Println("machineBindingList:", machineBindingList)
-
 	if err := h.client.List(ctx, &machineBindingList, ctrlclient.InNamespace(projectId), ctrlclient.MatchingFields{hostIdKey: hostId}); err != nil {
-		return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
+		return nil, fmt.Errorf("failed to get intel machine binding list in project '%s' matching host id '%s': %w", projectId, hostId, err)
 	}
 
 	if len(machineBindingList.Items) == 0 {
