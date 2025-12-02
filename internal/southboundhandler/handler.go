@@ -367,28 +367,55 @@ func (h *Handler) getIntelMachine(ctx context.Context, client ctrlclient.Client,
 }
 
 func (h *Handler) getCluster(ctx context.Context, projectId string, hostId string) (*clusterv1.Cluster, error) {
-	// see if there is machine binding for this node
-	var machineBindingList infrastructurev1alpha1.IntelMachineBindingList
+	// var bindings infrastructurev1alpha1.IntelMachineBindingList
+	// listOpts := []ctrlclient.ListOption{ctrlclient.InNamespace(projectId), ctrlclient.MatchingLabels{hostIdKey: hostId}}
+	// if err := h.client.List(ctx, &bindings, listOpts...); err != nil {
+	// 	return nil, fmt.Errorf("failed to get intel machine binding list in project '%s' matching host id '%s': %w", projectId, hostId, err)
+	// }
 
-	if err := h.client.List(ctx, &machineBindingList, ctrlclient.InNamespace(projectId), ctrlclient.MatchingFields{hostIdKey: hostId}); err != nil {
-		return nil, fmt.Errorf("failed to get intel machine binding list in project '%s' matching host id '%s': %w", projectId, hostId, err)
+	// if len(bindings.Items) == 0 { // no cluster is available for this node
+	// 	return nil, nil
+	// } else if len(bindings.Items) > 1 { // this case should never happen
+	// 	return nil, fmt.Errorf("more than one cluster is found for node %s", hostId)
+	// }
+
+	// var cluster *clusterv1.Cluster
+	// clusterName := bindings.Items[0].Spec.ClusterName
+	// if err := h.client.Get(ctx, types.NamespacedName{Namespace: projectId, Name: clusterName}, cluster); err != nil {
+	// 	return nil, err
+	// }
+
+	// log.Debug().Msgf("found cluster for node %s %s/%s", hostId, projectId, clusterName)
+
+	// return cluster, nil
+
+	var bindings infrastructurev1alpha1.IntelMachineBindingList
+	if err := h.client.List(ctx, &bindings, ctrlclient.InNamespace(projectId)); err != nil {
+		return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
 	}
 
-	if len(machineBindingList.Items) == 0 {
+	var matchingBinding *infrastructurev1alpha1.IntelMachineBinding
+	for _, binding := range bindings.Items {
+		if binding.Spec.HostId == hostId {
+			if matchingBinding != nil {
+				return nil, fmt.Errorf("more than one cluster is found for node %s", hostId)
+			}
+			matchingBinding = &binding
+		}
+	}
+
+	if matchingBinding == nil {
 		// no cluster is available for this node
 		return nil, nil
-	} else if len(machineBindingList.Items) > 1 {
-		// this case should never happen
-		return nil, fmt.Errorf("more than one cluster is found for node %s", hostId)
 	}
 
-	// one cluster is found for the node
-	log.Debug().Msgf("Found cluster for node %s %s/%s", hostId, projectId, machineBindingList.Items[0].Spec.ClusterName)
 	cluster := &clusterv1.Cluster{}
-	key := types.NamespacedName{Namespace: projectId, Name: machineBindingList.Items[0].Spec.ClusterName}
-	if err := h.client.Get(ctx, key, cluster); err != nil {
+	clusterName := matchingBinding.Spec.ClusterName
+	if err := h.client.Get(ctx, types.NamespacedName{Namespace: projectId, Name: clusterName}, cluster); err != nil {
 		return nil, err
 	}
+
+	log.Debug().Msgf("found cluster for node %s %s/%s", hostId, projectId, clusterName)
 
 	return cluster, nil
 }
