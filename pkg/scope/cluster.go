@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/go-logr/logr"
-	infrav1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
+	infrav1alpha2 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
@@ -33,7 +33,7 @@ type ClusterReconcileScope struct {
 	Ctx          context.Context
 	Log          *logr.Logger
 	Cluster      *clusterv1.Cluster
-	IntelCluster *infrav1.IntelCluster
+	IntelCluster *infrav1alpha2.IntelCluster
 }
 
 type clusterReconcileScopeBuilder struct {
@@ -45,7 +45,7 @@ type ClusterReconcileScopeBuilder interface {
 	WithLog(log *logr.Logger) ClusterReconcileScopeBuilder
 	WithClient(client client.Client) ClusterReconcileScopeBuilder
 	WithCluster(cluster *clusterv1.Cluster) ClusterReconcileScopeBuilder
-	WithIntelCluster(intelCluster *infrav1.IntelCluster) ClusterReconcileScopeBuilder
+	WithIntelCluster(intelCluster *infrav1alpha2.IntelCluster) ClusterReconcileScopeBuilder
 	Build() (*ClusterReconcileScope, error)
 }
 
@@ -76,7 +76,7 @@ func (b *clusterReconcileScopeBuilder) WithCluster(cluster *clusterv1.Cluster) C
 }
 
 func (b *clusterReconcileScopeBuilder) WithIntelCluster(
-	intelCluster *infrav1.IntelCluster) ClusterReconcileScopeBuilder {
+	intelCluster *infrav1alpha2.IntelCluster) ClusterReconcileScopeBuilder {
 	b.clusterReconcileScope.IntelCluster = intelCluster
 	return b
 }
@@ -118,9 +118,9 @@ func (s *ClusterReconcileScope) Close() error {
 	// (instead we are hiding it during the deletion process)
 	conditions.SetSummary(s.IntelCluster,
 		conditions.WithConditions(
-			infrav1.ControlPlaneEndpointReadyCondition,
-			infrav1.WorkloadCreatedReadyCondition,
-			infrav1.SecureTunnelEstablishedCondition,
+			infrav1alpha2.ControlPlaneEndpointReadyCondition,
+			infrav1alpha2.WorkloadCreatedReadyCondition,
+			infrav1alpha2.SecureTunnelEstablishedCondition,
 		),
 		conditions.WithStepCounterIf(s.IntelCluster.ObjectMeta.DeletionTimestamp.IsZero()),
 	)
@@ -133,9 +133,9 @@ func (s *ClusterReconcileScope) Close() error {
 		s.IntelCluster,
 		patch.WithOwnedConditions{Conditions: []clusterv1.ConditionType{
 			clusterv1.ReadyCondition,
-			infrav1.ControlPlaneEndpointReadyCondition,
-			infrav1.WorkloadCreatedReadyCondition,
-			infrav1.SecureTunnelEstablishedCondition,
+			infrav1alpha2.ControlPlaneEndpointReadyCondition,
+			infrav1alpha2.WorkloadCreatedReadyCondition,
+			infrav1alpha2.SecureTunnelEstablishedCondition,
 		}},
 	)
 }

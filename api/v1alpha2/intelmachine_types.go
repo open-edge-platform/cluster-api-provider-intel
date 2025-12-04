@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-package v1alpha1
+package v1alpha2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,8 +26,8 @@ const (
 
 	HostIdAnnotation = "intelmachine.infrastructure.cluster.x-k8s.io/host-id"
 
-	// NodeGUID label key
-	NodeGUIDKey = "NodeGUID"
+	// HostID label key
+	HostIdKey = "HostID"
 )
 
 // IntelMachineSpec defines the desired state of IntelMachine.
@@ -36,9 +36,9 @@ type IntelMachineSpec struct {
 	// +optional
 	ProviderID *string `json:"providerID,omitempty"`
 
-	// NodeGUID contains the GUID of the node.
+	// HostId contains the resource identifier of the host.
 	// +optional
-	NodeGUID string `json:"nodeGUID,omitempty"`
+	HostId string `json:"hostID,omitempty"`
 }
 
 // IntelMachineStatus defines the observed state of IntelMachine.
@@ -72,9 +72,10 @@ type IntelMachineV1Beta2Status struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Provider ID",type=string,JSONPath=`.spec.providerID`
-// +kubebuilder:printcolumn:name="Node GUID",type=string,JSONPath=`.spec.nodeGUID`
+// +kubebuilder:printcolumn:name="Host ID",type=string,JSONPath=`.spec.hostID`
 // +kubebuilder:printcolumn:name="Ready",type=boolean,JSONPath=`.status.ready`
 // +kubebuilder:metadata:labels="cluster.x-k8s.io/v1beta1=v1alpha1"
 

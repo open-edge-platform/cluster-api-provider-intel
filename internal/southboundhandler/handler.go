@@ -29,7 +29,7 @@ import (
 	cutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
+	infrav1alpha2 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha2"
 	pb "github.com/open-edge-platform/cluster-api-provider-intel/pkg/api/proto"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/inventory"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/logging"
@@ -63,7 +63,7 @@ const (
 
 var (
 	log                        = logging.GetLogger("handler")
-	IntelMachineResourceSchema = schema.GroupVersionResource{Group: infrastructurev1alpha1.GroupVersion.Group, Version: infrastructurev1alpha1.GroupVersion.Version, Resource: "intelmachines"}
+	IntelMachineResourceSchema = schema.GroupVersionResource{Group: infrav1alpha2.GroupVersion.Group, Version: infrav1alpha2.GroupVersion.Version, Resource: "intelmachines"}
 	MachineResourceSchema      = schema.GroupVersionResource{Group: clusterv1.GroupVersion.Group, Version: clusterv1.GroupVersion.Version, Resource: "machines"}
 	alphaNum                   = regexp.MustCompile(`^[a-zA-Z0-9]*$`).MatchString
 	labelVal                   = regexp.MustCompile(`^[a-zA-Z0-9]+[a-zA-Z0-9-_.]*[a-zA-Z0-9]+$`).MatchString
@@ -99,7 +99,7 @@ func NewHandler(ctx context.Context, cfg *rest.Config) (*Handler, error) {
 	cfg.Burst = int(burstValue)
 
 	scheme := runtime.NewScheme()
-	utilruntime.Must(infrastructurev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(infrav1alpha2.AddToScheme(scheme))
 	utilruntime.Must(clusterv1.AddToScheme(scheme))
 	utilruntime.Must(corev1.AddToScheme(scheme))
 
@@ -112,9 +112,9 @@ func NewHandler(ctx context.Context, cfg *rest.Config) (*Handler, error) {
 		return nil, fmt.Errorf("failed to create manager: %w", err)
 	}
 
-	if err = mgr.GetFieldIndexer().IndexField(ctx, &infrastructurev1alpha1.IntelMachineBinding{},
+	if err = mgr.GetFieldIndexer().IndexField(ctx, &infrav1alpha2.IntelMachineBinding{},
 		hostIdKey, func(obj ctrlclient.Object) []string {
-			o := obj.(*infrastructurev1alpha1.IntelMachineBinding)
+			o := obj.(*infrav1alpha2.IntelMachineBinding)
 			return []string{o.Spec.HostId}
 		}); err != nil {
 		return nil, fmt.Errorf("failed to add field indexer for spec.hostID: %w", err)
@@ -285,13 +285,13 @@ func (h *Handler) UpdateStatus(ctx context.Context, hostUuid string, status pb.U
 		return pb.UpdateClusterStatusResponse_NONE, err
 	}
 
-	currentHostState := intelmachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
+	currentHostState := intelmachine.Annotations[infrav1alpha2.HostStateAnnotation]
 	removeFinalizer := false
 
 	// Choose appropriate ActionRequest
 	switch status {
 	case pb.UpdateClusterStatusRequest_INACTIVE:
-		hostState = infrastructurev1alpha1.HostStateInactive
+		hostState = infrav1alpha2.HostStateInactive
 
 		// If IntelMachine is not deleted and has a ProviderID, it's time to bootstrap the node
 		if intelmachine.DeletionTimestamp.IsZero() {
@@ -299,16 +299,16 @@ func (h *Handler) UpdateStatus(ctx context.Context, hostUuid string, status pb.U
 				action = pb.UpdateClusterStatusResponse_REGISTER
 			}
 		} else {
-			if cutil.ContainsFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer) {
+			if cutil.ContainsFinalizer(intelmachine, infrav1alpha2.HostCleanupFinalizer) {
 				removeFinalizer = true
 			}
 		}
 
 	case pb.UpdateClusterStatusRequest_REGISTERING, pb.UpdateClusterStatusRequest_INSTALL_IN_PROGRESS:
-		hostState = infrastructurev1alpha1.HostStateInProgress
+		hostState = infrav1alpha2.HostStateInProgress
 
 	case pb.UpdateClusterStatusRequest_ACTIVE:
-		hostState = infrastructurev1alpha1.HostStateActive
+		hostState = infrav1alpha2.HostStateActive
 
 		// If IntelMachine is being deleted, need to clean up the node
 		if !intelmachine.DeletionTimestamp.IsZero() {
@@ -316,39 +316,39 @@ func (h *Handler) UpdateStatus(ctx context.Context, hostUuid string, status pb.U
 		}
 
 	case pb.UpdateClusterStatusRequest_DEREGISTERING, pb.UpdateClusterStatusRequest_UNINSTALL_IN_PROGRESS:
-		hostState = infrastructurev1alpha1.HostStateInProgress
+		hostState = infrav1alpha2.HostStateInProgress
 
 	case pb.UpdateClusterStatusRequest_ERROR:
-		hostState = infrastructurev1alpha1.HostStateError
+		hostState = infrav1alpha2.HostStateError
 	}
 
 	// Only update IntelMachine if it needs it
 	if currentHostState != hostState || removeFinalizer {
 		if removeFinalizer {
-			cutil.RemoveFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer)
+			cutil.RemoveFinalizer(intelmachine, infrav1alpha2.HostCleanupFinalizer)
 		}
 
 		// Update the IntelMachine annotations
 		if intelmachine.Annotations == nil {
 			intelmachine.Annotations = make(map[string]string)
 		}
-		intelmachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] = hostState
+		intelmachine.Annotations[infrav1alpha2.HostStateAnnotation] = hostState
 		return action, h.client.Update(ctx, intelmachine)
 	}
 
 	return action, nil
 }
 
-func (h *Handler) getIntelMachine(ctx context.Context, client ctrlclient.Client, projectId string, hostId string) (*infrastructurev1alpha1.IntelMachine, error) {
+func (h *Handler) getIntelMachine(ctx context.Context, client ctrlclient.Client, projectId string, hostId string) (*infrav1alpha2.IntelMachine, error) {
 	if !validLabelVal(hostId) {
 		return nil, fmt.Errorf("invalid label value for HostID '%s'", hostId)
 	}
 
 	// Use a label selector to filter IntelMachines by host resource identifier
-	intelMachineList := &infrastructurev1alpha1.IntelMachineList{}
+	intelMachineList := &infrav1alpha2.IntelMachineList{}
 	listOpts := []ctrlclient.ListOption{
 		ctrlclient.InNamespace(projectId),
-		ctrlclient.MatchingLabels{infrastructurev1alpha1.HostIdKey: hostId},
+		ctrlclient.MatchingLabels{infrav1alpha2.HostIdKey: hostId},
 	}
 	if err := client.List(ctx, intelMachineList, listOpts...); err != nil {
 		return nil, err
@@ -389,12 +389,12 @@ func (h *Handler) getCluster(ctx context.Context, projectId string, hostId strin
 
 	// return cluster, nil
 
-	var bindings infrastructurev1alpha1.IntelMachineBindingList
+	var bindings infrav1alpha2.IntelMachineBindingList
 	if err := h.client.List(ctx, &bindings, ctrlclient.InNamespace(projectId)); err != nil {
 		return nil, fmt.Errorf("failed to get intel machine binding list: %w", err)
 	}
 
-	var matchingBinding *infrastructurev1alpha1.IntelMachineBinding
+	var matchingBinding *infrav1alpha2.IntelMachineBinding
 	for _, binding := range bindings.Items {
 		if binding.Spec.HostId == hostId {
 			if matchingBinding != nil {
@@ -458,7 +458,7 @@ func getSecret(ctx context.Context, client ctrlclient.Client, projectId string, 
 	return secret, nil
 }
 
-func getMachineOwnerName(intelmachine *infrastructurev1alpha1.IntelMachine) (string, error) {
+func getMachineOwnerName(intelmachine *infrav1alpha2.IntelMachine) (string, error) {
 	ownerrefs := intelmachine.GetOwnerReferences()
 	for _, ownerref := range ownerrefs {
 		if ownerref.Kind == "Machine" {

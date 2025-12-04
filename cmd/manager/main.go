@@ -26,7 +26,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
+	infrav1alpha2 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha2"
 	"github.com/open-edge-platform/cluster-api-provider-intel/internal/controller"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/inventory"
 	ccgv1 "github.com/open-edge-platform/cluster-connect-gateway/api/v1alpha1"
@@ -42,8 +42,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
-	utilruntime.Must(infrastructurev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(infrav1alpha2.AddToScheme(scheme))
 	utilruntime.Must(clusterv1.AddToScheme(scheme))
 	utilruntime.Must(ccgv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme

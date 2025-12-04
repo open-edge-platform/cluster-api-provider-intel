@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	infrav1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
+	infrav1alpha2 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha2"
 	"github.com/open-edge-platform/cluster-api-provider-intel/mocks/m_client"
 	"github.com/open-edge-platform/cluster-api-provider-intel/test/utils"
 )
@@ -39,7 +39,7 @@ func TestClusterScopeWithValidBuild(t *testing.T) {
 	context := context.TODO()
 	fakeClient := &m_client.MockClient{}
 	testScheme := runtime.NewScheme()
-	err := infrav1.AddToScheme(testScheme)
+	err := infrav1alpha2.AddToScheme(testScheme)
 	require.Nil(t, err)
 	fakeClient.On("Scheme").Return(testScheme).Times(2)
 
@@ -151,7 +151,7 @@ func TestClusterScopeClose(t *testing.T) {
 	context := context.TODO()
 	fakeClient := &m_client.MockClient{}
 	testScheme := runtime.NewScheme()
-	err := infrav1.AddToScheme(testScheme)
+	err := infrav1alpha2.AddToScheme(testScheme)
 	require.Nil(t, err)
 	defer func() {
 		fakeClient.AssertExpectations(t)
@@ -177,7 +177,7 @@ func TestClusterScopeCloseWithError(t *testing.T) {
 	context := context.TODO()
 	fakeClient := &m_client.MockClient{}
 	testScheme := runtime.NewScheme()
-	err := infrav1.AddToScheme(testScheme)
+	err := infrav1alpha2.AddToScheme(testScheme)
 	require.Nil(t, err)
 	subRW := &m_client.MockSubResourceWriter{}
 	defer func() {
@@ -191,7 +191,7 @@ func TestClusterScopeCloseWithError(t *testing.T) {
 		mock.Anything).Return(nil)
 	fakeClient.On("Status").Return(subRW)
 
-	conditions.MarkTrue(testIntelCluster, infrav1.WorkloadCreatedReadyCondition)
+	conditions.MarkTrue(testIntelCluster, infrav1alpha2.WorkloadCreatedReadyCondition)
 	scope, err := NewClusterReconcileScopeBuilder().
 		WithContext(context).
 		WithLog(&testLogger).

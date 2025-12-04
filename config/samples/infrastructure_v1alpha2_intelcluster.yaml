@@ -1,0 +1,12 @@
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+kind: IntelCluster
+metadata:
+  labels:
+    app.kubernetes.io/name: cluster-api-provider-intel
+    app.kubernetes.io/managed-by: kustomize
+  name: intelcluster-sample
+spec:
+    controlPlaneEndpoint:
+      host: cluster-connection
+      port: 8080
+    providerId: sample-cluster-provider-id

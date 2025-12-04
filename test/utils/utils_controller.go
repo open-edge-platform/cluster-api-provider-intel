@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
+	infrav1alpha2 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
@@ -24,7 +24,7 @@ var (
 
 func GetObjectRef(obj *metav1.ObjectMeta, kind string) *corev1.ObjectReference {
 	return &corev1.ObjectReference{
-		APIVersion: infrastructurev1alpha1.GroupVersion.String(),
+		APIVersion: infrav1alpha2.GroupVersion.String(),
 		Kind:       kind,
 		Name:       obj.Name,
 		Namespace:  obj.Namespace,
@@ -43,8 +43,8 @@ func NewCluster(namespace, clusterName string) *clusterv1.Cluster {
 	return cluster
 }
 
-func NewIntelCluster(namespace, intelClusterName, providerId string, cluster *clusterv1.Cluster) *infrastructurev1alpha1.IntelCluster { //nolint:lll
-	return &infrastructurev1alpha1.IntelCluster{
+func NewIntelCluster(namespace, intelClusterName, providerId string, cluster *clusterv1.Cluster) *infrav1alpha2.IntelCluster { //nolint:lll
+	return &infrav1alpha2.IntelCluster{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      intelClusterName,
@@ -58,7 +58,7 @@ func NewIntelCluster(namespace, intelClusterName, providerId string, cluster *cl
 				},
 			},
 		},
-		Spec: infrastructurev1alpha1.IntelClusterSpec{
+		Spec: infrav1alpha2.IntelClusterSpec{
 			ProviderId: providerId,
 		},
 	}
@@ -71,8 +71,8 @@ func NewNamespace(name string) *corev1.Namespace {
 		},
 	}
 }
-func NewIntelClusterNoSpec(cluster *clusterv1.Cluster) *infrastructurev1alpha1.IntelCluster {
-	return &infrastructurev1alpha1.IntelCluster{
+func NewIntelClusterNoSpec(cluster *clusterv1.Cluster) *infrav1alpha2.IntelCluster {
+	return &infrav1alpha2.IntelCluster{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cluster.Name,
@@ -118,11 +118,11 @@ func NewMachine(namespace, clusterName, machineName, bootstrapKind string) *clus
 	return machine
 }
 
-func NewIntelMachine(namespace, intelMachineName string, machine *clusterv1.Machine) *infrastructurev1alpha1.IntelMachine { //nolint:lll
-	return &infrastructurev1alpha1.IntelMachine{
+func NewIntelMachine(namespace, intelMachineName string, machine *clusterv1.Machine) *infrav1alpha2.IntelMachine { //nolint:lll
+	return &infrav1alpha2.IntelMachine{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "IntelMachine",
-			APIVersion: infrastructurev1alpha1.GroupVersion.String(),
+			APIVersion: infrav1alpha2.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      intelMachineName,
@@ -135,19 +135,19 @@ func NewIntelMachine(namespace, intelMachineName string, machine *clusterv1.Mach
 					UID:        machine.UID,
 				},
 			},
-			Labels: map[string]string{infrastructurev1alpha1.HostIdKey: ""},
+			Labels: map[string]string{infrav1alpha2.HostIdKey: ""},
 		},
 	}
 }
 
-func NewIntelMachineBinding(namespace, intelMachineBindingName, hostId, clusterName, machineTemplateName string) *infrastructurev1alpha1.IntelMachineBinding { //nolint:lll
-	return &infrastructurev1alpha1.IntelMachineBinding{
+func NewIntelMachineBinding(namespace, intelMachineBindingName, hostId, clusterName, machineTemplateName string) *infrav1alpha2.IntelMachineBinding { //nolint:lll
+	return &infrav1alpha2.IntelMachineBinding{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      intelMachineBindingName,
 			Namespace: namespace,
 		},
-		Spec: infrastructurev1alpha1.IntelMachineBindingSpec{
+		Spec: infrav1alpha2.IntelMachineBindingSpec{
 			HostId:                   hostId,
 			ClusterName:              clusterName,
 			IntelMachineTemplateName: machineTemplateName,
@@ -155,19 +155,19 @@ func NewIntelMachineBinding(namespace, intelMachineBindingName, hostId, clusterN
 	}
 }
 
-func NewIntelMachineTemplate(namespace, name, parent string) *infrastructurev1alpha1.IntelMachineTemplate { //nolint:lll
+func NewIntelMachineTemplate(namespace, name, parent string) *infrav1alpha2.IntelMachineTemplate { //nolint:lll
 	annotations := map[string]string{}
 	if parent != "" {
 		annotations[clusterv1.TemplateClonedFromNameAnnotation] = parent
 	}
-	return &infrastructurev1alpha1.IntelMachineTemplate{
+	return &infrav1alpha2.IntelMachineTemplate{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Namespace:   namespace,
 			Annotations: annotations,
 		},
-		Spec: infrastructurev1alpha1.IntelMachineTemplateSpec{},
+		Spec: infrav1alpha2.IntelMachineTemplateSpec{},
 	}
 }
 

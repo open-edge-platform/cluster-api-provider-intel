@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
+	infrav1alpha2 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha2"
 	"github.com/open-edge-platform/cluster-api-provider-intel/mocks/m_inventory"
 	inventory "github.com/open-edge-platform/cluster-api-provider-intel/pkg/inventory"
 	utils "github.com/open-edge-platform/cluster-api-provider-intel/test/utils"
@@ -35,7 +35,7 @@ func FuzzMachineReconcile(f *testing.F) {
 		hostId                  = "test-host-12345678"
 	)
 	scheme := runtime.NewScheme()
-	if err := infrastructurev1alpha1.AddToScheme(scheme); err != nil {
+	if err := infrav1alpha2.AddToScheme(scheme); err != nil {
 		f.Fatalf("infrastructurev1alpha1.AddToScheme: %v", err)
 	}
 	if err := clusterv1.AddToScheme(scheme); err != nil {
@@ -55,7 +55,7 @@ func FuzzMachineReconcile(f *testing.F) {
 		WithObjects(cluster, intelcluster, machine, intelmachine, intelmachinebinding).
 		WithStatusSubresource(intelmachine, intelmachinebinding).
 		WithIndex(
-			&infrastructurev1alpha1.IntelMachineBinding{},
+			&infrav1alpha2.IntelMachineBinding{},
 			intelMachineBindingKey,
 			intelMachineBindingIdxFunc).
 		Build()

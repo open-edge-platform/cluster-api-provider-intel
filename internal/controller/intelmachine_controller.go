@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/go-logr/logr"
-	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
+	infrav1alpha2 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha2"
 	inventory "github.com/open-edge-platform/cluster-api-provider-intel/pkg/inventory"
 	"github.com/pkg/errors"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -52,8 +52,8 @@ type IntelMachineReconcilerContext struct {
 	ctx          context.Context
 	machine      *clusterv1.Machine
 	cluster      *clusterv1.Cluster
-	intelMachine *infrastructurev1alpha1.IntelMachine
-	intelCluster *infrastructurev1alpha1.IntelCluster
+	intelMachine *infrav1alpha2.IntelMachine
+	intelCluster *infrav1alpha2.IntelCluster
 }
 
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=intelmachines,verbs=get;list;watch;create;update;patch;delete
@@ -78,7 +78,7 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Fetch the IntelMachine instance
-	intelMachine := &infrastructurev1alpha1.IntelMachine{}
+	intelMachine := &infrav1alpha2.IntelMachine{}
 	if err := r.Get(ctx, req.NamespacedName, intelMachine); err != nil {
 		if k8serr.IsNotFound(err) {
 			rc.log.Info("IntelMachine not found")
@@ -127,7 +127,7 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Fetch the Intel Cluster.
-	intelCluster := &infrastructurev1alpha1.IntelCluster{}
+	intelCluster := &infrav1alpha2.IntelCluster{}
 	key := client.ObjectKey{
 		Namespace: intelMachine.Namespace,
 		Name:      cluster.Spec.InfrastructureRef.Name,
@@ -178,11 +178,11 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Add finalizers to the IntelMachine if they are not already present.
-	if controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) {
-		rc.log.Info("added finalizer to IntelMachine", "finalizer", infrastructurev1alpha1.FreeInstanceFinalizer)
+	if controllerutil.AddFinalizer(rc.intelMachine, infrav1alpha2.FreeInstanceFinalizer) {
+		rc.log.Info("added finalizer to IntelMachine", "finalizer", infrav1alpha2.FreeInstanceFinalizer)
 	}
-	if controllerutil.AddFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer) {
-		rc.log.Info("added finalizer to IntelMachine", "finalizer", infrastructurev1alpha1.HostCleanupFinalizer)
+	if controllerutil.AddFinalizer(rc.intelMachine, infrav1alpha2.HostCleanupFinalizer) {
+		rc.log.Info("added finalizer to IntelMachine", "finalizer", infrav1alpha2.HostCleanupFinalizer)
 	}
 
 	// Handle non-deleted machines
@@ -195,7 +195,7 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 // Combine cluster name and machine template name into a single IndexField due to cache limitations.
 func intelMachineBindingIdxFunc(rawObj client.Object) []string {
-	imb := rawObj.(*infrastructurev1alpha1.IntelMachineBinding)
+	imb := rawObj.(*infrav1alpha2.IntelMachineBinding)
 	return []string{getIntelMachineBindingKey(imb.Spec.ClusterName, imb.Spec.IntelMachineTemplateName)}
 }
 
@@ -204,7 +204,7 @@ func (r *IntelMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// Add field indexer with metadata.intelMachineBindingKey as field name and the IntelMachineBinding key as value.
 	if err := mgr.GetFieldIndexer().IndexField(
 		context.Background(),
-		&infrastructurev1alpha1.IntelMachineBinding{},
+		&infrav1alpha2.IntelMachineBinding{},
 		intelMachineBindingKey,
 		intelMachineBindingIdxFunc,
 	); err != nil {
@@ -212,7 +212,7 @@ func (r *IntelMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&infrastructurev1alpha1.IntelMachine{}).
+		For(&infrav1alpha2.IntelMachine{}).
 		Named("intelmachine").
 		Complete(r)
 }
@@ -226,22 +226,22 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 	if err != nil {
 		return err
 	}
-	conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, clusterv1.DeletingReason, clusterv1.ConditionSeverityInfo, "")
+	conditions.MarkFalse(rc.intelMachine, infrav1alpha2.HostProvisionedCondition, clusterv1.DeletingReason, clusterv1.ConditionSeverityInfo, "")
 	if err := patchIntelMachine(rc.ctx, patchHelper, rc.intelMachine); err != nil {
 		return errors.Wrap(err, "failed to patch IntelMachine")
 	}
 
 	// Remove DeauthFinalizer to unblock deletion of clusters created with 3.1 release.
-	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthFinalizer) {
-		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.DeauthFinalizer)
+	if controllerutil.ContainsFinalizer(rc.intelMachine, infrav1alpha2.DeauthFinalizer) {
+		controllerutil.RemoveFinalizer(rc.intelMachine, infrav1alpha2.DeauthFinalizer)
 	}
 
 	// HostCleanupFinalizer will be removed by the SB handler after it has cleaned up the host.
-	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.HostCleanupFinalizer) {
+	if controllerutil.ContainsFinalizer(rc.intelMachine, infrav1alpha2.HostCleanupFinalizer) {
 		return nil
 	}
 
-	if controllerutil.ContainsFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer) {
+	if controllerutil.ContainsFinalizer(rc.intelMachine, infrav1alpha2.FreeInstanceFinalizer) {
 		// Remove the instance from the workload in Inventory
 		if rc.intelMachine.Spec.ProviderID != nil {
 			req := inventory.DeleteInstanceFromWorkloadInput{
@@ -257,7 +257,7 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 		} else {
 			rc.log.Info("ProviderID is nil, skipping instance deletion from workload")
 		}
-		controllerutil.RemoveFinalizer(rc.intelMachine, infrastructurev1alpha1.FreeInstanceFinalizer)
+		controllerutil.RemoveFinalizer(rc.intelMachine, infrav1alpha2.FreeInstanceFinalizer)
 	}
 
 	return nil
@@ -271,18 +271,18 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	// Check if the infrastructure is ready, otherwise return and wait for the cluster object to be updated
 	if !rc.cluster.Status.InfrastructureReady {
 		rc.log.Info("Waiting for IntelCluster Controller to create cluster infrastructure")
-		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForClusterInfrastructureReason, clusterv1.ConditionSeverityInfo, "")
+		conditions.MarkFalse(rc.intelMachine, infrav1alpha2.HostProvisionedCondition, infrav1alpha2.WaitingForClusterInfrastructureReason, clusterv1.ConditionSeverityInfo, "")
 		return true
 	}
 
 	// if the machine is already provisioned, check host status and return
 	if rc.intelMachine.Spec.ProviderID != nil {
-		conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition)
+		conditions.MarkTrue(rc.intelMachine, infrav1alpha2.HostProvisionedCondition)
 
 		// SB handler will add the host state as reported by the Cluster Agent to the IntelMachine as an annotation.
-		hostState, ok := rc.intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
+		hostState, ok := rc.intelMachine.Annotations[infrav1alpha2.HostStateAnnotation]
 		if !ok {
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrappingReason, clusterv1.ConditionSeverityInfo, "waiting for SB handler to report host state")
+			conditions.MarkFalse(rc.intelMachine, infrav1alpha2.BootstrapExecSucceededCondition, infrav1alpha2.BootstrappingReason, clusterv1.ConditionSeverityInfo, "waiting for SB handler to report host state")
 			rc.log.Info("Waiting on SB Handler to report host state")
 
 			// Adding Annotation will trigger a requeue, so we don't need to requeue.
@@ -290,15 +290,15 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 		}
 
 		switch hostState {
-		case infrastructurev1alpha1.HostStateActive:
+		case infrav1alpha2.HostStateActive:
 			rc.intelMachine.Status.Ready = true
-			conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition)
-		case infrastructurev1alpha1.HostStateError:
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrapFailedReason, clusterv1.ConditionSeverityWarning, "")
-		case infrastructurev1alpha1.HostStateInProgress:
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrappingReason, clusterv1.ConditionSeverityInfo, "")
-		case infrastructurev1alpha1.HostStateInactive:
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrapWaitingReason, clusterv1.ConditionSeverityInfo, "")
+			conditions.MarkTrue(rc.intelMachine, infrav1alpha2.BootstrapExecSucceededCondition)
+		case infrav1alpha2.HostStateError:
+			conditions.MarkFalse(rc.intelMachine, infrav1alpha2.BootstrapExecSucceededCondition, infrav1alpha2.BootstrapFailedReason, clusterv1.ConditionSeverityWarning, "")
+		case infrav1alpha2.HostStateInProgress:
+			conditions.MarkFalse(rc.intelMachine, infrav1alpha2.BootstrapExecSucceededCondition, infrav1alpha2.BootstrappingReason, clusterv1.ConditionSeverityInfo, "")
+		case infrav1alpha2.HostStateInactive:
+			conditions.MarkFalse(rc.intelMachine, infrav1alpha2.BootstrapExecSucceededCondition, infrav1alpha2.BootstrapWaitingReason, clusterv1.ConditionSeverityInfo, "")
 		default:
 			rc.log.Info(fmt.Sprintf("Unexpected host state %q reported by SB Handler", hostState))
 		}
@@ -313,12 +313,12 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	if dataSecretName == nil {
 		if !util.IsControlPlaneMachine(rc.machine) && !conditions.IsTrue(rc.cluster, clusterv1.ControlPlaneInitializedCondition) {
 			rc.log.Info("Waiting for the control plane to be initialized")
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, clusterv1.WaitingForControlPlaneAvailableReason, clusterv1.ConditionSeverityInfo, "")
+			conditions.MarkFalse(rc.intelMachine, infrav1alpha2.HostProvisionedCondition, clusterv1.WaitingForControlPlaneAvailableReason, clusterv1.ConditionSeverityInfo, "")
 			return true
 		}
 
 		rc.log.Info("Waiting for the Bootstrap provider controller to set bootstrap data")
-		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForBootstrapDataReason, clusterv1.ConditionSeverityInfo, "")
+		conditions.MarkFalse(rc.intelMachine, infrav1alpha2.HostProvisionedCondition, infrav1alpha2.WaitingForBootstrapDataReason, clusterv1.ConditionSeverityInfo, "")
 		return true
 	}
 
@@ -326,7 +326,7 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	if rc.intelMachine.Spec.HostId == "" {
 		err := r.allocateHostId(rc)
 		if err != nil {
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForMachineBindingReason, clusterv1.ConditionSeverityWarning, "%v", err)
+			conditions.MarkFalse(rc.intelMachine, infrav1alpha2.HostProvisionedCondition, infrav1alpha2.WaitingForMachineBindingReason, clusterv1.ConditionSeverityWarning, "%v", err)
 			rc.log.Info("Error allocating HostID", "error", err)
 			return true
 		}
@@ -340,7 +340,7 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	}
 	gmRes := r.InventoryClient.GetInstanceByMachineId(gmReq)
 	if gmRes.Err != nil {
-		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.HostProvisioningFailedReason, clusterv1.ConditionSeverityWarning, "%v", gmRes)
+		conditions.MarkFalse(rc.intelMachine, infrav1alpha2.HostProvisionedCondition, infrav1alpha2.HostProvisioningFailedReason, clusterv1.ConditionSeverityWarning, "%v", gmRes)
 		return true
 	}
 
@@ -351,14 +351,14 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	}
 
 	if aiRes := r.InventoryClient.AddInstanceToWorkload(aiReq); aiRes.Err != nil {
-		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.HostProvisioningFailedReason, clusterv1.ConditionSeverityWarning, "%v", aiRes.Err)
+		conditions.MarkFalse(rc.intelMachine, infrav1alpha2.HostProvisionedCondition, infrav1alpha2.HostProvisioningFailedReason, clusterv1.ConditionSeverityWarning, "%v", aiRes.Err)
 		return true
 	}
 
 	// Set ProviderID so the Cluster API Machine Controller can pull it
 	rc.intelMachine.Spec.ProviderID = &gmRes.Instance.Id
-	rc.intelMachine.Annotations[infrastructurev1alpha1.HostIdAnnotation] = gmRes.Host.Id
-	conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition)
+	rc.intelMachine.Annotations[infrav1alpha2.HostIdAnnotation] = gmRes.Host.Id
+	conditions.MarkTrue(rc.intelMachine, infrav1alpha2.HostProvisionedCondition)
 	return false
 }
 
@@ -369,7 +369,7 @@ func (r *IntelMachineReconciler) getTemplateName(rc IntelMachineReconcilerContex
 	}
 
 	// Get the IntelMachineTemplate object
-	template := &infrastructurev1alpha1.IntelMachineTemplate{}
+	template := &infrav1alpha2.IntelMachineTemplate{}
 	templateKey := client.ObjectKey{
 		Namespace: rc.intelMachine.Namespace,
 		Name:      templateName,
@@ -394,7 +394,7 @@ func (r *IntelMachineReconciler) getTemplateName(rc IntelMachineReconcilerContex
 func (r *IntelMachineReconciler) allocateHostId(rc IntelMachineReconcilerContext) error {
 	// Fetch the IntelMachineBindings matching the cluster name and machine template name.
 	// Cluster API core will add clusterv1.TemplateClonedFromNameAnnotation on intelmachine with the machine template name.
-	intelMachineBindingList := &infrastructurev1alpha1.IntelMachineBindingList{}
+	intelMachineBindingList := &infrav1alpha2.IntelMachineBindingList{}
 	templateName, err := r.getTemplateName(rc)
 	if err != nil {
 		return err
@@ -424,11 +424,11 @@ func (r *IntelMachineReconciler) allocateHostId(rc IntelMachineReconcilerContext
 	}
 
 	rc.intelMachine.Spec.HostId = intelmachinebinding.Spec.HostId
-	rc.intelMachine.ObjectMeta.Labels[infrastructurev1alpha1.HostIdKey] = intelmachinebinding.Spec.HostId
+	rc.intelMachine.ObjectMeta.Labels[infrav1alpha2.HostIdKey] = intelmachinebinding.Spec.HostId
 	return nil
 }
 
-func selectIntelMachineBinding(rc IntelMachineReconcilerContext, intelMachineBindingList *infrastructurev1alpha1.IntelMachineBindingList) *infrastructurev1alpha1.IntelMachineBinding {
+func selectIntelMachineBinding(rc IntelMachineReconcilerContext, intelMachineBindingList *infrav1alpha2.IntelMachineBindingList) *infrav1alpha2.IntelMachineBinding {
 	log := log.FromContext(rc.ctx)
 
 	ref := metav1.OwnerReference{
@@ -462,13 +462,13 @@ func getIntelMachineBindingKey(clusterName, intelMachineTemplateName string) str
 	return fmt.Sprintf("%s/%s", clusterName, intelMachineTemplateName)
 }
 
-func patchIntelMachine(ctx context.Context, patchHelper *patch.Helper, intelMachine *infrastructurev1alpha1.IntelMachine) error {
+func patchIntelMachine(ctx context.Context, patchHelper *patch.Helper, intelMachine *infrav1alpha2.IntelMachine) error {
 	// Always update the readyCondition by summarizing the state of other conditions.
 	// A step counter is added to represent progress during the provisioning process (instead we are hiding the step counter during the deletion process).
 	conditions.SetSummary(intelMachine,
 		conditions.WithConditions(
-			infrastructurev1alpha1.HostProvisionedCondition,
-			infrastructurev1alpha1.BootstrapExecSucceededCondition,
+			infrav1alpha2.HostProvisionedCondition,
+			infrav1alpha2.BootstrapExecSucceededCondition,
 		),
 		conditions.WithStepCounterIf(intelMachine.ObjectMeta.DeletionTimestamp.IsZero() && intelMachine.Spec.ProviderID == nil),
 	)
@@ -479,8 +479,8 @@ func patchIntelMachine(ctx context.Context, patchHelper *patch.Helper, intelMach
 		intelMachine,
 		patch.WithOwnedConditions{Conditions: []clusterv1.ConditionType{
 			clusterv1.ReadyCondition,
-			infrastructurev1alpha1.HostProvisionedCondition,
-			infrastructurev1alpha1.BootstrapExecSucceededCondition,
+			infrav1alpha2.HostProvisionedCondition,
+			infrav1alpha2.BootstrapExecSucceededCondition,
 		}},
 	)
 }

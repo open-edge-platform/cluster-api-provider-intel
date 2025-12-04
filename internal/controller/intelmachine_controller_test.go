@@ -17,7 +17,7 @@ import (
 	cutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
+	infrav1alpha2 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha2"
 	"github.com/open-edge-platform/cluster-api-provider-intel/mocks/m_inventory"
 	inventory "github.com/open-edge-platform/cluster-api-provider-intel/pkg/inventory"
 	utils "github.com/open-edge-platform/cluster-api-provider-intel/test/utils"
@@ -49,9 +49,9 @@ var _ = Describe("IntelMachine Controller", func() {
 		)
 
 		var (
-			intelmachine        *infrastructurev1alpha1.IntelMachine
-			intelmachinebinding *infrastructurev1alpha1.IntelMachineBinding
-			intelcluster        *infrastructurev1alpha1.IntelCluster
+			intelmachine        *infrav1alpha2.IntelMachine
+			intelmachinebinding *infrav1alpha2.IntelMachineBinding
+			intelcluster        *infrav1alpha2.IntelCluster
 			machine             *clusterv1.Machine
 			cluster             *clusterv1.Cluster
 		)
@@ -76,7 +76,7 @@ var _ = Describe("IntelMachine Controller", func() {
 
 			// Create the intelcluster after checking that it does not exist
 			key = types.NamespacedName{Name: intelClusterName, Namespace: namespace}
-			Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrastructurev1alpha1.IntelCluster{}))).To(BeTrue())
+			Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrav1alpha2.IntelCluster{}))).To(BeTrue())
 			intelcluster = utils.NewIntelCluster(namespace, intelClusterName, workloadId, cluster)
 			Expect(k8sClient.Create(ctx, intelcluster)).To(Succeed())
 
@@ -92,7 +92,7 @@ var _ = Describe("IntelMachine Controller", func() {
 
 			// Create the intelmachinebinding after checking that it does not exist
 			key = types.NamespacedName{Name: intelMachineBindingName, Namespace: namespace}
-			Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrastructurev1alpha1.IntelMachineBinding{}))).To(BeTrue())
+			Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrav1alpha2.IntelMachineBinding{}))).To(BeTrue())
 			intelmachinebinding = utils.NewIntelMachineBinding(namespace, intelMachineBindingName, hostId, clusterName, machineTemplateName)
 			Expect(k8sClient.Create(ctx, intelmachinebinding)).To(Succeed())
 
@@ -127,7 +127,7 @@ var _ = Describe("IntelMachine Controller", func() {
 
 			// Create the intelmachine after checking that it does not exist
 			key = types.NamespacedName{Name: intelMachineName, Namespace: namespace}
-			Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrastructurev1alpha1.IntelMachine{}))).To(BeTrue())
+			Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrav1alpha2.IntelMachine{}))).To(BeTrue())
 			intelmachine = utils.NewIntelMachine(namespace, intelMachineName, machine)
 			intelmachine.Annotations = map[string]string{
 				clusterv1.TemplateClonedFromNameAnnotation: machineTemplateName,
@@ -147,16 +147,16 @@ var _ = Describe("IntelMachine Controller", func() {
 
 			By("Waiting for conditions HostProvisionedCondition and Ready to be False")
 			Eventually(func(g Gomega) {
-				resource := &infrastructurev1alpha1.IntelMachine{}
+				resource := &infrav1alpha2.IntelMachine{}
 				g.Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
 				g.Expect(resource.DeletionTimestamp.IsZero()).To(BeFalse())
-				g.Expect(conditions.IsFalse(resource, infrastructurev1alpha1.HostProvisionedCondition)).To(BeTrue())
+				g.Expect(conditions.IsFalse(resource, infrav1alpha2.HostProvisionedCondition)).To(BeTrue())
 				g.Expect(conditions.IsFalse(resource, clusterv1.ReadyCondition)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			By("Removing the IntelMachine's HostCleanupFinalizer")
 			Expect(k8sClient.Get(ctx, typeNamespacedName, intelmachine)).To(Succeed())
-			cutil.RemoveFinalizer(intelmachine, infrastructurev1alpha1.HostCleanupFinalizer)
+			cutil.RemoveFinalizer(intelmachine, infrav1alpha2.HostCleanupFinalizer)
 			Expect(k8sClient.Update(ctx, intelmachine)).To(Succeed())
 
 			By("Deleting the other custom resources")
@@ -166,19 +166,19 @@ var _ = Describe("IntelMachine Controller", func() {
 
 			By("Checking the IntelMachine is removed")
 			Eventually(func(g Gomega) {
-				g.Expect(errors.IsNotFound(k8sClient.Get(ctx, typeNamespacedName, &infrastructurev1alpha1.IntelMachine{}))).To(BeTrue())
+				g.Expect(errors.IsNotFound(k8sClient.Get(ctx, typeNamespacedName, &infrav1alpha2.IntelMachine{}))).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			By("Checking the IntelMachineBinding is removed")
 			Eventually(func(g Gomega) {
 				key := types.NamespacedName{Name: intelMachineBindingName, Namespace: namespace}
-				g.Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrastructurev1alpha1.IntelMachineBinding{}))).To(BeTrue())
+				g.Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrav1alpha2.IntelMachineBinding{}))).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			By("Checking the IntelCluster and Machine are removed")
 			Eventually(func(g Gomega) {
 				key := types.NamespacedName{Name: intelClusterName, Namespace: namespace}
-				g.Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrastructurev1alpha1.IntelCluster{}))).To(BeTrue())
+				g.Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrav1alpha2.IntelCluster{}))).To(BeTrue())
 				key = types.NamespacedName{Name: machineName, Namespace: namespace}
 				g.Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &clusterv1.Machine{}))).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
@@ -194,14 +194,14 @@ var _ = Describe("IntelMachine Controller", func() {
 		})
 
 		It("should successfully reconcile the intelmachine", func() {
-			resource := &infrastructurev1alpha1.IntelMachine{}
+			resource := &infrav1alpha2.IntelMachine{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Checking that the IntelMachineBinding is allocated")
 			key := types.NamespacedName{Name: intelMachineBindingName, Namespace: namespace}
 			Eventually(func(g Gomega) {
-				imb := &infrastructurev1alpha1.IntelMachineBinding{}
+				imb := &infrav1alpha2.IntelMachineBinding{}
 				g.Expect(k8sClient.Get(ctx, key, imb)).To(Succeed())
 				g.Expect(imb.Status.Allocated).To(BeTrue())
 				g.Expect(imb.OwnerReferences).To(HaveLen(1))
@@ -212,39 +212,39 @@ var _ = Describe("IntelMachine Controller", func() {
 				g.Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
 				g.Expect(resource.Spec.ProviderID).NotTo(BeNil())
 				g.Expect(resource.Spec.HostId).To(Equal(hostId))
-				g.Expect(resource.ObjectMeta.Labels[infrastructurev1alpha1.HostIdKey]).To(Equal(hostId))
+				g.Expect(resource.ObjectMeta.Labels[infrav1alpha2.HostIdKey]).To(Equal(hostId))
 				g.Expect(resource.Status.Ready).To(BeFalse())
-				g.Expect(conditions.IsTrue(resource, infrastructurev1alpha1.HostProvisionedCondition)).To(BeTrue())
-				g.Expect(conditions.IsFalse(resource, infrastructurev1alpha1.BootstrapExecSucceededCondition)).To(BeTrue())
-				g.Expect(conditions.GetReason(resource, infrastructurev1alpha1.BootstrapExecSucceededCondition)).To(Equal(infrastructurev1alpha1.BootstrappingReason))
+				g.Expect(conditions.IsTrue(resource, infrav1alpha2.HostProvisionedCondition)).To(BeTrue())
+				g.Expect(conditions.IsFalse(resource, infrav1alpha2.BootstrapExecSucceededCondition)).To(BeTrue())
+				g.Expect(conditions.GetReason(resource, infrav1alpha2.BootstrapExecSucceededCondition)).To(Equal(infrav1alpha2.BootstrappingReason))
 				g.Expect(conditions.IsFalse(resource, clusterv1.ReadyCondition)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			By("By checking the IntelMachine has the expected finalizers")
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
-				g.Expect(cutil.ContainsFinalizer(resource, infrastructurev1alpha1.FreeInstanceFinalizer)).To(BeTrue())
-				g.Expect(cutil.ContainsFinalizer(resource, infrastructurev1alpha1.HostCleanupFinalizer)).To(BeTrue())
+				g.Expect(cutil.ContainsFinalizer(resource, infrav1alpha2.FreeInstanceFinalizer)).To(BeTrue())
+				g.Expect(cutil.ContainsFinalizer(resource, infrav1alpha2.HostCleanupFinalizer)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			By("Updating the Host State annotation")
 			Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
-			Expect(resource.Annotations).NotTo(HaveKey(infrastructurev1alpha1.HostStateAnnotation))
+			Expect(resource.Annotations).NotTo(HaveKey(infrav1alpha2.HostStateAnnotation))
 			if resource.Annotations == nil {
 				resource.Annotations = make(map[string]string)
 			}
-			resource.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateActive
+			resource.Annotations[infrav1alpha2.HostStateAnnotation] = infrav1alpha2.HostStateActive
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 
 			By("Checking that the IntelMachine is ready")
 			Eventually(func(g Gomega) {
-				resource := &infrastructurev1alpha1.IntelMachine{}
+				resource := &infrav1alpha2.IntelMachine{}
 				g.Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
 				g.Expect(resource.Spec.ProviderID).NotTo(BeNil())
 				g.Expect(resource.Status.Ready).To(BeTrue())
-				g.Expect(resource.Annotations[infrastructurev1alpha1.HostIdAnnotation]).To(Equal(hostId))
-				g.Expect(conditions.IsTrue(resource, infrastructurev1alpha1.HostProvisionedCondition)).To(BeTrue())
-				g.Expect(conditions.IsTrue(resource, infrastructurev1alpha1.BootstrapExecSucceededCondition)).To(BeTrue())
+				g.Expect(resource.Annotations[infrav1alpha2.HostIdAnnotation]).To(Equal(hostId))
+				g.Expect(conditions.IsTrue(resource, infrav1alpha2.HostProvisionedCondition)).To(BeTrue())
+				g.Expect(conditions.IsTrue(resource, infrav1alpha2.BootstrapExecSucceededCondition)).To(BeTrue())
 				g.Expect(conditions.IsTrue(resource, clusterv1.ReadyCondition)).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
@@ -274,9 +274,9 @@ var _ = Describe("Reconcile loop errors", func() {
 		)
 
 		var (
-			intelmachine        *infrastructurev1alpha1.IntelMachine
-			intelmachinebinding *infrastructurev1alpha1.IntelMachineBinding
-			intelcluster        *infrastructurev1alpha1.IntelCluster
+			intelmachine        *infrav1alpha2.IntelMachine
+			intelmachinebinding *infrav1alpha2.IntelMachineBinding
+			intelcluster        *infrav1alpha2.IntelCluster
 			machine             *clusterv1.Machine
 			cluster             *clusterv1.Cluster
 			reconciler          *IntelMachineReconciler
@@ -290,7 +290,7 @@ var _ = Describe("Reconcile loop errors", func() {
 			By("creating the custom resources")
 
 			scheme := runtime.NewScheme()
-			Expect(infrastructurev1alpha1.AddToScheme(scheme)).To(Succeed())
+			Expect(infrav1alpha2.AddToScheme(scheme)).To(Succeed())
 			Expect(clusterv1.AddToScheme(scheme)).To(Succeed())
 
 			cluster = utils.NewCluster(namespace, clusterName)
@@ -308,7 +308,7 @@ var _ = Describe("Reconcile loop errors", func() {
 				WithObjects(cluster, intelcluster, machine, intelmachine, intelmachinebinding).
 				WithStatusSubresource(intelmachine, intelmachinebinding).
 				WithIndex(
-					&infrastructurev1alpha1.IntelMachineBinding{},
+					&infrav1alpha2.IntelMachineBinding{},
 					intelMachineBindingKey,
 					intelMachineBindingIdxFunc).
 				Build()
@@ -371,7 +371,7 @@ var _ = Describe("Reconcile loop errors", func() {
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			// Machine is not fully Ready at this point
-			im := &infrastructurev1alpha1.IntelMachine{}
+			im := &infrav1alpha2.IntelMachine{}
 			Expect(fakeClient.Get(ctx, key, im)).To(Succeed())
 			Expect(im.Spec.ProviderID).NotTo(BeNil())
 			Expect(im.Status.Ready).To(BeFalse())
@@ -389,7 +389,7 @@ var _ = Describe("Reconcile loop errors", func() {
 
 		It("should return error if IntelMachine's owner not found'", func() {
 			key := types.NamespacedName{Name: intelMachineName, Namespace: namespace}
-			im := &infrastructurev1alpha1.IntelMachine{}
+			im := &infrav1alpha2.IntelMachine{}
 			Expect(fakeClient.Get(ctx, key, im)).To(Succeed())
 			im.OwnerReferences[0].Name = "bad-owner"
 			Expect(fakeClient.Update(ctx, im)).To(Succeed())
@@ -404,7 +404,7 @@ var _ = Describe("Reconcile loop errors", func() {
 
 		It("should not return error if IntelMachine has no owner yet", func() {
 			key := types.NamespacedName{Name: intelMachineName, Namespace: namespace}
-			im := &infrastructurev1alpha1.IntelMachine{}
+			im := &infrav1alpha2.IntelMachine{}
 			Expect(fakeClient.Get(ctx, key, im)).To(Succeed())
 			im.OwnerReferences = nil
 			Expect(fakeClient.Update(ctx, im)).To(Succeed())
@@ -459,7 +459,7 @@ var _ = Describe("Reconcile loop errors", func() {
 
 		It("should not return error if IntelCluster not available yet", func() {
 			key := types.NamespacedName{Name: intelClusterName, Namespace: namespace}
-			ic := &infrastructurev1alpha1.IntelCluster{}
+			ic := &infrav1alpha2.IntelCluster{}
 			Expect(fakeClient.Get(ctx, key, ic)).To(Succeed())
 			Expect(fakeClient.Delete(ctx, ic)).To(Succeed())
 			Expect(fakeClient.Get(ctx, key, ic)).ToNot(Succeed())

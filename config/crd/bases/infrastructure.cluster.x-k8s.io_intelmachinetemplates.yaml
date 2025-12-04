@@ -49,6 +49,60 @@ spec:
                   spec:
                     description: IntelMachineSpec defines the desired state of IntelMachine.
                     properties:
+                      nodeGUID:
+                        description: NodeGUID contains the GUID of the node.
+                        type: string
+                      providerID:
+                        description: ProviderID must match the provider ID as seen
+                          on the node object corresponding to this machine.
+                        type: string
+                    type: object
+                type: object
+            required:
+            - template
+            type: object
+          status:
+            description: IntelMachineTemplateStatus defines the observed state of
+              IntelMachineTemplate.
+            type: object
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}
+  - name: v1alpha2
+    schema:
+      openAPIV3Schema:
+        description: IntelMachineTemplate is the Schema for the intelmachinetemplates
+          API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              IntelMachineTemplateSpec defines the desired state of IntelMachineTemplate.
+              The Spec.Template field must be present in order to satisfy cAPI.
+            properties:
+              template:
+                properties:
+                  spec:
+                    description: IntelMachineSpec defines the desired state of IntelMachine.
+                    properties:
                       hostID:
                         description: HostId contains the resource identifier of the
                           host.

@@ -6,4 +6,9 @@ resources:
 - infrastructure_v1alpha1_intelmachinebinding.yaml
 - infrastructure_v1alpha1_intelclustertemplate.yaml
 - infrastructure_v1alpha1_clusterconnection.yaml
+- infrastructure_v1alpha2_intelmachine.yaml
+- infrastructure_v1alpha2_intelcluster.yaml
+- infrastructure_v1alpha2_intelmachinetemplate.yaml
+- infrastructure_v1alpha2_intelmachinebinding.yaml
+- infrastructure_v1alpha2_intelclustertemplate.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
