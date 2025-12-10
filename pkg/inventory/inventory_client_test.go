@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	nodeUUId                      = "3c7ef083-0e9e-4d05-b5a6-5bcd72261000"
+	hostId                        = "3c7ef083-0e9e-4d05-b5a6-5bcd72261000"
 	hostResourceId                = "host-3c7ef083"
 	hostSerialNumber              = "host-serial-number-1"
 	invalidHostResourceId         = "3c7ef083-0e9e-4d05-b5a6-5bcd72261001"
@@ -39,20 +39,20 @@ func newMockedInventoryTestClient() *m_client.MockTenantAwareInventoryClient {
 	return &m_client.MockTenantAwareInventoryClient{}
 }
 
-func TestGetHostAndInstanceByHostUUID(t *testing.T) {
+func TestGetHostAndInstanceByHostId(t *testing.T) {
 	mockedClient := newMockedInventoryTestClient()
 	inventoryClient := InventoryClient{Client: mockedClient}
 
 	cases := []struct {
 		name         string
 		tenantId     string
-		nodeUUId     string
+		hostId       string
 		expectedHost *computev1.HostResource
 		mocks        func() []*mock.Call
 	}{
 		{
 			name:     "successful with valid result",
-			nodeUUId: nodeUUId,
+			hostId:   hostId,
 			tenantId: tenantId,
 			expectedHost: &computev1.HostResource{
 				ResourceId:   hostResourceId,
@@ -66,14 +66,20 @@ func TestGetHostAndInstanceByHostUUID(t *testing.T) {
 			},
 			mocks: func() []*mock.Call {
 				return []*mock.Call{
-					mockedClient.On("GetHostByUUID", mock.Anything, tenantId, nodeUUId).
-						Return(&computev1.HostResource{
-							ResourceId:   hostResourceId,
-							SerialNumber: hostSerialNumber,
-							Instance: &computev1.InstanceResource{
-								ResourceId: instanceResourceId,
-								Os: &osv1.OperatingSystemResource{
-									Name: instanceOsName,
+					mockedClient.On("Get", mock.Anything, tenantId, hostId).
+						Return(&inventoryv1.GetResourceResponse{
+							Resource: &inventoryv1.Resource{
+								Resource: &inventoryv1.Resource_Host{
+									Host: &computev1.HostResource{
+										ResourceId:   hostResourceId,
+										SerialNumber: hostSerialNumber,
+										Instance: &computev1.InstanceResource{
+											ResourceId: instanceResourceId,
+											Os: &osv1.OperatingSystemResource{
+												Name: instanceOsName,
+											},
+										},
+									},
 								},
 							},
 						}, nil).Once(),
@@ -87,7 +93,7 @@ func TestGetHostAndInstanceByHostUUID(t *testing.T) {
 			if tc.mocks != nil {
 				tc.mocks()
 			}
-			host, err := inventoryClient.getHost(context.TODO(), tc.tenantId, tc.nodeUUId)
+			host, err := inventoryClient.getHost(context.TODO(), tc.tenantId, tc.hostId)
 			require.Nil(t, err)
 			require.NotNil(t, host)
 			assert.Equal(t, tc.expectedHost.GetResourceId(), host.GetResourceId())
@@ -99,7 +105,7 @@ func TestGetHostAndInstanceByHostUUID(t *testing.T) {
 	}
 }
 
-func TestGetHostAndInstanceByHostUUIDWithErrors(t *testing.T) {
+func TestGetHostAndInstanceByHostIdWithErrors(t *testing.T) {
 	mockedClient := newMockedInventoryTestClient()
 	inventoryClient := InventoryClient{Client: mockedClient}
 
@@ -110,32 +116,51 @@ func TestGetHostAndInstanceByHostUUIDWithErrors(t *testing.T) {
 		hasValidationError bool
 		mocks              func() []*mock.Call
 	}{
-		{name: "successful with invalid result",
-			expectedError: ErrInvalidHost,
+		{
+			name:          "failed to get resource",
+			expectedError: ErrFailedInventoryGetResponse,
 			mocks: func() []*mock.Call {
 				return []*mock.Call{
-					mockedClient.On("GetHostByUUID", mock.Anything, mock.Anything, mock.Anything).
-						Return(&computev1.HostResource{ResourceId: invalidHostResourceId}, nil).Once(),
+					mockedClient.On("Get", mock.Anything, mock.Anything, mock.Anything).Return(nil, ErrFailedInventoryGetResource).Once(),
 				}
 			},
 		},
-		{name: "successful with nil result",
-			expectedError: ErrInvalidHost,
+		{
+			name:          "resource is nil",
+			expectedError: ErrFailedInventoryGetResource,
 			mocks: func() []*mock.Call {
 				return []*mock.Call{
-					mockedClient.On("GetHostByUUID", mock.Anything, mock.Anything, mock.Anything).
-						Return(nil, nil).Once(),
+					mockedClient.On("Get", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once(),
 				}
 			},
 		},
-		{name: "failed get request to inventory",
-			expectedError: errFailedGet,
+		{
+			name:          "host is nil",
+			expectedError: ErrFailedInventoryGetHost,
 			mocks: func() []*mock.Call {
 				return []*mock.Call{
-					mockedClient.On("GetHostByUUID", mock.Anything, mock.Anything, mock.Anything).
-						Return(nil, errFailedGet).Once(),
 					mockedClient.On("Get", mock.Anything, mock.Anything, mock.Anything).
-						Return(nil, errFailedGet).Once(),
+						Return(&inventoryv1.GetResourceResponse{
+							Resource: &inventoryv1.Resource{
+								Resource: &inventoryv1.Resource_Host{},
+							},
+						}, nil).Once(),
+				}
+			},
+		},
+		{
+			name:          "host is invalid",
+			expectedError: ErrInvalidHost,
+			mocks: func() []*mock.Call {
+				return []*mock.Call{
+					mockedClient.On("Get", mock.Anything, mock.Anything, mock.Anything).
+						Return(&inventoryv1.GetResourceResponse{
+							Resource: &inventoryv1.Resource{
+								Resource: &inventoryv1.Resource_Host{
+									Host: &computev1.HostResource{ResourceId: invalidHostResourceId},
+								},
+							},
+						}, nil).Once(),
 				}
 			},
 		},
@@ -146,7 +171,7 @@ func TestGetHostAndInstanceByHostUUIDWithErrors(t *testing.T) {
 			if tc.mocks != nil {
 				tc.mocks()
 			}
-			host, err := inventoryClient.getHost(context.TODO(), tenantId, nodeUUId)
+			host, err := inventoryClient.getHost(context.TODO(), tenantId, hostId)
 			require.Nil(t, host)
 			require.NotNil(t, err)
 			assert.Equal(t, tc.expectedError, err)

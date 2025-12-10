@@ -21,7 +21,6 @@ import (
 
 const (
 	defaultTenantID         = "53cd37b9-66b2-4cc8-b080-3722ed7af64a"
-	defaultHostUUID         = "12345678-1234-1234-1234-123456789012"
 	defaultHostID           = "host-12345678"
 	defaultWorkloadID       = "workload-12345678"
 	defaultWorkloadMemberID = "workloadmember-12345678"
@@ -306,36 +305,32 @@ func (c *StubTenantAwareInventoryClient) DeleteAllResources(
 
 // GetStubClient initializes the stub client with default responses and returns it
 func GetStubClient() client.TenantAwareInventoryClient {
-	tenantID := os.Getenv("TENANT_ID")
-	if tenantID == "" {
-		tenantID = defaultTenantID
+	tenantId := os.Getenv("TENANT_ID")
+	if tenantId == "" {
+		tenantId = defaultTenantID
 	}
-	hostUUID := os.Getenv("HOST_UUID")
-	if hostUUID == "" {
-		hostUUID = defaultHostUUID
-	}
+	hostId := os.Getenv("HOST_ID")
 
 	stubClient := &StubTenantAwareInventoryClient{
 		StubbedResponses: make(map[string]StubResponse),
 	}
 
-	// Populate stubbed responses for GetHostByUUID
-	stubClient.StubbedResponses[fmt.Sprintf("GetHostByUUID:%s:%s", tenantID, hostUUID)] = StubResponse{
-		Response: &computev1.HostResource{
-			Instance: &computev1.InstanceResource{
-				ResourceId: defaultInstanceID,
-				Os: &osv1.OperatingSystemResource{
-					Name: "Linux",
+	// Populate stubbed responses for Get (host)
+	stubClient.StubbedResponses[fmt.Sprintf("Get:%s:%s", tenantId, hostId)] = StubResponse{
+		Response: &inv_v1.GetResourceResponse{
+			Resource: &inv_v1.Resource{
+				Resource: &inv_v1.Resource_Host{
+					Host: &computev1.HostResource{
+						ResourceId: hostId,
+					},
 				},
 			},
-			SerialNumber: "SN123456",
-			ResourceId:   defaultHostID,
 		},
 		Error: nil,
 	}
 
-	// Populate stubbed responses for Get
-	stubClient.StubbedResponses[fmt.Sprintf("Get:%s:%s", tenantID, defaultInstanceID)] = StubResponse{
+	// Populate stubbed responses for Get (instance)
+	stubClient.StubbedResponses[fmt.Sprintf("Get:%s:%s", tenantId, defaultInstanceID)] = StubResponse{
 		Response: &inv_v1.GetResourceResponse{
 			Resource: &inv_v1.Resource{
 				Resource: &inv_v1.Resource_Instance{
@@ -362,7 +357,7 @@ func GetStubClient() client.TenantAwareInventoryClient {
 	}
 
 	// Populate stubbed responses for Create
-	stubClient.StubbedResponses[fmt.Sprintf("Create:%s:workload", tenantID)] = StubResponse{
+	stubClient.StubbedResponses[fmt.Sprintf("Create:%s:workload", tenantId)] = StubResponse{
 		Response: &inv_v1.Resource{
 			Resource: &inv_v1.Resource_Workload{
 				Workload: &computev1.WorkloadResource{
@@ -373,7 +368,7 @@ func GetStubClient() client.TenantAwareInventoryClient {
 		Error: nil,
 	}
 
-	stubClient.StubbedResponses[fmt.Sprintf("Create:%s:workloadMember", tenantID)] = StubResponse{
+	stubClient.StubbedResponses[fmt.Sprintf("Create:%s:workloadMember", tenantId)] = StubResponse{
 		Response: &inv_v1.Resource{
 			Resource: &inv_v1.Resource_WorkloadMember{
 				WorkloadMember: &computev1.WorkloadMember{
@@ -388,17 +383,17 @@ func GetStubClient() client.TenantAwareInventoryClient {
 	}
 
 	// Populate stubbed responses for Delete
-	stubClient.StubbedResponses[fmt.Sprintf("Delete:%s:%s", tenantID, defaultWorkloadID)] = StubResponse{
+	stubClient.StubbedResponses[fmt.Sprintf("Delete:%s:%s", tenantId, defaultWorkloadID)] = StubResponse{
 		Response: &inv_v1.DeleteResourceResponse{},
 		Error:    nil,
 	}
-	stubClient.StubbedResponses[fmt.Sprintf("Delete:%s:%s", tenantID, defaultWorkloadMemberID)] = StubResponse{
+	stubClient.StubbedResponses[fmt.Sprintf("Delete:%s:%s", tenantId, defaultWorkloadMemberID)] = StubResponse{
 		Response: &inv_v1.DeleteResourceResponse{},
 		Error:    nil,
 	}
 
 	// Populate stubbed responses for Host Update (host deauth)
-	stubClient.StubbedResponses[fmt.Sprintf("Update:%s:%s", tenantID, defaultHostID)] = StubResponse{
+	stubClient.StubbedResponses[fmt.Sprintf("Update:%s:%s", tenantId, defaultHostID)] = StubResponse{
 		Response: &inv_v1.Resource{
 			Resource: &inv_v1.Resource_Host{
 				Host: &computev1.HostResource{

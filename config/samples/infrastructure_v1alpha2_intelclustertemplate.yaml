@@ -1,0 +1,11 @@
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+kind: IntelClusterTemplate
+metadata:
+  labels:
+    app.kubernetes.io/name: cluster-api-provider-intel
+    app.kubernetes.io/managed-by: kustomize
+  name: intelclustertemplate-sample
+spec:
+  template:
+    metadata: {}
+    spec: {}

@@ -136,44 +136,38 @@ func (c *InventoryClient) validateHostResource(host *computev1.HostResource) err
 	return nil
 }
 
-func (c *InventoryClient) getHost(ctx context.Context, tenantId, hostUUID string) (
+func (c *InventoryClient) getHost(ctx context.Context, tenantId, hostId string) (
 	*computev1.HostResource, error,
 ) {
-	slog.Debug("getHost", "tenantId", tenantId, "hostUuid", hostUUID)
+	slog.Debug("getHost", "tenantId", tenantId, "hostId", hostId)
 
-	childCtx, cancel := context.WithTimeout(ctx, defaultInventoryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, defaultInventoryTimeout)
 	defer cancel()
 
-	respHost, err := c.Client.GetHostByUUID(childCtx, tenantId, hostUUID)
+	response, err := c.Client.Get(ctx, tenantId, hostId)
 	if err != nil {
-		slog.Warn("failed to get host from host uuid, attempting to get by resourceid",
-			"tenantId", tenantId, "hostId", hostUUID, "error", err)
-		response, err := c.Client.Get(ctx, tenantId, hostUUID)
-		if err != nil {
-			slog.Warn("failed to get host by resourceId", "error", err, "tenantId", tenantId, "hostId", hostUUID)
-			return nil, err
-		}
-
-		resource := response.GetResource()
-		if resource == nil {
-			slog.Warn("response resource is nil", "tenantId", tenantId, "hostUuid", hostUUID)
-			return nil, ErrFailedInventoryGetResponse
-		}
-		respHost = resource.GetHost()
-		if respHost == nil {
-			slog.Warn("host in response resource is nil", "tenantId", tenantId, "hostUuid", hostUUID)
-			return nil, ErrFailedInventoryGetHost
-		}
-
-		slog.Debug("success in getting resourceId", "tenantId", tenantId, "hostUuid", hostUUID)
-	}
-
-	if err := c.validateHostResource(respHost); err != nil {
-		slog.Warn("failed to validate host resource", "error", err, "tenantId", tenantId, "hostUuid", hostUUID)
+		slog.Warn("failed to get host resource by host id", "error", err, "tenantId", tenantId, "hostId", hostId)
 		return nil, err
 	}
 
-	return respHost, nil
+	resource := response.GetResource()
+	if resource == nil {
+		slog.Warn("resource in response is nil", "tenantId", tenantId, "hostId", hostId)
+		return nil, ErrFailedInventoryGetResource
+	}
+
+	host := resource.GetHost()
+	if host == nil {
+		slog.Warn("host in resource is nil", "tenantId", tenantId, "hostId", hostId)
+		return nil, ErrFailedInventoryGetHost
+	}
+
+	if err := c.validateHostResource(host); err != nil {
+		slog.Warn("failed to validate host resource", "error", err, "tenantId", tenantId, "hostId", hostId)
+		return nil, err
+	}
+
+	return host, nil
 }
 
 func (c *InventoryClient) validateResource(resource *inventoryv1.Resource) error {
