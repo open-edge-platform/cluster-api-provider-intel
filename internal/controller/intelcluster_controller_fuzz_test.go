@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
+	infrav1alpha2 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha2"
 	utils "github.com/open-edge-platform/cluster-api-provider-intel/test/utils"
 	ccgv1 "github.com/open-edge-platform/cluster-connect-gateway/api/v1alpha1"
 )
@@ -27,7 +27,7 @@ func FuzzClusterReconcile(f *testing.F) {
 		providerID       = "provider-id"
 	)
 	scheme := runtime.NewScheme()
-	if err := infrastructurev1alpha1.AddToScheme(scheme); err != nil {
+	if err := infrav1alpha2.AddToScheme(scheme); err != nil {
 		f.Fatalf("infrastructurev1alpha1.AddToScheme: %v", err)
 	}
 	if err := clusterv1.AddToScheme(scheme); err != nil {
