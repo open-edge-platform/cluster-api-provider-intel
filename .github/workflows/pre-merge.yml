@@ -28,9 +28,9 @@ jobs:
         persist-credentials: false
 
     - name: "Setup"
-      uses: open-edge-platform/orch-ci/.github/actions/bootstrap@main
+      uses: open-edge-platform/orch-ci/.github/actions/bootstrap@20b640842e63420b06b3ff4247e608228e14c74a  # 2026.0.1
       with:
-        gh_token: ${{ secrets.SYS_ORCH_GITHUB }}
+        gh_token: ${{ secrets.SYS_EMF_GH_TOKEN }}
         bootstrap_tools: "go,gotools,nodejs"
 
     - name: Lint code
@@ -48,9 +48,9 @@ jobs:
         persist-credentials: false
 
     - name: "Setup"
-      uses: open-edge-platform/orch-ci/.github/actions/bootstrap@main
+      uses: open-edge-platform/orch-ci/.github/actions/bootstrap@20b640842e63420b06b3ff4247e608228e14c74a  # 2026.0.1
       with:
-        gh_token: ${{ secrets.SYS_ORCH_GITHUB }}
+        gh_token: ${{ secrets.SYS_EMF_GH_TOKEN }}
         bootstrap_tools: "go,gotools"
 
     - name: Build code
@@ -68,9 +68,9 @@ jobs:
         persist-credentials: false
 
     - name: "Setup"
-      uses: open-edge-platform/orch-ci/.github/actions/bootstrap@main
+      uses: open-edge-platform/orch-ci/.github/actions/bootstrap@20b640842e63420b06b3ff4247e608228e14c74a  # 2026.0.1
       with:
-        gh_token: ${{ secrets.SYS_ORCH_GITHUB }}
+        gh_token: ${{ secrets.SYS_EMF_GH_TOKEN }}
         bootstrap_tools: "go,gotools" 
 
     - name: Test code
@@ -80,7 +80,7 @@ jobs:
     permissions:
       contents: read
     needs: [lint, build, test]
-    uses: open-edge-platform/orch-ci/.github/workflows/pre-merge.yml@0.1.68
+    uses: open-edge-platform/orch-ci/.github/workflows/pre-merge.yml@8fc2349c02d438e1707f99343069963fb49d3eba  # 2026.0.6
     with:
       bootstrap_tools: "base,go"
       cache_go: true
