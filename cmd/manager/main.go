@@ -26,8 +26,10 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	infrav1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
 	infrav1alpha2 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha2"
 	"github.com/open-edge-platform/cluster-api-provider-intel/internal/controller"
+	webhookv1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/internal/webhook/v1alpha1"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/inventory"
 	ccgv1 "github.com/open-edge-platform/cluster-connect-gateway/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
@@ -40,8 +42,13 @@ var (
 	inventoryWg = sync.WaitGroup{}
 )
 
+const (
+	enableWebhookEnvVar = "ENABLE_WEBHOOKS"
+)
+
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(infrav1alpha1.AddToScheme(scheme))
 	utilruntime.Must(infrav1alpha2.AddToScheme(scheme))
 	utilruntime.Must(clusterv1.AddToScheme(scheme))
 	utilruntime.Must(ccgv1.AddToScheme(scheme))
@@ -124,6 +131,7 @@ func main() {
 		// generate self-signed certificates for the metrics server. While convenient for development and testing,
 		// this setup is not recommended for production.
 	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
@@ -149,8 +157,7 @@ func main() {
 	}
 
 	// client should be reused across controllers
-	inventoryClient, err := inventory.NewMachineProvider(&inventoryWg, inventoryEndpoint, enableTracing,
-		enableMetrics, useInventoryStub)
+	inventoryClient, err := inventory.NewMachineProvider(&inventoryWg, inventoryEndpoint, enableTracing, enableMetrics, useInventoryStub)
 	if err != nil {
 		setupLog.Error(err, "failed to create inventory client")
 		os.Exit(1)
@@ -175,6 +182,37 @@ func main() {
 		setupLog.Info("closing inventory client")
 		inventoryClient.Close()
 		os.Exit(1)
+	}
+
+	if os.Getenv(enableWebhookEnvVar) != "false" {
+		// v1alpha1 webhooks
+		if err = webhookv1alpha1.SetupIntelMachineWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to set up webhook", "webhook", "IntelMachineBinding")
+			setupLog.Info("closing inventory client")
+			inventoryClient.Close()
+			os.Exit(1)
+		}
+		if err = webhookv1alpha1.SetupIntelMachineBindingWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to set up webhook", "webhook", "IntelMachineBinding")
+			setupLog.Info("closing inventory client")
+			inventoryClient.Close()
+			os.Exit(1)
+		}
+
+		// v1alpha2 webhooks
+		// if err = webhookv1alpha2.SetupIntelMachineWebhookWithManager(mgr); err != nil {
+		// 	setupLog.Error(err, "unable to set up webhook", "webhook", "IntelMachine")
+		// 	setupLog.Info("closing inventory client")
+		// 	inventoryClient.Close()
+		// 	os.Exit(1)
+		// }
+		// if err = webhookv1alpha2.SetupIntelMachineBindingWebhookWithManager(mgr); err != nil {
+		// 	setupLog.Error(err, "unable to set up webhook", "webhook", "IntelMachine")
+		// 	setupLog.Info("closing inventory client")
+		// 	inventoryClient.Close()
+		// 	os.Exit(1)
+		// }
+		setupLog.Info("webhooks are enabled")
 	}
 	// +kubebuilder:scaffold:builder
 
