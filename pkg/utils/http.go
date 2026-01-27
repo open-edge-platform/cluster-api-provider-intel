@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bnkamalesh/errors"
+	"github.com/naughtygopher/errors"
 )
 
 const (

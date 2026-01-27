@@ -4,7 +4,7 @@
 package utils
 
 import (
-	"github.com/bnkamalesh/errors"
+	"github.com/naughtygopher/errors"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/logging"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"

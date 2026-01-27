@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"github.com/bnkamalesh/errors"
+	"github.com/naughtygopher/errors"
 	"google.golang.org/grpc/codes"
 )
 

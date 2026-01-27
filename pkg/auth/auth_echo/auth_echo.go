@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bnkamalesh/errors"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"github.com/labstack/echo/v4"
+	"github.com/naughtygopher/errors"
 
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/logging"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/rbac"

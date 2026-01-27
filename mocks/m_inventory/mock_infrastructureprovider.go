@@ -112,52 +112,6 @@ func (_c *MockInfrastructureProvider_CreateWorkload_Call) RunAndReturn(run func(
 	return _c
 }
 
-// DeauthorizeHost provides a mock function with given fields: in
-func (_m *MockInfrastructureProvider) DeauthorizeHost(in inventory.DeauthorizeHostInput) inventory.DeauthorizeHostOutput {
-	ret := _m.Called(in)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeauthorizeHost")
-	}
-
-	var r0 inventory.DeauthorizeHostOutput
-	if rf, ok := ret.Get(0).(func(inventory.DeauthorizeHostInput) inventory.DeauthorizeHostOutput); ok {
-		r0 = rf(in)
-	} else {
-		r0 = ret.Get(0).(inventory.DeauthorizeHostOutput)
-	}
-
-	return r0
-}
-
-// MockInfrastructureProvider_DeauthorizeHost_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeauthorizeHost'
-type MockInfrastructureProvider_DeauthorizeHost_Call struct {
-	*mock.Call
-}
-
-// DeauthorizeHost is a helper method to define mock.On call
-//   - in inventory.DeauthorizeHostInput
-func (_e *MockInfrastructureProvider_Expecter) DeauthorizeHost(in interface{}) *MockInfrastructureProvider_DeauthorizeHost_Call {
-	return &MockInfrastructureProvider_DeauthorizeHost_Call{Call: _e.mock.On("DeauthorizeHost", in)}
-}
-
-func (_c *MockInfrastructureProvider_DeauthorizeHost_Call) Run(run func(in inventory.DeauthorizeHostInput)) *MockInfrastructureProvider_DeauthorizeHost_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(inventory.DeauthorizeHostInput))
-	})
-	return _c
-}
-
-func (_c *MockInfrastructureProvider_DeauthorizeHost_Call) Return(_a0 inventory.DeauthorizeHostOutput) *MockInfrastructureProvider_DeauthorizeHost_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *MockInfrastructureProvider_DeauthorizeHost_Call) RunAndReturn(run func(inventory.DeauthorizeHostInput) inventory.DeauthorizeHostOutput) *MockInfrastructureProvider_DeauthorizeHost_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // DeleteInstanceFromWorkload provides a mock function with given fields: in
 func (_m *MockInfrastructureProvider) DeleteInstanceFromWorkload(in inventory.DeleteInstanceFromWorkloadInput) inventory.DeleteInstanceFromWorkloadOutput {
 	ret := _m.Called(in)
