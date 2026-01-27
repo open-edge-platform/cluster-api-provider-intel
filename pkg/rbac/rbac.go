@@ -14,8 +14,8 @@ import (
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/open-edge-platform/orch-library/go/pkg/auth"
 
-	"github.com/bnkamalesh/errors"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
+	"github.com/naughtygopher/errors"
 	grpcauth "github.com/open-edge-platform/orch-library/go/pkg/grpc/auth"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"k8s.io/utils/strings/slices"

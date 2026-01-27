@@ -10,8 +10,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/bnkamalesh/errors"
 	"github.com/golang/mock/gomock"
+	"github.com/naughtygopher/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
