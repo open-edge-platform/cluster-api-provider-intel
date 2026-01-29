@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/bnkamalesh/errors"
+	"github.com/naughtygopher/errors"
 )
 
 type SchemeType string

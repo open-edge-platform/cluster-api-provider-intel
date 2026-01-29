@@ -63,8 +63,8 @@ ENVTEST_K8S_VERSION = 1.31.0
 VENV_NAME = venv-env
 
 # GoCov versions
-GOLANG_GOCOV_VERSION := latest
-GOLANG_GOCOV_XML_VERSION := latest
+GOLANG_GOCOV_VERSION := v1.1.0
+GOLANG_GOCOV_XML_VERSION := v1.2.0
 
 TEST_PATHS := ./internal/... ./pkg/...
 GO_TESTABLES = $(shell go list ${TEST_PATHS}|grep -vE pkg/api)

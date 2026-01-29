@@ -10,7 +10,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/bnkamalesh/errors"
+	"github.com/naughtygopher/errors"
 )
 
 type Filelink string
