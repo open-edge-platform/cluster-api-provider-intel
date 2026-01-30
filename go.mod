@@ -20,7 +20,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.27.5
 	github.com/onsi/gomega v1.39.0
 	github.com/open-edge-platform/cluster-connect-gateway v1.2.5
-	github.com/open-edge-platform/infra-core/inventory/v2 v2.34.1
+	github.com/open-edge-platform/infra-core/inventory/v2 v2.34.2
 	github.com/open-edge-platform/orch-library/go v0.6.3
 	github.com/open-policy-agent/opa v1.12.3
 	github.com/rs/zerolog v1.34.0
