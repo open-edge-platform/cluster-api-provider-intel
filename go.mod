@@ -7,7 +7,7 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v1.3.0
 	github.com/getkin/kin-openapi v0.133.0
 	github.com/gogo/grpc-example v0.0.0-20211127015421-6236971f8de2
-	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/golang/mock v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
