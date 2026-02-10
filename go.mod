@@ -27,7 +27,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/undefinedlabs/go-mpatch v1.0.7
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.64.0
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.64.0
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.65.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.40.0
 	k8s.io/apimachinery v0.35.0
 	k8s.io/client-go v0.35.0
