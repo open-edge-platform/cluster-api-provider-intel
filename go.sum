@@ -767,8 +767,8 @@ github.com/onsi/gomega v1.39.1/go.mod h1:hL6yVALoTOxeWudERyfppUcZXjMwIMLnuSfruD2
 github.com/op/go-logging v0.0.0-20160315200505-970db520ece7/go.mod h1:HzydrMdWErDVzsI23lYNej1Htcns9BCg93Dk0bBINWk=
 github.com/open-edge-platform/cluster-connect-gateway v1.2.5 h1:z+BOXDCgLzJrRy/RvlR9Q6UwLLTav0UR0YBz8KjIp/M=
 github.com/open-edge-platform/cluster-connect-gateway v1.2.5/go.mod h1:NbWS0MIWEEG7r7UMzQ+DwLSuW9mUgqaxMdkgMHEtyGM=
-github.com/open-edge-platform/infra-core/inventory/v2 v2.34.1 h1:3+ocSeTzAAeVhBZpmI8K163sy18hvkfBYgmNpuc+r94=
-github.com/open-edge-platform/infra-core/inventory/v2 v2.34.1/go.mod h1:NzKTZ1cCdSvixIvsA4Ig3zzsryIHQJHnF/bGQ1+JBbc=
+github.com/open-edge-platform/infra-core/inventory/v2 v2.34.2 h1:7wPJ7RhM4K484HNxhz6Mjn/LuvHciDiey0cAR/Zmh6g=
+github.com/open-edge-platform/infra-core/inventory/v2 v2.34.2/go.mod h1:NzKTZ1cCdSvixIvsA4Ig3zzsryIHQJHnF/bGQ1+JBbc=
 github.com/open-edge-platform/orch-library/go v0.6.3 h1:zLdAtY5KuArT1D2xCvVLysD7r8GxqvkP8Vj1sO5ZJk8=
 github.com/open-edge-platform/orch-library/go v0.6.3/go.mod h1:mYhs/KbcXPQWM+2cHZXyzeIIzM7xKvnNgsnHlFkXH0g=
 github.com/open-edge-platform/orch-library/go/dazl v0.5.4 h1:Rx/bSAZiLjEEBjUiJEzBvT0fQv5huT5FQ2Ke3IMUhiE=
