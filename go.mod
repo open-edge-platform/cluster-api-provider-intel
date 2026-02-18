@@ -4,7 +4,7 @@ go 1.25.5
 
 require (
 	entgo.io/ent v0.14.6-0.20251106044941-a777c08cdda4
-	github.com/envoyproxy/protoc-gen-validate v1.3.0
+	github.com/envoyproxy/protoc-gen-validate v1.3.2
 	github.com/getkin/kin-openapi v0.133.0
 	github.com/gogo/grpc-example v0.0.0-20211127015421-6236971f8de2
 	github.com/golang-jwt/jwt/v5 v5.3.1
