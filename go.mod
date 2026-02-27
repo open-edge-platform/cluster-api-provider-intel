@@ -22,7 +22,7 @@ require (
 	github.com/open-edge-platform/cluster-connect-gateway v1.2.5
 	github.com/open-edge-platform/infra-core/inventory/v2 v2.34.4
 	github.com/open-edge-platform/orch-library/go v0.6.3
-	github.com/open-policy-agent/opa v1.13.2
+	github.com/open-policy-agent/opa v1.14.0
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.11.1
 	github.com/undefinedlabs/go-mpatch v1.0.7
@@ -119,7 +119,7 @@ require (
 	github.com/zclconf/go-cty v1.16.2 // indirect
 	github.com/zclconf/go-cty-yaml v1.1.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.64.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.65.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
@@ -127,7 +127,6 @@ require (
 	golang.org/x/sync v0.19.0 // indirect
 	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
-	gopkg.in/ini.v1 v1.67.1 // indirect
 	k8s.io/apiserver v0.35.2 // indirect
 	k8s.io/component-base v0.35.2 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.2 // indirect
