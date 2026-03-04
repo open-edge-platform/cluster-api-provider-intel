@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	cloudinit "sigs.k8s.io/cluster-api/test/infrastructure/docker/cloudinit"
@@ -308,10 +309,22 @@ func TestHandler_Register(t *testing.T) {
 	}
 }
 
+// ignoreAlreadyExists returns nil if the error is an "already exists" API error,
+// which is expected when the fuzzer replays the same inputs across iterations.
+func ignoreAlreadyExists(err error) error {
+	if k8serrors.IsAlreadyExists(err) {
+		return nil
+	}
+	return err
+}
+
 func FuzzHandlerRegister(f *testing.F) {
 	projectId := "00000000-0000-0000-0000-000000000100"
 	f.Add("abc")
 	f.Fuzz(func(t *testing.T, nodeGUID string) {
+		if !validLabelVal(nodeGUID) {
+			t.Skip()
+		}
 
 		// Create Machine
 		machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
@@ -334,23 +347,17 @@ func FuzzHandlerRegister(f *testing.F) {
 		// Add Project ID to context
 		ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
 
-		// Create the namespace
+		// Create the namespace — ignore already-exists since the fuzzer reuses the same projectId
+		// across iterations and resources persist for the lifetime of the test binary.
 		ns := &corev1.Namespace{
 			ObjectMeta: v1.ObjectMeta{
 				Name: projectId,
 			},
 		}
-		err := k8sClient.Create(ctx, ns)
-		assert.NoError(t, err)
-
-		err = k8sClient.Create(ctx, machine)
-		assert.NoError(t, err)
-
-		err = k8sClient.Create(ctx, intelmachine)
-		assert.NoError(t, err)
-
-		err = k8sClient.Create(ctx, secret)
-		assert.NoError(t, err)
+		assert.NoError(t, ignoreAlreadyExists(k8sClient.Create(ctx, ns)))
+		assert.NoError(t, ignoreAlreadyExists(k8sClient.Create(ctx, machine)))
+		assert.NoError(t, ignoreAlreadyExists(k8sClient.Create(ctx, intelmachine)))
+		assert.NoError(t, ignoreAlreadyExists(k8sClient.Create(ctx, secret)))
 
 		_, _, _, _ = testHandler.Register(ctx, nodeGUID)
 	})
@@ -673,6 +680,10 @@ func FuzzHandlerUpdateStatus(f *testing.F) {
 
 	f.Add("abc", int32(0))
 	f.Fuzz(func(t *testing.T, nodeGUID string, code int32) {
+		if !validLabelVal(nodeGUID) {
+			t.Skip()
+		}
+
 		// Create Machine
 		machine := utils.NewMachine(projectId, clusterName, machineName, bootstrapKind)
 		secretName := secretName
@@ -692,20 +703,16 @@ func FuzzHandlerUpdateStatus(f *testing.F) {
 		// Add Project ID to context
 		ctx := tenant.AddActiveProjectIdToContext(context.Background(), projectId)
 
-		// Create the namespace
+		// Create the namespace — ignore already-exists since the fuzzer reuses the same projectId
+		// across iterations and resources persist for the lifetime of the test binary.
 		ns := &corev1.Namespace{
 			ObjectMeta: v1.ObjectMeta{
 				Name: projectId,
 			},
 		}
-		err := k8sClient.Create(ctx, ns)
-		assert.NoError(t, err)
-
-		err = k8sClient.Create(ctx, machine)
-		assert.NoError(t, err)
-
-		err = k8sClient.Create(ctx, intelmachine)
-		assert.NoError(t, err)
+		assert.NoError(t, ignoreAlreadyExists(k8sClient.Create(ctx, ns)))
+		assert.NoError(t, ignoreAlreadyExists(k8sClient.Create(ctx, machine)))
+		assert.NoError(t, ignoreAlreadyExists(k8sClient.Create(ctx, intelmachine)))
 
 		_, _ = testHandler.UpdateStatus(ctx, nodeGUID, pb.UpdateClusterStatusRequest_Code(code))
 	})
