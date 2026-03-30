@@ -84,7 +84,7 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 GOARCH       := $(shell go env GOARCH)
-GOEXTRAFLAGS := -trimpath -gcflags="all=-spectre=all -N -l" -asmflags="all=-spectre=all" -ldflags="all=-s -w"
+GOEXTRAFLAGS := -trimpath -gcflags="all=-spectre=ret -N -l" -asmflags="all=-spectre=ret" -ldflags="all=-s -w"
 ifeq ($(GOARCH),arm64)
   GOEXTRAFLAGS := -trimpath -gcflags="all=-spectre= -N -l" -asmflags="all=-spectre=" -ldflags="all=-s -w"
 endif
