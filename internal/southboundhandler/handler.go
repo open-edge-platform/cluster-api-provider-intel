@@ -303,6 +303,9 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 
 	case pb.UpdateClusterStatusRequest_ERROR:
 		hostState = infrastructurev1alpha1.HostStateError
+
+	default:
+		return pb.UpdateClusterStatusResponse_NONE, fmt.Errorf("unknown status code: %d", status)
 	}
 
 	// Only update IntelMachine if it needs it
