@@ -302,6 +302,9 @@ func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.
 			// we can assume that the connection is not established yet, so we mark the IntelCluster condition as false
 			markConditionFalse(intelCluster, string(infrav1.SecureTunnelEstablishedCondition), infrav1.SecureTunnelUnknownReason, clusterv1.ConditionSeverityWarning, "No connection to cluster, waiting for connection probe condition to be true")
 		}
+		// requeue to retry reading the ClusterConnect status; the informer cache may be stale and
+		// the ConnectionProbe condition may have already transitioned to True before this reconcile ran.
+		return true
 	}
 
 	return false
