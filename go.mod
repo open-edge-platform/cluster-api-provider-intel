@@ -3,7 +3,7 @@ module github.com/open-edge-platform/cluster-api-provider-intel
 go 1.25.7
 
 require (
-	entgo.io/ent v0.14.6-0.20251106044941-a777c08cdda4
+	entgo.io/ent v0.14.6
 	github.com/envoyproxy/protoc-gen-validate v1.3.3
 	github.com/getkin/kin-openapi v0.133.0
 	github.com/gogo/grpc-example v0.0.0-20211127015421-6236971f8de2
