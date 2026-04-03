@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+# SPDX-FileCopyrightText: (C) 2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 SHELL := bash -eu -o pipefail
@@ -84,7 +84,7 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 GOARCH       := $(shell go env GOARCH)
-GOEXTRAFLAGS := -trimpath -gcflags="all=-spectre=all -N -l" -asmflags="all=-spectre=all" -ldflags="all=-s -w"
+GOEXTRAFLAGS := -trimpath -gcflags="all=-spectre=all -N -l" -asmflags="-spectre=all" -ldflags="all=-s -w"
 ifeq ($(GOARCH),arm64)
   GOEXTRAFLAGS := -trimpath -gcflags="all=-spectre= -N -l" -asmflags="all=-spectre=" -ldflags="all=-s -w"
 endif
