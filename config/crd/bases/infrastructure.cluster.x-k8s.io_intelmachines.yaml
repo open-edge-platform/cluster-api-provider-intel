@@ -125,10 +125,21 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              initialization:
+                description: initialization provides observations of the IntelMachine
+                  initialization process. This is part of the CAPI v1beta2 infrastructure
+                  contract.
+                properties:
+                  provisioned:
+                    description: provisioned is true when the Intel machine infrastructure
+                      is fully provisioned. This is part of the CAPI v1beta2 infrastructure
+                      contract.
+                    type: boolean
+                type: object
               ready:
                 description: |-
                   ready denotes that the Intel machine infrastructure is fully provisioned.
-                  NOTE: this field is part of the Cluster API contract and it is used to orchestrate provisioning.
+                  NOTE: this field is part of the Cluster API v1beta1 contract and is kept for backward compatibility.
                   The value of this field is never updated after provisioning is completed. Please use conditions
                   to check the operational state of the infra machine.
                 type: boolean

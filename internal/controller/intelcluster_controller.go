@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/paused"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -322,7 +323,9 @@ func (r *IntelClusterReconciler) reconcileNormal(clusterScope *scope.ClusterReco
 	}
 
 	// after succesfull provisioning, the status.Ready is always set to true.
+	// Initialization.Provisioned is the v1beta2 CAPI contract equivalent of status.ready.
 	clusterScope.IntelCluster.Status.Ready = true
+	clusterScope.IntelCluster.Status.Initialization.Provisioned = ptr.To(true)
 
 	if shouldRequeue := r.reconcileClusterConnectConnection(clusterScope); shouldRequeue {
 		return reconcile.Result{RequeueAfter: requeueAfter}

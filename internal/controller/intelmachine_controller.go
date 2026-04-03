@@ -11,6 +11,7 @@ import (
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -292,6 +293,8 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 		switch hostState {
 		case infrastructurev1alpha1.HostStateActive:
 			rc.intelMachine.Status.Ready = true
+			// Initialization.Provisioned is the v1beta2 CAPI contract equivalent of status.ready.
+			rc.intelMachine.Status.Initialization.Provisioned = ptr.To(true)
 			markConditionTrue(rc.intelMachine, string(infrastructurev1alpha1.BootstrapExecSucceededCondition))
 		case infrastructurev1alpha1.HostStateError:
 			markConditionFalse(rc.intelMachine, string(infrastructurev1alpha1.BootstrapExecSucceededCondition), infrastructurev1alpha1.BootstrapFailedReason, clusterv1.ConditionSeverityWarning, "")
