@@ -10,12 +10,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/naughtygopher/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/undefinedlabs/go-mpatch"
+	"go.uber.org/mock/gomock"
 	"google.golang.org/grpc"
 	"k8s.io/client-go/rest"
 	controller "sigs.k8s.io/controller-runtime"

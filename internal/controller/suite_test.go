@@ -25,7 +25,7 @@ import (
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
 	"github.com/open-edge-platform/cluster-api-provider-intel/mocks/m_inventory"
 	ccgv1 "github.com/open-edge-platform/cluster-connect-gateway/api/v1alpha1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	// +kubebuilder:scaffold:imports
 )
 

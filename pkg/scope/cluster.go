@@ -13,7 +13,7 @@ import (
 
 	"github.com/go-logr/logr"
 	infrav1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
 var (
@@ -114,16 +114,16 @@ func (b *clusterReconcileScopeBuilder) Build() (*ClusterReconcileScope, error) {
 
 func (s *ClusterReconcileScope) Close() error {
 	// always update the readyCondition by summarizing the state of other conditions
-	// a step counter is added to represent progress during the provisioning process
-	// (instead we are hiding it during the deletion process)
-	conditions.SetSummary(s.IntelCluster,
-		conditions.WithConditions(
-			infrav1.ControlPlaneEndpointReadyCondition,
-			infrav1.WorkloadCreatedReadyCondition,
-			infrav1.SecureTunnelEstablishedCondition,
-		),
-		conditions.WithStepCounterIf(s.IntelCluster.ObjectMeta.DeletionTimestamp.IsZero()),
-	)
+	if err := conditions.SetSummaryCondition(s.IntelCluster, s.IntelCluster,
+		string(clusterv1.ReadyCondition),
+		conditions.ForConditionTypes{
+			string(infrav1.ControlPlaneEndpointReadyCondition),
+			string(infrav1.WorkloadCreatedReadyCondition),
+			string(infrav1.SecureTunnelEstablishedCondition),
+		},
+	); err != nil {
+		s.Log.Error(err, "failed to set summary condition")
+	}
 
 	// patch the object, ignoring conflicts on the conditions owned by this controller
 	return s.patchHelper.Patch(
@@ -131,11 +131,11 @@ func (s *ClusterReconcileScope) Close() error {
 		// we could use an empty context for this call
 		s.Ctx,
 		s.IntelCluster,
-		patch.WithOwnedConditions{Conditions: []clusterv1.ConditionType{
-			clusterv1.ReadyCondition,
-			infrav1.ControlPlaneEndpointReadyCondition,
-			infrav1.WorkloadCreatedReadyCondition,
-			infrav1.SecureTunnelEstablishedCondition,
+		patch.WithOwnedConditions{Conditions: []string{
+			string(clusterv1.ReadyCondition),
+			string(infrav1.ControlPlaneEndpointReadyCondition),
+			string(infrav1.WorkloadCreatedReadyCondition),
+			string(infrav1.SecureTunnelEstablishedCondition),
 		}},
 	)
 }

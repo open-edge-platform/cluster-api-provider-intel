@@ -8,9 +8,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/mock"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -42,7 +44,11 @@ func FuzzMachineReconcile(f *testing.F) {
 		f.Fatalf("clusterv1.AddToScheme: %v", err)
 	}
 	cluster := utils.NewCluster(namespace, clusterName)
-	cluster.Status.InfrastructureReady = true
+	conditions.Set(cluster, metav1.Condition{
+		Type:   string(clusterv1.InfrastructureReadyCondition),
+		Status: metav1.ConditionTrue,
+		Reason: "Ready",
+	})
 	intelcluster := utils.NewIntelCluster(namespace, intelClusterName, workloadId, cluster)
 	machine := utils.NewMachine(namespace, clusterName, machineName, bootstrapKind)
 	intelmachinebinding := utils.NewIntelMachineBinding(namespace, intelMachineBindingName, nodeGUID, clusterName, machineTemplateName)
@@ -65,11 +71,19 @@ func FuzzMachineReconcile(f *testing.F) {
 		Scheme:          scheme,
 		InventoryClient: inventoryClient,
 	}
-	cluster.Spec.InfrastructureRef = utils.GetObjectRef(&intelcluster.ObjectMeta, "IntelCluster")
+	cluster.Spec.InfrastructureRef = clusterv1.ContractVersionedObjectReference{
+		Kind:     "IntelCluster",
+		Name:     intelcluster.Name,
+		APIGroup: infrastructurev1alpha1.GroupVersion.Group,
+	}
 	if err := fakeClient.Update(ctx, cluster); err != nil {
 		f.Fatalf("fakeClient.Update: %v", err)
 	}
-	machine.Spec.InfrastructureRef = *utils.GetObjectRef(&intelmachine.ObjectMeta, "IntelMachine")
+	machine.Spec.InfrastructureRef = clusterv1.ContractVersionedObjectReference{
+		Kind:     "IntelMachine",
+		Name:     intelmachine.Name,
+		APIGroup: infrastructurev1alpha1.GroupVersion.Group,
+	}
 	if err := fakeClient.Update(ctx, machine); err != nil {
 		f.Fatalf("fakeClient.Update: %v", err)
 	}

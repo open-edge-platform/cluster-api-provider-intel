@@ -23,7 +23,7 @@ import (
 	pb "github.com/open-edge-platform/cluster-api-provider-intel/pkg/api/proto"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/tenant"
 	utils "github.com/open-edge-platform/cluster-api-provider-intel/test/utils"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
 const (
@@ -640,7 +640,8 @@ func TestHandler_UpdateStatus_UnpauseCluster(t *testing.T) {
 
 	// Define test Cluster
 	cluster := utils.NewCluster(projectId, clusterName)
-	cluster.Spec.Paused = true
+	paused := true
+	cluster.Spec.Paused = &paused
 
 	// Define test IntelMachineBinding
 	machineBinding := utils.NewIntelMachineBinding(projectId, clusterName, nodeGUID, clusterName, "test-template")
@@ -670,7 +671,7 @@ func TestHandler_UpdateStatus_UnpauseCluster(t *testing.T) {
 			err = testHandler.client.Get(ctx, client.ObjectKey{Name: clusterName, Namespace: projectId},
 				&updatedCluster)
 			assert.NoError(t, err)
-			return updatedCluster.Spec.Paused == false
+			return updatedCluster.Spec.Paused == nil || !*updatedCluster.Spec.Paused
 		}, 3*time.Second, 10*time.Millisecond)
 	})
 }

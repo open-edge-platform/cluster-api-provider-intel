@@ -8,7 +8,6 @@ require (
 	github.com/getkin/kin-openapi v0.133.0
 	github.com/gogo/grpc-example v0.0.0-20211127015421-6236971f8de2
 	github.com/golang-jwt/jwt/v5 v5.3.1
-	github.com/golang/mock v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/hashicorp/vault/api v1.22.0
@@ -19,7 +18,7 @@ require (
 	github.com/oapi-codegen/echo-middleware v1.0.2
 	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.39.1
-	github.com/open-edge-platform/cluster-connect-gateway v1.2.5
+	github.com/open-edge-platform/cluster-connect-gateway v1.2.8
 	github.com/open-edge-platform/infra-core/inventory/v2 v2.34.4
 	github.com/open-edge-platform/orch-library/go v0.6.3
 	github.com/open-policy-agent/opa v1.14.0
@@ -29,6 +28,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.65.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.67.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.40.0
+	go.uber.org/mock v0.6.0
 	k8s.io/apimachinery v0.35.2
 	k8s.io/client-go v0.35.2
 	sigs.k8s.io/cluster-api/test/infrastructure/docker v0.0.0-20210602185643-40841d9837b8
@@ -107,7 +107,6 @@ require (
 	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.3 // indirect
-	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fastjson v1.6.7 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
@@ -181,7 +180,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.42.0
 	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.27.0 // indirect
+	go.uber.org/zap v1.27.1 // indirect
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/oauth2 v0.35.0 // indirect
@@ -202,7 +201,9 @@ require (
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
-	sigs.k8s.io/cluster-api v1.10.4
+	sigs.k8s.io/cluster-api v1.11.5
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
+
+replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.11.5

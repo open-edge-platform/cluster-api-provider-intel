@@ -5,7 +5,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
 const (
@@ -43,25 +42,13 @@ type IntelMachineSpec struct {
 
 // IntelMachineStatus defines the observed state of IntelMachine.
 type IntelMachineStatus struct {
-	// Conditions is a list of conditions that describe the state of the IntelMachine.
-	// +optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
-
-	// v1beta2 groups all the fields that will be added or modified in IntelMachine's status with the V1Beta2 version.
-	// +optional
-	V1Beta2 *IntelMachineV1Beta2Status `json:"v1beta2,omitempty"`
-
 	// ready denotes that the Intel machine infrastructure is fully provisioned.
 	// NOTE: this field is part of the Cluster API contract and it is used to orchestrate provisioning.
 	// The value of this field is never updated after provisioning is completed. Please use conditions
 	// to check the operational state of the infra machine.
 	// +optional
 	Ready bool `json:"ready,omitempty"`
-}
 
-// IntelMachineV1Beta2Status groups all the fields that will be added or modified in IntelMachine with the V1Beta2 version.
-// See https://github.com/kubernetes-sigs/cluster-api/blob/main/docs/proposals/20240916-improve-status-in-CAPI-resources.md for more context.
-type IntelMachineV1Beta2Status struct {
 	// conditions represents the observations of an IntelMachine's current state.
 	// Known condition types are Ready, Provisioned, BootstrapExecSucceeded, Deleting, Paused.
 	// +optional
@@ -76,7 +63,7 @@ type IntelMachineV1Beta2Status struct {
 // +kubebuilder:printcolumn:name="Provider ID",type=string,JSONPath=`.spec.providerID`
 // +kubebuilder:printcolumn:name="Node GUID",type=string,JSONPath=`.spec.nodeGUID`
 // +kubebuilder:printcolumn:name="Ready",type=boolean,JSONPath=`.status.ready`
-// +kubebuilder:metadata:labels="cluster.x-k8s.io/v1beta1=v1alpha1"
+// +kubebuilder:metadata:labels="cluster.x-k8s.io/v1beta2=v1alpha1"
 
 // IntelMachine is the Schema for the intelmachines API.
 type IntelMachine struct {
@@ -88,29 +75,15 @@ type IntelMachine struct {
 }
 
 // GetConditions returns the set of conditions for this object.
-func (c *IntelMachine) GetConditions() clusterv1.Conditions {
+// This implements the v1beta2 Getter interface.
+func (c *IntelMachine) GetConditions() []metav1.Condition {
 	return c.Status.Conditions
 }
 
 // SetConditions sets the conditions on this object.
-func (c *IntelMachine) SetConditions(conditions clusterv1.Conditions) {
+// This implements the v1beta2 Setter interface.
+func (c *IntelMachine) SetConditions(conditions []metav1.Condition) {
 	c.Status.Conditions = conditions
-}
-
-// GetV1Beta2Conditions returns the set of conditions for this object.
-func (c *IntelMachine) GetV1Beta2Conditions() []metav1.Condition {
-	if c.Status.V1Beta2 == nil {
-		return nil
-	}
-	return c.Status.V1Beta2.Conditions
-}
-
-// SetV1Beta2Conditions sets conditions for an API object.
-func (c *IntelMachine) SetV1Beta2Conditions(conditions []metav1.Condition) {
-	if c.Status.V1Beta2 == nil {
-		c.Status.V1Beta2 = &IntelMachineV1Beta2Status{}
-	}
-	c.Status.V1Beta2.Conditions = conditions
 }
 
 // +kubebuilder:object:root=true

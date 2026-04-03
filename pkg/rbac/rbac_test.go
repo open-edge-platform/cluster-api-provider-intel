@@ -8,13 +8,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	testing_utils "github.com/open-edge-platform/cluster-api-provider-intel/pkg/testing"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/undefinedlabs/go-mpatch"
+	"go.uber.org/mock/gomock"
 )
 
 const (

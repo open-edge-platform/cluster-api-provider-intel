@@ -13,9 +13,11 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -76,10 +78,16 @@ var _ = Describe("IntelCluster Controller", func() {
 			intelCluster = utils.NewIntelClusterNoSpec(cluster)
 			Expect(k8sClient.Create(ctx, intelCluster)).To(Succeed())
 
-			cluster.Spec.InfrastructureRef = utils.GetObjectRef(&intelCluster.ObjectMeta, "IntelCluster")
+			cluster.Spec.InfrastructureRef = clusterv1.ContractVersionedObjectReference{
+				Kind:     "IntelCluster",
+				Name:     intelCluster.Name,
+				APIGroup: infrastructurev1alpha1.GroupVersion.Group,
+			}
 			Expect(k8sClient.Update(ctx, cluster)).To(Succeed())
-			// TODO: refactor to reuse GetObjectRef
-			cluster.Spec.ControlPlaneRef = &corev1.ObjectReference{Name: cluster.Name + "-controlplane"}
+			cluster.Spec.ControlPlaneRef = clusterv1.ContractVersionedObjectReference{
+				Kind: "KubeadmControlPlane",
+				Name: cluster.Name + "-controlplane",
+			}
 			Expect(k8sClient.Update(ctx, cluster)).To(Succeed())
 
 			inventoryClient.On("CreateWorkload",
@@ -212,11 +220,17 @@ var _ = Describe("IntelCluster Controller", func() {
 			intelCluster = utils.NewIntelClusterNoSpec(cluster)
 			Expect(k8sClient.Create(ctx, intelCluster)).To(Succeed())
 
-			cluster.Spec.InfrastructureRef = utils.GetObjectRef(&intelCluster.ObjectMeta, "IntelCluster")
+			cluster.Spec.InfrastructureRef = clusterv1.ContractVersionedObjectReference{
+				Kind:     "IntelCluster",
+				Name:     intelCluster.Name,
+				APIGroup: infrastructurev1alpha1.GroupVersion.Group,
+			}
 			Expect(k8sClient.Update(ctx, cluster)).To(Succeed())
 
-			// TODO: refactor to reuse GetObjectRef
-			cluster.Spec.ControlPlaneRef = &corev1.ObjectReference{Name: cluster.Name + "-controlplane"}
+			cluster.Spec.ControlPlaneRef = clusterv1.ContractVersionedObjectReference{
+				Kind: "KubeadmControlPlane",
+				Name: cluster.Name + "-controlplane",
+			}
 			Expect(k8sClient.Update(ctx, cluster)).To(Succeed())
 
 			inventoryClient.On("CreateWorkload", inventory.CreateWorkloadInput{TenantId: namespaceName, ClusterName: clusterName}).
@@ -311,7 +325,11 @@ var _ = Describe("Reconcile loop errors", func() {
 			Expect(ccgv1.AddToScheme(scheme)).To(Succeed()) // Register ClusterConnect type
 
 			cluster = utils.NewCluster(namespace, clusterName)
-			cluster.Status.InfrastructureReady = true
+			conditions.Set(cluster, metav1.Condition{
+				Type:   string(clusterv1.InfrastructureReadyCondition),
+				Status: metav1.ConditionTrue,
+				Reason: "Ready",
+			})
 			intelcluster = utils.NewIntelCluster(namespace, intelClusterName, "provider-id", cluster)
 
 			fakeClient = fake.NewClientBuilder().

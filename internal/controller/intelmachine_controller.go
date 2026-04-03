@@ -19,7 +19,7 @@ import (
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
 	inventory "github.com/open-edge-platform/cluster-api-provider-intel/pkg/inventory"
 	"github.com/pkg/errors"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	clog "sigs.k8s.io/cluster-api/util/log"
@@ -121,7 +121,7 @@ func (r *IntelMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	if rc.cluster.Spec.InfrastructureRef == nil {
+	if rc.cluster.Spec.InfrastructureRef.Name == "" {
 		rc.log.Info("Cluster infrastructureRef is not available yet")
 		return ctrl.Result{}, nil
 	}
@@ -226,7 +226,7 @@ func (r *IntelMachineReconciler) reconcileDelete(rc IntelMachineReconcilerContex
 	if err != nil {
 		return err
 	}
-	conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, clusterv1.DeletingReason, clusterv1.ConditionSeverityInfo, "")
+	markConditionFalse(rc.intelMachine, string(infrastructurev1alpha1.HostProvisionedCondition), string(clusterv1.DeletingReason), clusterv1.ConditionSeverityInfo, "")
 	if err := patchIntelMachine(rc.ctx, patchHelper, rc.intelMachine); err != nil {
 		return errors.Wrap(err, "failed to patch IntelMachine")
 	}
@@ -269,20 +269,20 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	rc.log.Info("Reconciling IntelMachine")
 
 	// Check if the infrastructure is ready, otherwise return and wait for the cluster object to be updated
-	if !rc.cluster.Status.InfrastructureReady {
+	if !conditions.IsTrue(rc.cluster, string(clusterv1.InfrastructureReadyCondition)) {
 		rc.log.Info("Waiting for IntelCluster Controller to create cluster infrastructure")
-		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForClusterInfrastructureReason, clusterv1.ConditionSeverityInfo, "")
+		markConditionFalse(rc.intelMachine, string(infrastructurev1alpha1.HostProvisionedCondition), infrastructurev1alpha1.WaitingForClusterInfrastructureReason, clusterv1.ConditionSeverityInfo, "")
 		return true
 	}
 
 	// if the machine is already provisioned, check host status and return
 	if rc.intelMachine.Spec.ProviderID != nil {
-		conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition)
+		markConditionTrue(rc.intelMachine, string(infrastructurev1alpha1.HostProvisionedCondition))
 
 		// SB handler will add the host state as reported by the Cluster Agent to the IntelMachine as an annotation.
 		hostState, ok := rc.intelMachine.Annotations[infrastructurev1alpha1.HostStateAnnotation]
 		if !ok {
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrappingReason, clusterv1.ConditionSeverityInfo, "waiting for SB handler to report host state")
+			markConditionFalse(rc.intelMachine, string(infrastructurev1alpha1.BootstrapExecSucceededCondition), infrastructurev1alpha1.BootstrappingReason, clusterv1.ConditionSeverityInfo, "waiting for SB handler to report host state")
 			rc.log.Info("Waiting on SB Handler to report host state")
 
 			// Adding Annotation will trigger a requeue, so we don't need to requeue.
@@ -292,13 +292,13 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 		switch hostState {
 		case infrastructurev1alpha1.HostStateActive:
 			rc.intelMachine.Status.Ready = true
-			conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition)
+			markConditionTrue(rc.intelMachine, string(infrastructurev1alpha1.BootstrapExecSucceededCondition))
 		case infrastructurev1alpha1.HostStateError:
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrapFailedReason, clusterv1.ConditionSeverityWarning, "")
+			markConditionFalse(rc.intelMachine, string(infrastructurev1alpha1.BootstrapExecSucceededCondition), infrastructurev1alpha1.BootstrapFailedReason, clusterv1.ConditionSeverityWarning, "")
 		case infrastructurev1alpha1.HostStateInProgress:
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrappingReason, clusterv1.ConditionSeverityInfo, "")
+			markConditionFalse(rc.intelMachine, string(infrastructurev1alpha1.BootstrapExecSucceededCondition), infrastructurev1alpha1.BootstrappingReason, clusterv1.ConditionSeverityInfo, "")
 		case infrastructurev1alpha1.HostStateInactive:
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.BootstrapExecSucceededCondition, infrastructurev1alpha1.BootstrapWaitingReason, clusterv1.ConditionSeverityInfo, "")
+			markConditionFalse(rc.intelMachine, string(infrastructurev1alpha1.BootstrapExecSucceededCondition), infrastructurev1alpha1.BootstrapWaitingReason, clusterv1.ConditionSeverityInfo, "")
 		default:
 			rc.log.Info(fmt.Sprintf("Unexpected host state %q reported by SB Handler", hostState))
 		}
@@ -311,14 +311,14 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 
 	// Make sure bootstrap data is available and populated.
 	if dataSecretName == nil {
-		if !util.IsControlPlaneMachine(rc.machine) && !conditions.IsTrue(rc.cluster, clusterv1.ControlPlaneInitializedCondition) {
+		if !util.IsControlPlaneMachine(rc.machine) && !conditions.IsTrue(rc.cluster, string(clusterv1.ClusterControlPlaneInitializedCondition)) {
 			rc.log.Info("Waiting for the control plane to be initialized")
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, clusterv1.WaitingForControlPlaneAvailableReason, clusterv1.ConditionSeverityInfo, "")
+			markConditionFalse(rc.intelMachine, string(infrastructurev1alpha1.HostProvisionedCondition), "WaitingForControlPlaneAvailable", clusterv1.ConditionSeverityInfo, "")
 			return true
 		}
 
 		rc.log.Info("Waiting for the Bootstrap provider controller to set bootstrap data")
-		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForBootstrapDataReason, clusterv1.ConditionSeverityInfo, "")
+		markConditionFalse(rc.intelMachine, string(infrastructurev1alpha1.HostProvisionedCondition), infrastructurev1alpha1.WaitingForBootstrapDataReason, clusterv1.ConditionSeverityInfo, "")
 		return true
 	}
 
@@ -326,7 +326,7 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	if rc.intelMachine.Spec.NodeGUID == "" {
 		err := r.allocateNodeGUID(rc)
 		if err != nil {
-			conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.WaitingForMachineBindingReason, clusterv1.ConditionSeverityWarning, "%v", err)
+			markConditionFalse(rc.intelMachine, string(infrastructurev1alpha1.HostProvisionedCondition), infrastructurev1alpha1.WaitingForMachineBindingReason, clusterv1.ConditionSeverityWarning, "%v", err)
 			rc.log.Info("Error allocating NodeGUID", "error", err)
 			return true
 		}
@@ -340,7 +340,7 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	}
 	gmRes := r.InventoryClient.GetInstanceByMachineId(gmReq)
 	if gmRes.Err != nil {
-		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.HostProvisioningFailedReason, clusterv1.ConditionSeverityWarning, "%v", gmRes)
+		markConditionFalse(rc.intelMachine, string(infrastructurev1alpha1.HostProvisionedCondition), infrastructurev1alpha1.HostProvisioningFailedReason, clusterv1.ConditionSeverityWarning, "%v", gmRes)
 		return true
 	}
 
@@ -351,14 +351,14 @@ func (r *IntelMachineReconciler) reconcileNormal(rc IntelMachineReconcilerContex
 	}
 
 	if aiRes := r.InventoryClient.AddInstanceToWorkload(aiReq); aiRes.Err != nil {
-		conditions.MarkFalse(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition, infrastructurev1alpha1.HostProvisioningFailedReason, clusterv1.ConditionSeverityWarning, "%v", aiRes.Err)
+		markConditionFalse(rc.intelMachine, string(infrastructurev1alpha1.HostProvisionedCondition), infrastructurev1alpha1.HostProvisioningFailedReason, clusterv1.ConditionSeverityWarning, "%v", aiRes.Err)
 		return true
 	}
 
 	// Set ProviderID so the Cluster API Machine Controller can pull it
 	rc.intelMachine.Spec.ProviderID = &gmRes.Instance.Id
 	rc.intelMachine.Annotations[infrastructurev1alpha1.HostIdAnnotation] = gmRes.Host.Id
-	conditions.MarkTrue(rc.intelMachine, infrastructurev1alpha1.HostProvisionedCondition)
+	markConditionTrue(rc.intelMachine, string(infrastructurev1alpha1.HostProvisionedCondition))
 	return false
 }
 
@@ -464,23 +464,24 @@ func getIntelMachineBindingKey(clusterName, intelMachineTemplateName string) str
 
 func patchIntelMachine(ctx context.Context, patchHelper *patch.Helper, intelMachine *infrastructurev1alpha1.IntelMachine) error {
 	// Always update the readyCondition by summarizing the state of other conditions.
-	// A step counter is added to represent progress during the provisioning process (instead we are hiding the step counter during the deletion process).
-	conditions.SetSummary(intelMachine,
-		conditions.WithConditions(
-			infrastructurev1alpha1.HostProvisionedCondition,
-			infrastructurev1alpha1.BootstrapExecSucceededCondition,
-		),
-		conditions.WithStepCounterIf(intelMachine.ObjectMeta.DeletionTimestamp.IsZero() && intelMachine.Spec.ProviderID == nil),
-	)
+	if err := conditions.SetSummaryCondition(intelMachine, intelMachine,
+		string(clusterv1.ReadyCondition),
+		conditions.ForConditionTypes{
+			string(infrastructurev1alpha1.HostProvisionedCondition),
+			string(infrastructurev1alpha1.BootstrapExecSucceededCondition),
+		},
+	); err != nil {
+		return err
+	}
 
 	// Patch the object, ignoring conflicts on the conditions owned by this controller.
 	return patchHelper.Patch(
 		ctx,
 		intelMachine,
-		patch.WithOwnedConditions{Conditions: []clusterv1.ConditionType{
-			clusterv1.ReadyCondition,
-			infrastructurev1alpha1.HostProvisionedCondition,
-			infrastructurev1alpha1.BootstrapExecSucceededCondition,
+		patch.WithOwnedConditions{Conditions: []string{
+			string(clusterv1.ReadyCondition),
+			string(infrastructurev1alpha1.HostProvisionedCondition),
+			string(infrastructurev1alpha1.BootstrapExecSucceededCondition),
 		}},
 	)
 }

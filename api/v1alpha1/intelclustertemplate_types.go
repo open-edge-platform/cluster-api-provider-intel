@@ -5,7 +5,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
 // IntelClusterTemplateSpec defines the desired state of IntelClusterTemplate
@@ -16,7 +16,7 @@ type IntelClusterTemplateSpec struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=intelclustertemplates,scope=Namespaced,categories=cluster-api
 // +kubebuilder:storageversion
-// +kubebuilder:metadata:labels="cluster.x-k8s.io/v1beta1=v1alpha1"
+// +kubebuilder:metadata:labels="cluster.x-k8s.io/v1beta2=v1alpha1"
 
 // IntelClusterTemplate is the Schema for the intelclustertemplates API
 type IntelClusterTemplate struct {

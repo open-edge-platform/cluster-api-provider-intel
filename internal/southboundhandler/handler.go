@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	cloudinit "sigs.k8s.io/cluster-api/test/infrastructure/docker/cloudinit"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -260,7 +260,7 @@ func (h *Handler) UpdateStatus(ctx context.Context, nodeGUID string, status pb.U
 	if intelmachine == nil {
 		// unpause the cluster if paused
 		cluster, err := h.getCluster(ctx, projectId, nodeGUID)
-		if cluster != nil && cluster.Spec.Paused {
+		if cluster != nil && cluster.Spec.Paused != nil && *cluster.Spec.Paused {
 			log.Debug().Msgf("Unpausing cluster %s/%s", cluster.Namespace, cluster.Name)
 			err = unpauseCluster(ctx, h.client, cluster)
 			log.Debug().Msgf("Cluster unpause result: %v", err)
@@ -444,13 +444,14 @@ func (h *Handler) getCluster(ctx context.Context, projectId string, nodeID strin
 
 // Check if a cluster exists for the node and unset Paused flag if it is set
 func unpauseCluster(ctx context.Context, client ctrlclient.Client, cluster *clusterv1.Cluster) error {
-	if cluster != nil && cluster.Spec.Paused {
+	if cluster != nil && cluster.Spec.Paused != nil && *cluster.Spec.Paused {
 		patchHelper, err := patch.NewHelper(cluster, client)
 		if err != nil {
 			log.Error().Msgf("Failed to create patch helper: %v", err)
 			return err
 		}
-		cluster.Spec.Paused = false
+		paused := false
+		cluster.Spec.Paused = &paused
 		if err := patchHelper.Patch(ctx, cluster); err != nil {
 			log.Error().Msgf("Failed to unpause the cluster: %v", err)
 			return err

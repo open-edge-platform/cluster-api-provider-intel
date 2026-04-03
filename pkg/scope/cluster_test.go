@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -191,7 +192,11 @@ func TestClusterScopeCloseWithError(t *testing.T) {
 		mock.Anything).Return(nil)
 	fakeClient.On("Status").Return(subRW)
 
-	conditions.MarkTrue(testIntelCluster, infrav1.WorkloadCreatedReadyCondition)
+	conditions.Set(testIntelCluster, metav1.Condition{
+		Type:   string(infrav1.WorkloadCreatedReadyCondition),
+		Status: metav1.ConditionTrue,
+		Reason: "Ready",
+	})
 	scope, err := NewClusterReconcileScopeBuilder().
 		WithContext(context).
 		WithLog(&testLogger).

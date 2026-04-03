@@ -49,6 +49,15 @@ var _ = Describe("Manager", Ordered, func() {
 		cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectImage))
 		_, err = utils.Run(cmd)
 		Expect(err).NotTo(HaveOccurred(), "Failed to deploy the controller-manager")
+
+		By("patching controller-manager to use inventory stub")
+		cmd = exec.Command("kubectl", "patch", "deployment",
+			"cluster-api-provider-intel-controller-manager",
+			"-n", namespace,
+			"--type=json",
+			"-p=[{\"op\": \"add\", \"path\": \"/spec/template/spec/containers/0/args/-\", \"value\": \"--use-inv-stub=true\"}]")
+		_, err = utils.Run(cmd)
+		Expect(err).NotTo(HaveOccurred(), "Failed to patch controller-manager deployment")
 	})
 
 	// After all tests have been executed, clean up by undeploying the controller, uninstalling CRDs,
@@ -115,7 +124,7 @@ var _ = Describe("Manager", Ordered, func() {
 	})
 
 	SetDefaultEventuallyTimeout(2 * time.Minute)
-	SetDefaultEventuallyPollingInterval(time.Second)
+	SetDefaultEventuallyPollingInterval(5 * time.Second)
 
 	Context("Manager", func() {
 		It("should run successfully", func() {

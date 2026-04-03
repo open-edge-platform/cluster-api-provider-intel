@@ -5,7 +5,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
 const (
@@ -22,18 +22,6 @@ type IntelClusterSpec struct {
 	ProviderId string `json:"providerId"`
 }
 
-// IntelClusterV1Beta2Status groups all the fields that will be added or modified in IntelCluster with the V1Beta2 version.
-// See https://github.com/kubernetes-sigs/cluster-api/blob/main/docs/proposals/20240916-improve-status-in-CAPI-resources.md for more context.
-type IntelClusterV1Beta2Status struct {
-	// conditions represents the observations of an IntelCluster's current state.
-	// Known condition types are Ready, Provisioned, BootstrapExecSucceeded, Deleting, Paused.
-	// +optional
-	// +listType=map
-	// +listMapKey=type
-	// +kubebuilder:validation:MaxItems=32
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
-}
-
 // IntelClusterStatus defines the observed state of IntelCluster
 type IntelClusterStatus struct {
 	// ready denotes that the Intel cluster infrastructure is fully provisioned
@@ -41,11 +29,15 @@ type IntelClusterStatus struct {
 	// The value of this field is never updated after provisioning is completed. Please use conditions
 	// to check the operational state of the infa cluster.
 	// +optional
-	Ready      bool                 `json:"ready"`
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
-	// v1beta2 groups all the fields that will be added or modified in IntelCluster's status with the V1Beta2 version.
+	Ready bool `json:"ready"`
+
+	// conditions represents the observations of an IntelCluster's current state.
+	// Known condition types are Ready, Provisioned, Deleting, Paused.
 	// +optional
-	V1Beta2 *IntelClusterV1Beta2Status `json:"v1beta2,omitempty"`
+	// +listType=map
+	// +listMapKey=type
+	// +kubebuilder:validation:MaxItems=32
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -55,7 +47,7 @@ type IntelClusterStatus struct {
 // +kubebuilder:printcolumn:name="ProviderId",type="string",JSONPath=".spec.providerId",description="ProviderId associated with the cluster"
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="IntelCluster is ready for IntelMachine"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time duration since creation of IntelCluster"
-// +kubebuilder:metadata:labels="cluster.x-k8s.io/v1beta1=v1alpha1"
+// +kubebuilder:metadata:labels="cluster.x-k8s.io/v1beta2=v1alpha1"
 
 // IntelCluster is the Schema for the intelclusters API
 type IntelCluster struct {
@@ -67,29 +59,15 @@ type IntelCluster struct {
 }
 
 // GetConditions returns the observations of the operational state of the IntelCluster resource.
-func (r *IntelCluster) GetConditions() clusterv1.Conditions {
-	return r.Status.Conditions
+// This implements the v1beta2 Getter interface.
+func (c *IntelCluster) GetConditions() []metav1.Condition {
+	return c.Status.Conditions
 }
 
-// SetConditions sets the underlying service state of the IntelCluster to the predescribed clusterv1.Conditions.
-func (r *IntelCluster) SetConditions(conditions clusterv1.Conditions) {
-	r.Status.Conditions = conditions
-}
-
-// GetV1Beta2Conditions returns the set of conditions for this object.
-func (c *IntelCluster) GetV1Beta2Conditions() []metav1.Condition {
-	if c.Status.V1Beta2 == nil {
-		return nil
-	}
-	return c.Status.V1Beta2.Conditions
-}
-
-// SetV1Beta2Conditions sets conditions for an API object.
-func (c *IntelCluster) SetV1Beta2Conditions(conditions []metav1.Condition) {
-	if c.Status.V1Beta2 == nil {
-		c.Status.V1Beta2 = &IntelClusterV1Beta2Status{}
-	}
-	c.Status.V1Beta2.Conditions = conditions
+// SetConditions sets the underlying service state of the IntelCluster to the predescribed conditions.
+// This implements the v1beta2 Setter interface.
+func (c *IntelCluster) SetConditions(conditions []metav1.Condition) {
+	c.Status.Conditions = conditions
 }
 
 // +kubebuilder:object:root=true

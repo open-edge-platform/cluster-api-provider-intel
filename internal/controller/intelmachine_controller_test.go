@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -21,7 +22,7 @@ import (
 	"github.com/open-edge-platform/cluster-api-provider-intel/mocks/m_inventory"
 	inventory "github.com/open-edge-platform/cluster-api-provider-intel/pkg/inventory"
 	utils "github.com/open-edge-platform/cluster-api-provider-intel/test/utils"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 )
 
@@ -72,7 +73,11 @@ var _ = Describe("IntelMachine Controller", func() {
 			Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &clusterv1.Cluster{}))).To(BeTrue())
 			cluster = utils.NewCluster(namespace, clusterName)
 			Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
-			cluster.Status.InfrastructureReady = true
+			conditions.Set(cluster, metav1.Condition{
+				Type:   string(clusterv1.InfrastructureReadyCondition),
+				Status: metav1.ConditionTrue,
+				Reason: "Ready",
+			})
 			Expect(k8sClient.Status().Update(ctx, cluster)).To(Succeed())
 
 			// Create the intelcluster after checking that it does not exist
@@ -82,7 +87,11 @@ var _ = Describe("IntelMachine Controller", func() {
 			Expect(k8sClient.Create(ctx, intelcluster)).To(Succeed())
 
 			// Update the cluster's infrastructureRef to point to the intelcluster
-			cluster.Spec.InfrastructureRef = utils.GetObjectRef(&intelcluster.ObjectMeta, "IntelCluster")
+			cluster.Spec.InfrastructureRef = clusterv1.ContractVersionedObjectReference{
+				Kind:     "IntelCluster",
+				Name:     intelcluster.Name,
+				APIGroup: infrastructurev1alpha1.GroupVersion.Group,
+			}
 			Expect(k8sClient.Update(ctx, cluster)).To(Succeed())
 
 			// Create the machine after checking that it does not exist
@@ -136,7 +145,11 @@ var _ = Describe("IntelMachine Controller", func() {
 			Expect(k8sClient.Create(ctx, intelmachine)).To(Succeed())
 
 			// Update the machine to point to the intelmachine
-			machine.Spec.InfrastructureRef = *utils.GetObjectRef(&intelmachine.ObjectMeta, "IntelMachine")
+			machine.Spec.InfrastructureRef = clusterv1.ContractVersionedObjectReference{
+				Kind:     "IntelMachine",
+				Name:     intelmachine.Name,
+				APIGroup: infrastructurev1alpha1.GroupVersion.Group,
+			}
 			Expect(k8sClient.Update(ctx, machine)).To(Succeed())
 		})
 
@@ -151,8 +164,8 @@ var _ = Describe("IntelMachine Controller", func() {
 				resource := &infrastructurev1alpha1.IntelMachine{}
 				g.Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
 				g.Expect(resource.DeletionTimestamp.IsZero()).To(BeFalse())
-				g.Expect(conditions.IsFalse(resource, infrastructurev1alpha1.HostProvisionedCondition)).To(BeTrue())
-				g.Expect(conditions.IsFalse(resource, clusterv1.ReadyCondition)).To(BeTrue())
+				g.Expect(conditions.IsFalse(resource, string(infrastructurev1alpha1.HostProvisionedCondition))).To(BeTrue())
+				g.Expect(conditions.IsFalse(resource, string(clusterv1.ReadyCondition))).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			By("Removing the IntelMachine's HostCleanupFinalizer")
@@ -215,10 +228,10 @@ var _ = Describe("IntelMachine Controller", func() {
 				g.Expect(resource.Spec.NodeGUID).To(Equal(nodeGUID))
 				g.Expect(resource.ObjectMeta.Labels[infrastructurev1alpha1.NodeGUIDKey]).To(Equal(nodeGUID))
 				g.Expect(resource.Status.Ready).To(BeFalse())
-				g.Expect(conditions.IsTrue(resource, infrastructurev1alpha1.HostProvisionedCondition)).To(BeTrue())
-				g.Expect(conditions.IsFalse(resource, infrastructurev1alpha1.BootstrapExecSucceededCondition)).To(BeTrue())
-				g.Expect(conditions.GetReason(resource, infrastructurev1alpha1.BootstrapExecSucceededCondition)).To(Equal(infrastructurev1alpha1.BootstrappingReason))
-				g.Expect(conditions.IsFalse(resource, clusterv1.ReadyCondition)).To(BeTrue())
+				g.Expect(conditions.IsTrue(resource, string(infrastructurev1alpha1.HostProvisionedCondition))).To(BeTrue())
+				g.Expect(conditions.IsFalse(resource, string(infrastructurev1alpha1.BootstrapExecSucceededCondition))).To(BeTrue())
+				g.Expect(conditions.GetReason(resource, string(infrastructurev1alpha1.BootstrapExecSucceededCondition))).To(Equal(infrastructurev1alpha1.BootstrappingReason))
+				g.Expect(conditions.IsFalse(resource, string(clusterv1.ReadyCondition))).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			By("By checking the IntelMachine has the expected finalizers")
@@ -244,9 +257,9 @@ var _ = Describe("IntelMachine Controller", func() {
 				g.Expect(resource.Spec.ProviderID).NotTo(BeNil())
 				g.Expect(resource.Status.Ready).To(BeTrue())
 				g.Expect(resource.Annotations[infrastructurev1alpha1.HostIdAnnotation]).To(Equal(hostId))
-				g.Expect(conditions.IsTrue(resource, infrastructurev1alpha1.HostProvisionedCondition)).To(BeTrue())
-				g.Expect(conditions.IsTrue(resource, infrastructurev1alpha1.BootstrapExecSucceededCondition)).To(BeTrue())
-				g.Expect(conditions.IsTrue(resource, clusterv1.ReadyCondition)).To(BeTrue())
+				g.Expect(conditions.IsTrue(resource, string(infrastructurev1alpha1.HostProvisionedCondition))).To(BeTrue())
+				g.Expect(conditions.IsTrue(resource, string(infrastructurev1alpha1.BootstrapExecSucceededCondition))).To(BeTrue())
+				g.Expect(conditions.IsTrue(resource, string(clusterv1.ReadyCondition))).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			By("Checking that the owner Machine has skip-remediation annotation")
@@ -296,7 +309,11 @@ var _ = Describe("Reconcile loop errors", func() {
 			Expect(clusterv1.AddToScheme(scheme)).To(Succeed())
 
 			cluster = utils.NewCluster(namespace, clusterName)
-			cluster.Status.InfrastructureReady = true
+			conditions.Set(cluster, metav1.Condition{
+				Type:   string(clusterv1.InfrastructureReadyCondition),
+				Status: metav1.ConditionTrue,
+				Reason: "Ready",
+			})
 			intelcluster = utils.NewIntelCluster(namespace, intelClusterName, workloadId, cluster)
 			machine = utils.NewMachine(namespace, clusterName, machineName, bootstrapKind)
 			intelmachinebinding = utils.NewIntelMachineBinding(namespace, intelMachineBindingName, nodeGUID, clusterName, machineTemplateName)
@@ -323,11 +340,19 @@ var _ = Describe("Reconcile loop errors", func() {
 			}
 
 			// Update the cluster's infrastructureRef to point to the intelcluster
-			cluster.Spec.InfrastructureRef = utils.GetObjectRef(&intelcluster.ObjectMeta, "IntelCluster")
+			cluster.Spec.InfrastructureRef = clusterv1.ContractVersionedObjectReference{
+				Kind:     "IntelCluster",
+				Name:     intelcluster.Name,
+				APIGroup: infrastructurev1alpha1.GroupVersion.Group,
+			}
 			Expect(fakeClient.Update(ctx, cluster)).To(Succeed())
 
 			// Update the machine to point to the intelmachine
-			machine.Spec.InfrastructureRef = *utils.GetObjectRef(&intelmachine.ObjectMeta, "IntelMachine")
+			machine.Spec.InfrastructureRef = clusterv1.ContractVersionedObjectReference{
+				Kind:     "IntelMachine",
+				Name:     intelmachine.Name,
+				APIGroup: infrastructurev1alpha1.GroupVersion.Group,
+			}
 			Expect(fakeClient.Update(ctx, machine)).To(Succeed())
 
 			// Add mocks for IntelMachine
@@ -440,8 +465,8 @@ var _ = Describe("Reconcile loop errors", func() {
 			key := types.NamespacedName{Name: clusterName, Namespace: namespace}
 			c := &clusterv1.Cluster{}
 			Expect(fakeClient.Get(ctx, key, c)).To(Succeed())
-			Expect(c.Spec.InfrastructureRef).NotTo(BeNil())
-			c.Spec.InfrastructureRef = nil
+			Expect(c.Spec.InfrastructureRef.Name).NotTo(BeEmpty())
+			c.Spec.InfrastructureRef = clusterv1.ContractVersionedObjectReference{}
 			Expect(fakeClient.Update(ctx, c)).To(Succeed())
 
 			key = types.NamespacedName{Name: intelMachineName, Namespace: namespace}
