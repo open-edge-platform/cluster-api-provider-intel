@@ -1,6 +1,6 @@
 module github.com/open-edge-platform/cluster-api-provider-intel
 
-go 1.25.7
+go 1.26.1
 
 require (
 	entgo.io/ent v0.14.6
