@@ -19,7 +19,7 @@ require (
 	github.com/oapi-codegen/echo-middleware v1.0.2
 	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.39.1
-	github.com/open-edge-platform/cluster-connect-gateway v1.2.7
+	github.com/open-edge-platform/cluster-connect-gateway v1.2.8
 	github.com/open-edge-platform/infra-core/inventory/v2 v2.34.5
 	github.com/open-edge-platform/orch-library/go v0.6.3
 	github.com/open-policy-agent/opa v1.15.0
@@ -202,7 +202,7 @@ require (
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
-	sigs.k8s.io/cluster-api v1.10.10
+	sigs.k8s.io/cluster-api v1.11.5
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
