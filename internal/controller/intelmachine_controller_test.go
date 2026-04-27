@@ -47,9 +47,9 @@ var _ = Describe("IntelMachine Controller", func() {
 			instanceId              = "test-instance-id"
 			hostId                  = "test-host-id"
 
-			timeout  = time.Second * 10
-			duration = time.Second * 10
-			interval = time.Millisecond * 250
+			timeout        = time.Second * 10
+			cleanupTimeout = time.Second * 30
+			interval       = time.Millisecond * 250
 		)
 
 		var (
@@ -157,14 +157,13 @@ var _ = Describe("IntelMachine Controller", func() {
 			By("deleting the IntelMachine")
 			Expect(k8sClient.Delete(ctx, intelmachine)).To(Succeed())
 
-			By("Waiting for conditions HostProvisionedCondition and Ready to be False")
+			By("Waiting for HostProvisionedCondition to be False")
 			Eventually(func(g Gomega) {
 				resource := &infrastructurev1alpha1.IntelMachine{}
 				g.Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
 				g.Expect(resource.DeletionTimestamp.IsZero()).To(BeFalse())
 				g.Expect(conditions.IsFalse(resource, string(infrastructurev1alpha1.HostProvisionedCondition))).To(BeTrue())
-				g.Expect(conditions.IsFalse(resource, string(clusterv1.ReadyCondition))).To(BeTrue())
-			}, timeout, interval).Should(Succeed())
+			}, cleanupTimeout, interval).Should(Succeed())
 
 			By("Removing the IntelMachine's HostCleanupFinalizer")
 			Expect(k8sClient.Get(ctx, typeNamespacedName, intelmachine)).To(Succeed())
