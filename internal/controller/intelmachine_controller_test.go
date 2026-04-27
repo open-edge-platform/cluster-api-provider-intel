@@ -7,8 +7,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -51,6 +53,8 @@ var _ = Describe("IntelMachine Controller", func() {
 		)
 
 		var (
+			testNamespace       string
+			namespaceObj        *corev1.Namespace
 			intelmachine        *infrastructurev1alpha1.IntelMachine
 			intelmachinebinding *infrastructurev1alpha1.IntelMachineBinding
 			intelcluster        *infrastructurev1alpha1.IntelCluster
@@ -60,18 +64,20 @@ var _ = Describe("IntelMachine Controller", func() {
 
 		ctx := context.Background()
 
-		typeNamespacedName := types.NamespacedName{
-			Name:      intelMachineName,
-			Namespace: namespace,
-		}
+		typeNamespacedName := types.NamespacedName{}
 
 		BeforeEach(func() {
 			By("creating the custom resources")
+			testNamespace = uniqueTestName(namespace)
+			namespaceObj = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNamespace}}
+			Expect(k8sClient.Create(ctx, namespaceObj)).To(Succeed())
+			typeNamespacedName = types.NamespacedName{
+				Name:      intelMachineName,
+				Namespace: testNamespace,
+			}
 
-			// Create the cluster after checking that it does not exist
-			key := types.NamespacedName{Name: clusterName, Namespace: namespace}
-			Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &clusterv1.Cluster{}))).To(BeTrue())
-			cluster = utils.NewCluster(namespace, clusterName)
+			// Create the cluster.
+			cluster = utils.NewCluster(testNamespace, clusterName)
 			Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
 			conditions.Set(cluster, metav1.Condition{
 				Type:   string(clusterv1.InfrastructureReadyCondition),
@@ -80,10 +86,8 @@ var _ = Describe("IntelMachine Controller", func() {
 			})
 			Expect(k8sClient.Status().Update(ctx, cluster)).To(Succeed())
 
-			// Create the intelcluster after checking that it does not exist
-			key = types.NamespacedName{Name: intelClusterName, Namespace: namespace}
-			Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrastructurev1alpha1.IntelCluster{}))).To(BeTrue())
-			intelcluster = utils.NewIntelCluster(namespace, intelClusterName, workloadId, cluster)
+			// Create the intelcluster.
+			intelcluster = utils.NewIntelCluster(testNamespace, intelClusterName, workloadId, cluster)
 			Expect(k8sClient.Create(ctx, intelcluster)).To(Succeed())
 
 			// Update the cluster's infrastructureRef to point to the intelcluster
@@ -94,16 +98,12 @@ var _ = Describe("IntelMachine Controller", func() {
 			}
 			Expect(k8sClient.Update(ctx, cluster)).To(Succeed())
 
-			// Create the machine after checking that it does not exist
-			key = types.NamespacedName{Name: machineName, Namespace: namespace}
-			Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &clusterv1.Machine{}))).To(BeTrue())
-			machine = utils.NewMachine(namespace, clusterName, machineName, bootstrapKind)
+			// Create the machine.
+			machine = utils.NewMachine(testNamespace, clusterName, machineName, bootstrapKind)
 			Expect(k8sClient.Create(ctx, machine)).To(Succeed())
 
-			// Create the intelmachinebinding after checking that it does not exist
-			key = types.NamespacedName{Name: intelMachineBindingName, Namespace: namespace}
-			Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrastructurev1alpha1.IntelMachineBinding{}))).To(BeTrue())
-			intelmachinebinding = utils.NewIntelMachineBinding(namespace, intelMachineBindingName, nodeGUID, clusterName, machineTemplateName)
+			// Create the intelmachinebinding.
+			intelmachinebinding = utils.NewIntelMachineBinding(testNamespace, intelMachineBindingName, nodeGUID, clusterName, machineTemplateName)
 			Expect(k8sClient.Create(ctx, intelmachinebinding)).To(Succeed())
 
 			// Add mocks before creating IntelMachine
@@ -115,30 +115,28 @@ var _ = Describe("IntelMachine Controller", func() {
 				Id: instanceId,
 			}
 
-			inventoryClient.On("GetInstanceByMachineId", inventory.GetInstanceByMachineIdInput{TenantId: namespace, MachineId: nodeGUID}).
+			inventoryClient.On("GetInstanceByMachineId", inventory.GetInstanceByMachineIdInput{TenantId: testNamespace, MachineId: nodeGUID}).
 				Return(inventory.GetInstanceByMachineIdOutput{Host: host, Instance: instance, Err: nil}).
 				Once()
 			inventoryClient.On("AddInstanceToWorkload",
-				inventory.AddInstanceToWorkloadInput{TenantId: namespace, WorkloadId: workloadId, InstanceId: instanceId}).
+				inventory.AddInstanceToWorkloadInput{TenantId: testNamespace, WorkloadId: workloadId, InstanceId: instanceId}).
 				Return(inventory.AddInstanceToWorkloadOutput{Err: nil}).
 				Once()
 			inventoryClient.On("DeleteInstanceFromWorkload",
-				inventory.DeleteInstanceFromWorkloadInput{TenantId: namespace, WorkloadId: workloadId, InstanceId: instanceId}).
+				inventory.DeleteInstanceFromWorkloadInput{TenantId: testNamespace, WorkloadId: workloadId, InstanceId: instanceId}).
 				Return(inventory.DeleteInstanceFromWorkloadOutput{Err: nil}).
 				Once()
 			inventoryClient.On("DeleteWorkload",
-				inventory.DeleteWorkloadInput{TenantId: namespace, WorkloadId: workloadId}).
+				inventory.DeleteWorkloadInput{TenantId: testNamespace, WorkloadId: workloadId}).
 				Return(inventory.DeleteWorkloadOutput{Err: nil}).
 				Once()
 			inventoryClient.On("DeauthorizeHost",
-				inventory.DeauthorizeHostInput{TenantId: namespace, HostUUID: nodeGUID}).
+				inventory.DeauthorizeHostInput{TenantId: testNamespace, HostUUID: nodeGUID}).
 				Return(inventory.DeauthorizeHostOutput{Err: nil}).
 				Once()
 
-			// Create the intelmachine after checking that it does not exist
-			key = types.NamespacedName{Name: intelMachineName, Namespace: namespace}
-			Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrastructurev1alpha1.IntelMachine{}))).To(BeTrue())
-			intelmachine = utils.NewIntelMachine(namespace, intelMachineName, machine)
+			// Create the intelmachine.
+			intelmachine = utils.NewIntelMachine(testNamespace, intelMachineName, machine)
 			intelmachine.Annotations = map[string]string{
 				clusterv1.TemplateClonedFromNameAnnotation: machineTemplateName,
 			}
@@ -185,25 +183,33 @@ var _ = Describe("IntelMachine Controller", func() {
 
 			By("Checking the IntelMachineBinding is removed")
 			Eventually(func(g Gomega) {
-				key := types.NamespacedName{Name: intelMachineBindingName, Namespace: namespace}
+				key := types.NamespacedName{Name: intelMachineBindingName, Namespace: testNamespace}
 				g.Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrastructurev1alpha1.IntelMachineBinding{}))).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			By("Checking the IntelCluster and Machine are removed")
 			Eventually(func(g Gomega) {
-				key := types.NamespacedName{Name: intelClusterName, Namespace: namespace}
+				key := types.NamespacedName{Name: intelClusterName, Namespace: testNamespace}
 				g.Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &infrastructurev1alpha1.IntelCluster{}))).To(BeTrue())
-				key = types.NamespacedName{Name: machineName, Namespace: namespace}
+				key = types.NamespacedName{Name: machineName, Namespace: testNamespace}
 				g.Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &clusterv1.Machine{}))).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			By("Delete the cluster and namespace")
 			Expect(k8sClient.Delete(ctx, cluster)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, namespaceObj)).To(Succeed())
 
-			By("Checking the Cluster is removed")
+			By("Checking the Cluster and namespace are removed")
 			Eventually(func(g Gomega) {
-				key := types.NamespacedName{Name: clusterName, Namespace: namespace}
+				key := types.NamespacedName{Name: clusterName, Namespace: testNamespace}
 				g.Expect(errors.IsNotFound(k8sClient.Get(ctx, key, &clusterv1.Cluster{}))).To(BeTrue())
+				ns := &corev1.Namespace{}
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: testNamespace}, ns)
+				if errors.IsNotFound(err) {
+					return
+				}
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(ns.DeletionTimestamp).NotTo(BeNil())
 			}, timeout, interval).Should(Succeed())
 		})
 
@@ -213,7 +219,7 @@ var _ = Describe("IntelMachine Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Checking that the IntelMachineBinding is allocated")
-			key := types.NamespacedName{Name: intelMachineBindingName, Namespace: namespace}
+			key := types.NamespacedName{Name: intelMachineBindingName, Namespace: testNamespace}
 			Eventually(func(g Gomega) {
 				imb := &infrastructurev1alpha1.IntelMachineBinding{}
 				g.Expect(k8sClient.Get(ctx, key, imb)).To(Succeed())
@@ -256,6 +262,8 @@ var _ = Describe("IntelMachine Controller", func() {
 				g.Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
 				g.Expect(resource.Spec.ProviderID).NotTo(BeNil())
 				g.Expect(resource.Status.Ready).To(BeTrue())
+				g.Expect(resource.Status.Initialization.Provisioned).NotTo(BeNil())
+				g.Expect(*resource.Status.Initialization.Provisioned).To(BeTrue())
 				g.Expect(resource.Annotations[infrastructurev1alpha1.HostIdAnnotation]).To(Equal(hostId))
 				g.Expect(conditions.IsTrue(resource, string(infrastructurev1alpha1.HostProvisionedCondition))).To(BeTrue())
 				g.Expect(conditions.IsTrue(resource, string(infrastructurev1alpha1.BootstrapExecSucceededCondition))).To(BeTrue())
@@ -264,7 +272,7 @@ var _ = Describe("IntelMachine Controller", func() {
 
 			By("Checking that the owner Machine has skip-remediation annotation")
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: machineName, Namespace: namespace}, machine)).To(Succeed())
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: machineName, Namespace: testNamespace}, machine)).To(Succeed())
 				g.Expect(machine.Annotations).To(HaveKey(clusterv1.MachineSkipRemediationAnnotation))
 			}, timeout, interval).Should(Succeed())
 		})
@@ -402,6 +410,30 @@ var _ = Describe("Reconcile loop errors", func() {
 			Expect(fakeClient.Get(ctx, key, im)).To(Succeed())
 			Expect(im.Spec.ProviderID).NotTo(BeNil())
 			Expect(im.Status.Ready).To(BeFalse())
+		})
+
+		It("should set initialization provisioned when host becomes active", func() {
+			logger := logr.Discard()
+			providerID := instanceId
+			intelmachine.Spec.ProviderID = &providerID
+			intelmachine.Annotations[infrastructurev1alpha1.HostStateAnnotation] = infrastructurev1alpha1.HostStateActive
+
+			rc := IntelMachineReconcilerContext{
+				log:          logger,
+				ctx:          ctx,
+				machine:      machine,
+				cluster:      cluster,
+				intelMachine: intelmachine,
+				intelCluster: intelcluster,
+			}
+
+			requeue := reconciler.reconcileNormal(rc)
+
+			Expect(requeue).To(BeFalse())
+			Expect(intelmachine.Status.Ready).To(BeTrue())
+			Expect(intelmachine.Status.Initialization.Provisioned).NotTo(BeNil())
+			Expect(*intelmachine.Status.Initialization.Provisioned).To(BeTrue())
+			Expect(conditions.IsTrue(intelmachine, string(infrastructurev1alpha1.BootstrapExecSucceededCondition))).To(BeTrue())
 		})
 
 		It("should not return error if IntelMachine is not found", func() {

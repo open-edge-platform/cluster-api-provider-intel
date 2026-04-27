@@ -154,11 +154,17 @@ func TestClusterScopeClose(t *testing.T) {
 	testScheme := runtime.NewScheme()
 	err := infrav1.AddToScheme(testScheme)
 	require.Nil(t, err)
+	subRW := &m_client.MockSubResourceWriter{}
 	defer func() {
 		fakeClient.AssertExpectations(t)
+		subRW.AssertExpectations(t)
 	}()
 
 	fakeClient.On("Scheme").Return(testScheme)
+	fakeClient.On("Get", context, types.NamespacedName{Namespace: testIntelCluster.Namespace, Name: testIntelCluster.Name},
+		mock.Anything).Return(nil)
+	fakeClient.On("Status").Return(subRW)
+	subRW.On("Patch", context, mock.Anything, mock.Anything).Return(nil).Times(2)
 
 	scope, err := NewClusterReconcileScopeBuilder().
 		WithContext(context).

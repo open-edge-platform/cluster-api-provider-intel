@@ -59,6 +59,9 @@ func NewIntelCluster(namespace, intelClusterName, providerId string, cluster *cl
 			},
 		},
 		Spec: infrastructurev1alpha1.IntelClusterSpec{
+			ControlPlaneEndpoint: clusterv1.APIEndpoint{
+				Host: "invalid host",
+			},
 			ProviderId: providerId,
 		},
 	}
@@ -84,6 +87,11 @@ func NewIntelClusterNoSpec(cluster *clusterv1.Cluster) *infrastructurev1alpha1.I
 					Name:       cluster.Name,
 					UID:        cluster.UID,
 				},
+			},
+		},
+		Spec: infrastructurev1alpha1.IntelClusterSpec{
+			ControlPlaneEndpoint: clusterv1.APIEndpoint{
+				Host: "invalid host",
 			},
 		},
 	}
