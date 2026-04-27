@@ -200,13 +200,13 @@ func (r *IntelClusterReconciler) reconcileWorkloadCreate(clusterScope *scope.Clu
 	res := r.InventoryClient.CreateWorkload(req)
 	if res.Err != nil {
 		// all inventory errors (4xx, 5xx types) are handled generically under just one CR condition. this can be made more granular if needed
-		markConditionFalse(intelCluster, string(infrav1.WorkloadCreatedReadyCondition), infrav1.WaitingForWorkloadToBeProvisonedReason, clusterv1.ConditionSeverityWarning, "%v", res.Err)
+		markConditionFalse(intelCluster, string(infrav1.WorkloadCreatedReadyCondition), infrav1.WaitingForWorkloadToBeProvisonedReason, "%v", res.Err)
 		return true
 	}
 
 	workloadId := res.WorkloadId
 	if workloadId == "" {
-		markConditionFalse(intelCluster, string(infrav1.WorkloadCreatedReadyCondition), infrav1.InvalidWorkloadReason, clusterv1.ConditionSeverityError, "%v", ErrInvalidProviderId)
+		markConditionFalse(intelCluster, string(infrav1.WorkloadCreatedReadyCondition), infrav1.InvalidWorkloadReason, "%v", ErrInvalidProviderId)
 		return true
 	}
 
@@ -228,20 +228,20 @@ func (r *IntelClusterReconciler) reconcileControlPlaneEndpoint(scope *scope.Clus
 	}, clusterConnect); err != nil {
 		if !apierrors.IsNotFound(err) {
 			scope.Log.Info("failed to read cluster connection resource")
-			markConditionFalse(intelCluster, string(infrav1.ControlPlaneEndpointReadyCondition), infrav1.WaitingForControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "%v", err)
+			markConditionFalse(intelCluster, string(infrav1.ControlPlaneEndpointReadyCondition), infrav1.WaitingForControlPlaneEndpointReason, "%v", err)
 			return true
 		}
 
 		clusterConnectionItem := getClusterConnectionManifest(scope.Cluster, scope.IntelCluster)
 		if err := controllerutil.SetControllerReference(scope.IntelCluster, clusterConnectionItem, r.Scheme); err != nil {
 			scope.Log.Info("failed to set owner reference")
-			markConditionFalse(intelCluster, string(infrav1.ControlPlaneEndpointReadyCondition), infrav1.WaitingForControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "%v", err)
+			markConditionFalse(intelCluster, string(infrav1.ControlPlaneEndpointReadyCondition), infrav1.WaitingForControlPlaneEndpointReason, "%v", err)
 			return true
 		}
 
 		if err := r.Client.Create(scope.Ctx, clusterConnectionItem); err != nil {
 			scope.Log.Info("failed to create cluster connection resource")
-			markConditionFalse(intelCluster, string(infrav1.ControlPlaneEndpointReadyCondition), infrav1.WaitingForControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "%v", err)
+			markConditionFalse(intelCluster, string(infrav1.ControlPlaneEndpointReadyCondition), infrav1.WaitingForControlPlaneEndpointReason, "%v", err)
 			return true
 
 		}
@@ -257,7 +257,7 @@ func (r *IntelClusterReconciler) reconcileControlPlaneEndpoint(scope *scope.Clus
 		}
 
 		scope.Log.Info("invalid control plane endpoint value in clusterconnect resource")
-		markConditionFalse(intelCluster, string(infrav1.ControlPlaneEndpointReadyCondition), infrav1.InvalidControlPlaneEndpointReason, clusterv1.ConditionSeverityError, "%v", ErrInvalidControlPlaneEndpoint)
+		markConditionFalse(intelCluster, string(infrav1.ControlPlaneEndpointReadyCondition), infrav1.InvalidControlPlaneEndpointReason, "%v", ErrInvalidControlPlaneEndpoint)
 		return true
 	}
 
@@ -293,7 +293,7 @@ func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.
 		markConditionTrue(intelCluster, string(infrav1.SecureTunnelEstablishedCondition))
 	case metav1.ConditionFalse:
 		scope.Log.Info("connection probe condition not met in clusterconnect resource")
-		markConditionFalse(intelCluster, string(infrav1.SecureTunnelEstablishedCondition), infrav1.SecureTunnelNotEstablishedReason, clusterv1.ConditionSeverityWarning, "No connection to cluster, waiting for connection probe condition to be true")
+		markConditionFalse(intelCluster, string(infrav1.SecureTunnelEstablishedCondition), infrav1.SecureTunnelNotEstablishedReason, "No connection to cluster, waiting for connection probe condition to be true")
 		// do not requeue here, as the clusterconnect object status update event
 		// will cause intelCluster reconcile and update the condition when the connection is alive
 	case metav1.ConditionUnknown:
@@ -301,7 +301,7 @@ func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.
 		if conditions.IsTrue(scope.Cluster, string(clusterv1.ClusterControlPlaneAvailableCondition)) {
 			// if the Cluster's ControlPlane is provisioned and the ClusterConnect's condition is unknown,
 			// we can assume that the connection is not established yet, so we mark the IntelCluster condition as false
-			markConditionFalse(intelCluster, string(infrav1.SecureTunnelEstablishedCondition), infrav1.SecureTunnelUnknownReason, clusterv1.ConditionSeverityWarning, "No connection to cluster, waiting for connection probe condition to be true")
+			markConditionFalse(intelCluster, string(infrav1.SecureTunnelEstablishedCondition), infrav1.SecureTunnelUnknownReason, "No connection to cluster, waiting for connection probe condition to be true")
 		}
 		// requeue to retry reading the ClusterConnect status; the informer cache may be stale and
 		// the ConnectionProbe condition may have already transitioned to True before this reconcile ran.
