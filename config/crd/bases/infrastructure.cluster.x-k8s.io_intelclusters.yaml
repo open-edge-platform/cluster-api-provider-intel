@@ -149,14 +149,14 @@ spec:
                 - type
                 x-kubernetes-list-type: map
               initialization:
-                description: initialization provides observations of the IntelCluster
-                  initialization process. This is part of the CAPI v1beta2 infrastructure
-                  contract.
+                description: |-
+                  initialization provides observations of the IntelCluster initialization process.
+                  This is part of the CAPI v1beta2 infrastructure contract.
                 properties:
                   provisioned:
-                    description: provisioned is true when the Intel cluster infrastructure
-                      is fully provisioned. This is part of the CAPI v1beta2 infrastructure
-                      contract.
+                    description: |-
+                      provisioned is true when the Intel cluster infrastructure is fully provisioned.
+                      This is part of the CAPI v1beta2 infrastructure contract.
                     type: boolean
                 type: object
               ready:

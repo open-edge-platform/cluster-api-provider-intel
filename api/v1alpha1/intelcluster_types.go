@@ -16,7 +16,7 @@ const (
 type IntelClusterSpec struct {
 	// controlPlaneEndpoint represents the endpoint used to communicate with the control plane
 	// +optional
-	ControlPlaneEndpoint clusterv1.APIEndpoint `json:"controlPlaneEndpoint"`
+	ControlPlaneEndpoint clusterv1.APIEndpoint `json:"controlPlaneEndpoint,omitempty"`
 	// providerId represents the id the inventory manager assigns to the cluster at creation time
 	// +optional
 	ProviderId string `json:"providerId"`
