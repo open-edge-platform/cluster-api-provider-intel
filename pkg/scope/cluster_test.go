@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -153,11 +154,17 @@ func TestClusterScopeClose(t *testing.T) {
 	testScheme := runtime.NewScheme()
 	err := infrav1.AddToScheme(testScheme)
 	require.Nil(t, err)
+	subRW := &m_client.MockSubResourceWriter{}
 	defer func() {
 		fakeClient.AssertExpectations(t)
+		subRW.AssertExpectations(t)
 	}()
 
 	fakeClient.On("Scheme").Return(testScheme)
+	fakeClient.On("Get", context, types.NamespacedName{Namespace: testIntelCluster.Namespace, Name: testIntelCluster.Name},
+		mock.Anything).Return(nil)
+	fakeClient.On("Status").Return(subRW)
+	subRW.On("Patch", context, mock.Anything, mock.Anything).Return(nil).Times(2)
 
 	scope, err := NewClusterReconcileScopeBuilder().
 		WithContext(context).
@@ -191,7 +198,11 @@ func TestClusterScopeCloseWithError(t *testing.T) {
 		mock.Anything).Return(nil)
 	fakeClient.On("Status").Return(subRW)
 
-	conditions.MarkTrue(testIntelCluster, infrav1.WorkloadCreatedReadyCondition)
+	conditions.Set(testIntelCluster, metav1.Condition{
+		Type:   string(infrav1.WorkloadCreatedReadyCondition),
+		Status: metav1.ConditionTrue,
+		Reason: "Ready",
+	})
 	scope, err := NewClusterReconcileScopeBuilder().
 		WithContext(context).
 		WithLog(&testLogger).

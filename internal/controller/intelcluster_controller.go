@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/paused"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -31,7 +32,7 @@ import (
 	inventory "github.com/open-edge-platform/cluster-api-provider-intel/pkg/inventory"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/scope"
 	ccgv1 "github.com/open-edge-platform/cluster-connect-gateway/api/v1alpha1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/finalizers"
 )
@@ -43,6 +44,9 @@ var (
 	ErrInvalidControlPlaneEndpointHost = errors.New("invalid host in controlplane endpoint")
 	ErrInvalidControlPlaneEndpointPort = errors.New("invalid port in controlplane endpoint")
 	ErrInvalidProviderId               = errors.New("invalid provider id")
+)
+
+var (
 	// Predicate to trigger reconciliation only on status.Ready changes in the ClusterConnect resource
 	ccUpdatePred = predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
@@ -196,18 +200,18 @@ func (r *IntelClusterReconciler) reconcileWorkloadCreate(clusterScope *scope.Clu
 	res := r.InventoryClient.CreateWorkload(req)
 	if res.Err != nil {
 		// all inventory errors (4xx, 5xx types) are handled generically under just one CR condition. this can be made more granular if needed
-		conditions.MarkFalse(intelCluster, infrav1.WorkloadCreatedReadyCondition, infrav1.WaitingForWorkloadToBeProvisonedReason, clusterv1.ConditionSeverityWarning, "%v", res.Err)
+		markConditionFalse(intelCluster, string(infrav1.WorkloadCreatedReadyCondition), infrav1.WaitingForWorkloadToBeProvisonedReason, "%v", res.Err)
 		return true
 	}
 
 	workloadId := res.WorkloadId
 	if workloadId == "" {
-		conditions.MarkFalse(intelCluster, infrav1.WorkloadCreatedReadyCondition, infrav1.InvalidWorkloadReason, clusterv1.ConditionSeverityError, "%v", ErrInvalidProviderId)
+		markConditionFalse(intelCluster, string(infrav1.WorkloadCreatedReadyCondition), infrav1.InvalidWorkloadReason, "%v", ErrInvalidProviderId)
 		return true
 	}
 
 	intelCluster.Spec.ProviderId = workloadId
-	conditions.MarkTrue(intelCluster, infrav1.WorkloadCreatedReadyCondition)
+	markConditionTrue(intelCluster, string(infrav1.WorkloadCreatedReadyCondition))
 	return false
 }
 
@@ -224,20 +228,20 @@ func (r *IntelClusterReconciler) reconcileControlPlaneEndpoint(scope *scope.Clus
 	}, clusterConnect); err != nil {
 		if !apierrors.IsNotFound(err) {
 			scope.Log.Info("failed to read cluster connection resource")
-			conditions.MarkFalse(intelCluster, infrav1.ControlPlaneEndpointReadyCondition, infrav1.WaitingForControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "%v", err)
+			markConditionFalse(intelCluster, string(infrav1.ControlPlaneEndpointReadyCondition), infrav1.WaitingForControlPlaneEndpointReason, "%v", err)
 			return true
 		}
 
 		clusterConnectionItem := getClusterConnectionManifest(scope.Cluster, scope.IntelCluster)
 		if err := controllerutil.SetControllerReference(scope.IntelCluster, clusterConnectionItem, r.Scheme); err != nil {
 			scope.Log.Info("failed to set owner reference")
-			conditions.MarkFalse(intelCluster, infrav1.ControlPlaneEndpointReadyCondition, infrav1.WaitingForControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "%v", err)
+			markConditionFalse(intelCluster, string(infrav1.ControlPlaneEndpointReadyCondition), infrav1.WaitingForControlPlaneEndpointReason, "%v", err)
 			return true
 		}
 
 		if err := r.Client.Create(scope.Ctx, clusterConnectionItem); err != nil {
 			scope.Log.Info("failed to create cluster connection resource")
-			conditions.MarkFalse(intelCluster, infrav1.ControlPlaneEndpointReadyCondition, infrav1.WaitingForControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "%v", err)
+			markConditionFalse(intelCluster, string(infrav1.ControlPlaneEndpointReadyCondition), infrav1.WaitingForControlPlaneEndpointReason, "%v", err)
 			return true
 
 		}
@@ -248,12 +252,12 @@ func (r *IntelClusterReconciler) reconcileControlPlaneEndpoint(scope *scope.Clus
 
 		if controlPlaneEndpoint.IsValid() {
 			intelCluster.Spec.ControlPlaneEndpoint = controlPlaneEndpoint
-			conditions.MarkTrue(intelCluster, infrav1.ControlPlaneEndpointReadyCondition)
+			markConditionTrue(intelCluster, string(infrav1.ControlPlaneEndpointReadyCondition))
 			return false
 		}
 
 		scope.Log.Info("invalid control plane endpoint value in clusterconnect resource")
-		conditions.MarkFalse(intelCluster, infrav1.ControlPlaneEndpointReadyCondition, infrav1.InvalidControlPlaneEndpointReason, clusterv1.ConditionSeverityError, "%v", ErrInvalidControlPlaneEndpoint)
+		markConditionFalse(intelCluster, string(infrav1.ControlPlaneEndpointReadyCondition), infrav1.InvalidControlPlaneEndpointReason, "%v", ErrInvalidControlPlaneEndpoint)
 		return true
 	}
 
@@ -262,7 +266,7 @@ func (r *IntelClusterReconciler) reconcileControlPlaneEndpoint(scope *scope.Clus
 
 func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.ClusterReconcileScope) bool {
 	intelCluster := scope.IntelCluster
-	conditions.MarkUnknown(intelCluster, infrav1.SecureTunnelEstablishedCondition, infrav1.SecureTunnelUnknownReason, "Checking connection to cluster")
+	markConditionUnknown(intelCluster, string(infrav1.SecureTunnelEstablishedCondition), infrav1.SecureTunnelUnknownReason, "Checking connection to cluster")
 
 	clusterConnect := &ccgv1.ClusterConnect{}
 	if err := r.Client.Get(scope.Ctx, client.ObjectKey{
@@ -286,19 +290,22 @@ func (r *IntelClusterReconciler) reconcileClusterConnectConnection(scope *scope.
 	switch connectionProbeCondition.Status {
 	case metav1.ConditionTrue:
 		scope.Log.Info("connection probe condition met in clusterconnect resource")
-		conditions.MarkTrue(intelCluster, infrav1.SecureTunnelEstablishedCondition)
+		markConditionTrue(intelCluster, string(infrav1.SecureTunnelEstablishedCondition))
 	case metav1.ConditionFalse:
 		scope.Log.Info("connection probe condition not met in clusterconnect resource")
-		conditions.MarkFalse(intelCluster, infrav1.SecureTunnelEstablishedCondition, infrav1.SecureTunnelNotEstablishedReason, clusterv1.ConditionSeverityWarning, "No connection to cluster, waiting for connection probe condition to be true")
+		markConditionFalse(intelCluster, string(infrav1.SecureTunnelEstablishedCondition), infrav1.SecureTunnelNotEstablishedReason, "No connection to cluster, waiting for connection probe condition to be true")
 		// do not requeue here, as the clusterconnect object status update event
 		// will cause intelCluster reconcile and update the condition when the connection is alive
 	case metav1.ConditionUnknown:
 		scope.Log.Info("connection probe condition is unknown in clusterconnect resource")
-		if scope.Cluster.Status.ControlPlaneReady {
+		if conditions.IsTrue(scope.Cluster, string(clusterv1.ClusterControlPlaneAvailableCondition)) {
 			// if the Cluster's ControlPlane is provisioned and the ClusterConnect's condition is unknown,
 			// we can assume that the connection is not established yet, so we mark the IntelCluster condition as false
-			conditions.MarkFalse(intelCluster, infrav1.SecureTunnelEstablishedCondition, infrav1.SecureTunnelUnknownReason, clusterv1.ConditionSeverityWarning, "No connection to cluster, waiting for connection probe condition to be true")
+			markConditionFalse(intelCluster, string(infrav1.SecureTunnelEstablishedCondition), infrav1.SecureTunnelUnknownReason, "No connection to cluster, waiting for connection probe condition to be true")
 		}
+		// requeue to retry reading the ClusterConnect status; the informer cache may be stale and
+		// the ConnectionProbe condition may have already transitioned to True before this reconcile ran.
+		return true
 	}
 
 	return false
@@ -316,7 +323,9 @@ func (r *IntelClusterReconciler) reconcileNormal(clusterScope *scope.ClusterReco
 	}
 
 	// after succesfull provisioning, the status.Ready is always set to true.
+	// Initialization.Provisioned is the v1beta2 CAPI contract equivalent of status.ready.
 	clusterScope.IntelCluster.Status.Ready = true
+	clusterScope.IntelCluster.Status.Initialization.Provisioned = ptr.To(true)
 
 	if shouldRequeue := r.reconcileClusterConnectConnection(clusterScope); shouldRequeue {
 		return reconcile.Result{RequeueAfter: requeueAfter}

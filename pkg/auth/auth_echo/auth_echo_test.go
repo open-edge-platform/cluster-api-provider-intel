@@ -9,13 +9,13 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"github.com/labstack/echo/v4"
 	"github.com/naughtygopher/errors"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/rbac"
 	"github.com/stretchr/testify/assert"
 	"github.com/undefinedlabs/go-mpatch"
+	"go.uber.org/mock/gomock"
 )
 
 var (

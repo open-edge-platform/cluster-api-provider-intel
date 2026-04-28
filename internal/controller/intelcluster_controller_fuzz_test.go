@@ -7,10 +7,9 @@ import (
 	"context"
 	"testing"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -38,8 +37,15 @@ func FuzzClusterReconcile(f *testing.F) {
 	}
 	cluster := utils.NewCluster(namespace, clusterName)
 	intelcluster := utils.NewIntelCluster(namespace, intelClusterName, providerID, cluster)
-	cluster.Spec.InfrastructureRef = utils.GetObjectRef(&intelcluster.ObjectMeta, "IntelCluster")
-	cluster.Spec.ControlPlaneRef = &corev1.ObjectReference{Name: cluster.Name + "-controlplane"}
+	cluster.Spec.InfrastructureRef = clusterv1.ContractVersionedObjectReference{
+		Kind:     "IntelCluster",
+		Name:     intelcluster.Name,
+		APIGroup: infrastructurev1alpha1.GroupVersion.Group,
+	}
+	cluster.Spec.ControlPlaneRef = clusterv1.ContractVersionedObjectReference{
+		Kind: "KubeadmControlPlane",
+		Name: cluster.Name + "-controlplane",
+	}
 	fakeClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(cluster, intelcluster).

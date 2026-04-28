@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
 var (
@@ -59,6 +59,9 @@ func NewIntelCluster(namespace, intelClusterName, providerId string, cluster *cl
 			},
 		},
 		Spec: infrastructurev1alpha1.IntelClusterSpec{
+			ControlPlaneEndpoint: clusterv1.APIEndpoint{
+				Host: "invalid host",
+			},
 			ProviderId: providerId,
 		},
 	}
@@ -86,6 +89,11 @@ func NewIntelClusterNoSpec(cluster *clusterv1.Cluster) *infrastructurev1alpha1.I
 				},
 			},
 		},
+		Spec: infrastructurev1alpha1.IntelClusterSpec{
+			ControlPlaneEndpoint: clusterv1.APIEndpoint{
+				Host: "invalid host",
+			},
+		},
 	}
 }
 
@@ -108,8 +116,9 @@ func NewMachine(namespace, clusterName, machineName, bootstrapKind string) *clus
 		Spec: clusterv1.MachineSpec{
 			ClusterName: clusterName,
 			Bootstrap: clusterv1.Bootstrap{
-				ConfigRef: &corev1.ObjectReference{
+				ConfigRef: clusterv1.ContractVersionedObjectReference{
 					Kind: bootstrapKind,
+					Name: "bootstrap-config",
 				},
 				DataSecretName: &bootstrapData,
 			},

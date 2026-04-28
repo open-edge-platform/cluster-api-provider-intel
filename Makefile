@@ -56,6 +56,11 @@ DOCKER_BUILD_ARGS ?= \
 IMG_MANAGER := ${DOCKER_IMAGE_MANAGER}
 IMG_SOUTHBOUND := ${DOCKER_IMAGE_SOUTHBOUND}
 
+# Allow IMG to override IMG_MANAGER for e2e testing and CI
+ifneq ($(IMG),)
+	IMG_MANAGER := $(IMG)
+endif
+
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 
@@ -484,10 +489,18 @@ RS_IMG_SOUTHBOUND ?= ${RS_REGISTRY}/${REGISTRY_NO_AUTH}/${REPOSITORY}/capi-provi
 
 .PHONY: kind-load
 kind-load: docker-build
+ifndef IMG
 	docker tag ${IMG_MANAGER} ${RS_IMG_MANAGER}
 	docker tag ${IMG_SOUTHBOUND} ${RS_IMG_SOUTHBOUND}
 	kind load docker-image ${RS_IMG_MANAGER} -n ${KIND_CLUSTER}
 	kind load docker-image ${RS_IMG_SOUTHBOUND} -n ${KIND_CLUSTER}
+else
+	kind load docker-image ${IMG_MANAGER} -n ${KIND_CLUSTER}
+# 	docker tag ${IMG_MANAGER} ${IMG}-manager:test
+# 	docker tag ${IMG_SOUTHBOUND} ${IMG}-southbound:test
+# 	kind load docker-image ${IMG}-manager:test -n ${KIND_CLUSTER}
+# 	kind load docker-image ${IMG}-southbound:test -n ${KIND_CLUSTER}
+endif
 
 .PHONY: clusterctl-init
 clusterctl-init:

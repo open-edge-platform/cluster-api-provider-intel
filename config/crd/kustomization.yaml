@@ -2,7 +2,7 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 commonLabels:
-  cluster.x-k8s.io/v1beta1: v1alpha1
+  cluster.x-k8s.io/v1beta2: v1alpha1
 
 resources:
 - bases/infrastructure.cluster.x-k8s.io_intelmachines.yaml
@@ -10,7 +10,6 @@ resources:
 - bases/infrastructure.cluster.x-k8s.io_intelmachinetemplates.yaml
 - bases/infrastructure.cluster.x-k8s.io_intelmachinebindings.yaml
 - bases/infrastructure.cluster.x-k8s.io_intelclustertemplates.yaml
-- bases/infrastructure.cluster.x-k8s.io_clusterconnections.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

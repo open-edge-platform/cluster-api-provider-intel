@@ -5,7 +5,10 @@ package southboundhandler
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -23,7 +26,7 @@ import (
 	pb "github.com/open-edge-platform/cluster-api-provider-intel/pkg/api/proto"
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/tenant"
 	utils "github.com/open-edge-platform/cluster-api-provider-intel/test/utils"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
 const (
@@ -43,15 +46,114 @@ var (
 
 var testEnv *envtest.Environment
 var k8sClient client.Client
+var testCRDDir string
+
+const clusterTestCRDYAML = "apiVersion: apiextensions.k8s.io/v1\n" +
+	"kind: CustomResourceDefinition\n" +
+	"metadata:\n" +
+	"  name: clusters.cluster.x-k8s.io\n" +
+	"spec:\n" +
+	"  group: cluster.x-k8s.io\n" +
+	"  names:\n" +
+	"    kind: Cluster\n" +
+	"    listKind: ClusterList\n" +
+	"    plural: clusters\n" +
+	"    singular: cluster\n" +
+	"  scope: Namespaced\n" +
+	"  versions:\n" +
+	"  - name: v1beta2\n" +
+	"    served: true\n" +
+	"    storage: true\n" +
+	"    schema:\n" +
+	"      openAPIV3Schema:\n" +
+	"        type: object\n" +
+	"        properties:\n" +
+	"          apiVersion:\n" +
+	"            type: string\n" +
+	"          kind:\n" +
+	"            type: string\n" +
+	"          metadata:\n" +
+	"            type: object\n" +
+	"          spec:\n" +
+	"            type: object\n" +
+	"            x-kubernetes-preserve-unknown-fields: true\n" +
+	"          status:\n" +
+	"            type: object\n" +
+	"            x-kubernetes-preserve-unknown-fields: true\n" +
+	"    subresources:\n" +
+	"      status: {}\n"
+
+const machineTestCRDYAML = "apiVersion: apiextensions.k8s.io/v1\n" +
+	"kind: CustomResourceDefinition\n" +
+	"metadata:\n" +
+	"  name: machines.cluster.x-k8s.io\n" +
+	"spec:\n" +
+	"  group: cluster.x-k8s.io\n" +
+	"  names:\n" +
+	"    kind: Machine\n" +
+	"    listKind: MachineList\n" +
+	"    plural: machines\n" +
+	"    singular: machine\n" +
+	"  scope: Namespaced\n" +
+	"  versions:\n" +
+	"  - name: v1beta2\n" +
+	"    served: true\n" +
+	"    storage: true\n" +
+	"    schema:\n" +
+	"      openAPIV3Schema:\n" +
+	"        type: object\n" +
+	"        properties:\n" +
+	"          apiVersion:\n" +
+	"            type: string\n" +
+	"          kind:\n" +
+	"            type: string\n" +
+	"          metadata:\n" +
+	"            type: object\n" +
+	"          spec:\n" +
+	"            type: object\n" +
+	"            x-kubernetes-preserve-unknown-fields: true\n" +
+	"          status:\n" +
+	"            type: object\n" +
+	"            x-kubernetes-preserve-unknown-fields: true\n" +
+	"    subresources:\n" +
+	"      status: {}\n"
 
 func TestMain(m *testing.M) {
+	var err error
+	testCRDDir, err = os.MkdirTemp("", "southboundhandler-crds-*")
+	if err != nil {
+		log.Fatal().Msgf("Failed to create temporary CRD dir: %v", err)
+	}
+	if err = os.WriteFile(filepath.Join(testCRDDir, "clusters.v1beta2.yaml"), []byte(clusterTestCRDYAML), 0o600); err != nil {
+		log.Fatal().Msgf("Failed to write cluster test CRD: %v", err)
+	}
+	if err = os.WriteFile(filepath.Join(testCRDDir, "machines.v1beta2.yaml"), []byte(machineTestCRDYAML), 0o600); err != nil {
+		log.Fatal().Msgf("Failed to write machine test CRD: %v", err)
+	}
+
 	// Set up the test environment
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
 			"../../config/crd/bases",
-			"../../config/crd/deps",
+			testCRDDir,
 		},
 	}
+
+	binaryAssetsDirectory := os.Getenv("KUBEBUILDER_ASSETS")
+	if binaryAssetsDirectory == "" {
+		binaryAssetsDirectory = filepath.Join("..", "..", "bin", "k8s",
+			fmt.Sprintf("1.31.0-%s-%s", runtime.GOOS, runtime.GOARCH))
+	} else if !filepath.IsAbs(binaryAssetsDirectory) {
+		binaryAssetsDirectory = filepath.Join("..", "..", binaryAssetsDirectory)
+	}
+	absoluteBinaryAssetsDirectory, err := filepath.Abs(binaryAssetsDirectory)
+	if err != nil {
+		log.Fatal().Msgf("Failed to resolve KUBEBUILDER_ASSETS: %v", err)
+	}
+	if err = os.Setenv("KUBEBUILDER_ASSETS", absoluteBinaryAssetsDirectory); err != nil {
+		log.Fatal().Msgf("Failed to set KUBEBUILDER_ASSETS: %v", err)
+	}
+	testEnv.BinaryAssetsDirectory = absoluteBinaryAssetsDirectory
 
 	cfg, err := testEnv.Start()
 	if err != nil {
@@ -84,6 +186,9 @@ func TestMain(m *testing.M) {
 	err = testEnv.Stop()
 	if err != nil {
 		log.Fatal().Msgf("Failed to stop test environment: %v", err)
+	}
+	if err = os.RemoveAll(testCRDDir); err != nil {
+		log.Fatal().Msgf("Failed to remove temporary CRD dir: %v", err)
 	}
 
 	os.Exit(code)
@@ -640,7 +745,8 @@ func TestHandler_UpdateStatus_UnpauseCluster(t *testing.T) {
 
 	// Define test Cluster
 	cluster := utils.NewCluster(projectId, clusterName)
-	cluster.Spec.Paused = true
+	paused := true
+	cluster.Spec.Paused = &paused
 
 	// Define test IntelMachineBinding
 	machineBinding := utils.NewIntelMachineBinding(projectId, clusterName, nodeGUID, clusterName, "test-template")
@@ -670,7 +776,7 @@ func TestHandler_UpdateStatus_UnpauseCluster(t *testing.T) {
 			err = testHandler.client.Get(ctx, client.ObjectKey{Name: clusterName, Namespace: projectId},
 				&updatedCluster)
 			assert.NoError(t, err)
-			return updatedCluster.Spec.Paused == false
+			return updatedCluster.Spec.Paused == nil || !*updatedCluster.Spec.Paused
 		}, 3*time.Second, 10*time.Millisecond)
 	})
 }

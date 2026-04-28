@@ -9,19 +9,23 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	infrastructurev1alpha1 "github.com/open-edge-platform/cluster-api-provider-intel/api/v1alpha1"
 	inventory "github.com/open-edge-platform/cluster-api-provider-intel/pkg/inventory"
+	scopepkg "github.com/open-edge-platform/cluster-api-provider-intel/pkg/scope"
 	utils "github.com/open-edge-platform/cluster-api-provider-intel/test/utils"
 	ccgv1 "github.com/open-edge-platform/cluster-connect-gateway/api/v1alpha1"
 )
@@ -45,18 +49,15 @@ var _ = Describe("IntelCluster Controller", func() {
 		)
 
 		var (
+			currentNamespaceName    string
+			currentClusterName      string
 			intelNamespace          *corev1.Namespace
 			intelCluster            *infrastructurev1alpha1.IntelCluster
 			cluster                 *clusterv1.Cluster
 			clusterConnection       *ccgv1.ClusterConnect
-			clusterConnectionFilter = client.ObjectKey{
-				Name:      fmt.Sprintf("%s-%s", namespaceName, clusterName),
-				Namespace: namespaceName}
-			defaultResourceFilter = client.ObjectKey{
-				Name:      clusterName,
-				Namespace: namespaceName,
-			}
-			endpointUrl = clusterv1.APIEndpoint{
+			clusterConnectionFilter client.ObjectKey
+			defaultResourceFilter   client.ObjectKey
+			endpointUrl             = clusterv1.APIEndpoint{
 				Host: host,
 				Port: port,
 			}
@@ -65,33 +66,48 @@ var _ = Describe("IntelCluster Controller", func() {
 		ctx := context.Background()
 
 		BeforeEach(func() {
+			currentNamespaceName = uniqueTestName("275ecb36-5aa8-4c2a-9c47-000000000000")
+			currentClusterName = uniqueTestName("cluster1")
+			clusterConnectionFilter = client.ObjectKey{
+				Name:      fmt.Sprintf("%s-%s", currentNamespaceName, currentClusterName),
+				Namespace: currentNamespaceName,
+			}
+			defaultResourceFilter = client.ObjectKey{
+				Name:      currentClusterName,
+				Namespace: currentNamespaceName,
+			}
+
 			By("creating the custom resource for the Kind IntelCluster")
-			intelNamespace = utils.NewNamespace(namespaceName)
+			intelNamespace = utils.NewNamespace(currentNamespaceName)
 			Expect(k8sClient.Create(ctx, intelNamespace)).To(Succeed())
-			Expect(kerrors.IsNotFound(k8sClient.Get(ctx, defaultResourceFilter, &clusterv1.Cluster{}))).To(BeTrue())
-			cluster = utils.NewCluster(namespaceName, clusterName)
+			cluster = utils.NewCluster(currentNamespaceName, currentClusterName)
 			Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
 
-			Expect(kerrors.IsNotFound(k8sClient.Get(ctx, defaultResourceFilter, &infrastructurev1alpha1.IntelCluster{}))).To(BeTrue())
 			intelCluster = utils.NewIntelClusterNoSpec(cluster)
 			Expect(k8sClient.Create(ctx, intelCluster)).To(Succeed())
 
-			cluster.Spec.InfrastructureRef = utils.GetObjectRef(&intelCluster.ObjectMeta, "IntelCluster")
+			cluster.Spec.InfrastructureRef = clusterv1.ContractVersionedObjectReference{
+				Kind:     "IntelCluster",
+				Name:     intelCluster.Name,
+				APIGroup: infrastructurev1alpha1.GroupVersion.Group,
+			}
 			Expect(k8sClient.Update(ctx, cluster)).To(Succeed())
-			// TODO: refactor to reuse GetObjectRef
-			cluster.Spec.ControlPlaneRef = &corev1.ObjectReference{Name: cluster.Name + "-controlplane"}
+			cluster.Spec.ControlPlaneRef = clusterv1.ContractVersionedObjectReference{
+				Kind: "KubeadmControlPlane",
+				Name: cluster.Name + "-controlplane",
+			}
 			Expect(k8sClient.Update(ctx, cluster)).To(Succeed())
 
 			inventoryClient.On("CreateWorkload",
-				inventory.CreateWorkloadInput{TenantId: namespaceName, ClusterName: clusterName}).
+				inventory.CreateWorkloadInput{TenantId: currentNamespaceName, ClusterName: currentClusterName}).
 				Return(inventory.CreateWorkloadOutput{WorkloadId: workloadId, Err: nil}).
 				Once()
 			inventoryClient.On("DeleteWorkload",
-				inventory.DeleteWorkloadInput{TenantId: namespaceName, WorkloadId: workloadId}).
+				inventory.DeleteWorkloadInput{TenantId: currentNamespaceName, WorkloadId: workloadId}).
 				Return(inventory.DeleteWorkloadOutput{Err: nil}).
 				Once()
 			inventoryClient.On("DeauthorizeHost",
-				inventory.DeauthorizeHostInput{TenantId: namespaceName, HostUUID: hostUUID}).
+				inventory.DeauthorizeHostInput{TenantId: currentNamespaceName, HostUUID: hostUUID}).
 				Return(inventory.DeauthorizeHostOutput{Err: nil}).
 				Once()
 
@@ -156,6 +172,8 @@ var _ = Describe("IntelCluster Controller", func() {
 				g.Expect(resource.Spec.ControlPlaneEndpoint.Port).To(Equal(port))
 				g.Expect(resource.Spec.ProviderId).To(Equal(workloadId))
 				g.Expect(resource.Status.Ready).To(BeTrue())
+				g.Expect(resource.Status.Initialization.Provisioned).NotTo(BeNil())
+				g.Expect(*resource.Status.Initialization.Provisioned).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 		})
@@ -178,18 +196,15 @@ var _ = Describe("IntelCluster Controller", func() {
 		)
 
 		var (
+			currentNamespaceName    string
+			currentClusterName      string
 			intelNamespace          *corev1.Namespace
 			intelCluster            *infrastructurev1alpha1.IntelCluster
 			cluster                 *clusterv1.Cluster
 			clusterConnection       *ccgv1.ClusterConnect
-			clusterConnectionFilter = client.ObjectKey{
-				Name:      fmt.Sprintf("%s-%s", namespaceName, clusterName),
-				Namespace: namespaceName}
-			defaultResourceFilter = client.ObjectKey{
-				Name:      clusterName,
-				Namespace: namespaceName,
-			}
-			endpointUrl = clusterv1.APIEndpoint{
+			clusterConnectionFilter client.ObjectKey
+			defaultResourceFilter   client.ObjectKey
+			endpointUrl             = clusterv1.APIEndpoint{
 				Host: host,
 				Port: port,
 			}
@@ -198,31 +213,44 @@ var _ = Describe("IntelCluster Controller", func() {
 		ctx := context.Background()
 
 		BeforeEach(func() {
+			currentNamespaceName = uniqueTestName("275ecb36-5aa8-4c2a-9c47-000000000001")
+			currentClusterName = uniqueTestName("cluster1")
+			clusterConnectionFilter = client.ObjectKey{
+				Name:      fmt.Sprintf("%s-%s", currentNamespaceName, currentClusterName),
+				Namespace: currentNamespaceName,
+			}
+			defaultResourceFilter = client.ObjectKey{
+				Name:      currentClusterName,
+				Namespace: currentNamespaceName,
+			}
+
 			By("create the necessary resources")
 
-			Expect(kerrors.IsNotFound(k8sClient.Get(ctx, defaultResourceFilter, &corev1.Namespace{}))).To(BeTrue())
-			intelNamespace = utils.NewNamespace(namespaceName)
+			intelNamespace = utils.NewNamespace(currentNamespaceName)
 			Expect(k8sClient.Create(ctx, intelNamespace)).To(Succeed())
 
-			Expect(kerrors.IsNotFound(k8sClient.Get(ctx, defaultResourceFilter, &clusterv1.Cluster{}))).To(BeTrue())
-			cluster = utils.NewCluster(namespaceName, clusterName)
+			cluster = utils.NewCluster(currentNamespaceName, currentClusterName)
 			Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
 
-			Expect(kerrors.IsNotFound(k8sClient.Get(ctx, defaultResourceFilter, &infrastructurev1alpha1.IntelCluster{}))).To(BeTrue())
 			intelCluster = utils.NewIntelClusterNoSpec(cluster)
 			Expect(k8sClient.Create(ctx, intelCluster)).To(Succeed())
 
-			cluster.Spec.InfrastructureRef = utils.GetObjectRef(&intelCluster.ObjectMeta, "IntelCluster")
+			cluster.Spec.InfrastructureRef = clusterv1.ContractVersionedObjectReference{
+				Kind:     "IntelCluster",
+				Name:     intelCluster.Name,
+				APIGroup: infrastructurev1alpha1.GroupVersion.Group,
+			}
 			Expect(k8sClient.Update(ctx, cluster)).To(Succeed())
 
-			// TODO: refactor to reuse GetObjectRef
-			cluster.Spec.ControlPlaneRef = &corev1.ObjectReference{Name: cluster.Name + "-controlplane"}
+			cluster.Spec.ControlPlaneRef = clusterv1.ContractVersionedObjectReference{
+				Kind: "KubeadmControlPlane",
+				Name: cluster.Name + "-controlplane",
+			}
 			Expect(k8sClient.Update(ctx, cluster)).To(Succeed())
 
-			inventoryClient.On("CreateWorkload", inventory.CreateWorkloadInput{TenantId: namespaceName, ClusterName: clusterName}).
+			inventoryClient.On("CreateWorkload", inventory.CreateWorkloadInput{TenantId: currentNamespaceName, ClusterName: currentClusterName}).
 				Return(inventory.CreateWorkloadOutput{WorkloadId: "", Err: errors.New("test")})
 
-			Expect(kerrors.IsNotFound(k8sClient.Get(ctx, clusterConnectionFilter, &ccgv1.ClusterConnect{}))).To(BeTrue())
 			clusterConnection = getClusterConnectionManifest(cluster, intelCluster)
 			Expect(k8sClient.Create(ctx, clusterConnection)).To(Succeed())
 		})
@@ -287,6 +315,10 @@ var _ = Describe("IntelCluster Controller", func() {
 	})
 })
 
+func uniqueTestName(base string) string {
+	return fmt.Sprintf("%s-%06d", base, time.Now().UnixNano()%1000000)
+}
+
 var _ = Describe("Reconcile loop errors", func() {
 	Context("When reconciling a resource", func() {
 		const (
@@ -311,7 +343,11 @@ var _ = Describe("Reconcile loop errors", func() {
 			Expect(ccgv1.AddToScheme(scheme)).To(Succeed()) // Register ClusterConnect type
 
 			cluster = utils.NewCluster(namespace, clusterName)
-			cluster.Status.InfrastructureReady = true
+			conditions.Set(cluster, metav1.Condition{
+				Type:   string(clusterv1.InfrastructureReadyCondition),
+				Status: metav1.ConditionTrue,
+				Reason: "Ready",
+			})
 			intelcluster = utils.NewIntelCluster(namespace, intelClusterName, "provider-id", cluster)
 
 			fakeClient = fake.NewClientBuilder().
@@ -365,6 +401,64 @@ var _ = Describe("Reconcile loop errors", func() {
 			res, err = reconciler.Reconcile(ctx, req)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(Equal(reconcile.Result{}))
+		})
+
+		It("should requeue when connection probe condition is unknown", func() {
+			scheme := runtime.NewScheme()
+			Expect(infrastructurev1alpha1.AddToScheme(scheme)).To(Succeed())
+			Expect(clusterv1.AddToScheme(scheme)).To(Succeed())
+			Expect(ccgv1.AddToScheme(scheme)).To(Succeed())
+
+			cluster = utils.NewCluster(namespace, clusterName)
+			conditions.Set(cluster, metav1.Condition{
+				Type:   string(clusterv1.ClusterControlPlaneAvailableCondition),
+				Status: metav1.ConditionTrue,
+				Reason: "Available",
+			})
+
+			intelcluster = utils.NewIntelCluster(namespace, intelClusterName, "provider-id", cluster)
+
+			clusterConnect := getClusterConnectionManifest(cluster, intelcluster)
+			clusterConnect.Status.Ready = true
+			clusterConnect.Status.ControlPlaneEndpoint = clusterv1.APIEndpoint{
+				Host: "api.example.invalid",
+				Port: 6443,
+			}
+			clusterConnect.Status.Conditions = []metav1.Condition{{
+				Type:   ccgv1.ConnectionProbeCondition,
+				Status: metav1.ConditionUnknown,
+				Reason: "Pending",
+			}}
+
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(cluster, intelcluster, clusterConnect).
+				Build()
+
+			logger := logr.Discard()
+			clusterScope, err := scopepkg.NewClusterReconcileScopeBuilder().
+				WithContext(ctx).
+				WithLog(&logger).
+				WithClient(fakeClient).
+				WithCluster(cluster).
+				WithIntelCluster(intelcluster).
+				Build()
+			Expect(err).NotTo(HaveOccurred())
+
+			reconciler = &IntelClusterReconciler{
+				Client: fakeClient,
+				Scheme: scheme,
+			}
+
+			result := reconciler.reconcileNormal(clusterScope)
+
+			Expect(result.RequeueAfter).To(Equal(requeueAfter))
+			Expect(clusterScope.IntelCluster.Spec.ControlPlaneEndpoint.Host).To(Equal("api.example.invalid"))
+			Expect(clusterScope.IntelCluster.Status.Ready).To(BeTrue())
+			Expect(clusterScope.IntelCluster.Status.Initialization.Provisioned).NotTo(BeNil())
+			Expect(*clusterScope.IntelCluster.Status.Initialization.Provisioned).To(BeTrue())
+			Expect(conditions.IsFalse(clusterScope.IntelCluster, string(infrastructurev1alpha1.SecureTunnelEstablishedCondition))).To(BeTrue())
+			Expect(conditions.GetReason(clusterScope.IntelCluster, string(infrastructurev1alpha1.SecureTunnelEstablishedCondition))).To(Equal(infrastructurev1alpha1.SecureTunnelUnknownReason))
 		})
 	})
 })
