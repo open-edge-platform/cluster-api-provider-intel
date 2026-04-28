@@ -40,14 +40,27 @@ type IntelMachineSpec struct {
 	NodeGUID string `json:"nodeGUID,omitempty"`
 }
 
+// IntelMachineInitializationStatus tracks initialization milestones for the v1beta2 CAPI contract.
+type IntelMachineInitializationStatus struct {
+	// provisioned is true when the Intel machine infrastructure is fully provisioned.
+	// This is part of the CAPI v1beta2 infrastructure contract.
+	// +optional
+	Provisioned *bool `json:"provisioned,omitempty"`
+}
+
 // IntelMachineStatus defines the observed state of IntelMachine.
 type IntelMachineStatus struct {
 	// ready denotes that the Intel machine infrastructure is fully provisioned.
-	// NOTE: this field is part of the Cluster API contract and it is used to orchestrate provisioning.
+	// NOTE: this field is part of the Cluster API v1beta1 contract and is kept for backward compatibility.
 	// The value of this field is never updated after provisioning is completed. Please use conditions
 	// to check the operational state of the infra machine.
 	// +optional
 	Ready bool `json:"ready,omitempty"`
+
+	// initialization provides observations of the IntelMachine initialization process.
+	// This is part of the CAPI v1beta2 infrastructure contract.
+	// +optional
+	Initialization IntelMachineInitializationStatus `json:"initialization,omitempty"`
 
 	// conditions represents the observations of an IntelMachine's current state.
 	// Known condition types are Ready, Provisioned, BootstrapExecSucceeded, Deleting, Paused.

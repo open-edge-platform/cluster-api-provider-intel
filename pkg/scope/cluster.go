@@ -119,7 +119,6 @@ func (s *ClusterReconcileScope) Close() error {
 		conditions.ForConditionTypes{
 			string(infrav1.ControlPlaneEndpointReadyCondition),
 			string(infrav1.WorkloadCreatedReadyCondition),
-			string(infrav1.SecureTunnelEstablishedCondition),
 		},
 	); err != nil {
 		s.Log.Error(err, "failed to set summary condition")

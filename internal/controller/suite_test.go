@@ -6,6 +6,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -38,6 +39,79 @@ var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
 var inventoryClient = &m_inventory.MockInfrastructureProvider{}
+var testCRDDir string
+
+const clusterTestCRDYAML = `apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clusters.cluster.x-k8s.io
+spec:
+  group: cluster.x-k8s.io
+  names:
+    kind: Cluster
+    listKind: ClusterList
+    plural: clusters
+    singular: cluster
+  scope: Namespaced
+  versions:
+  - name: v1beta2
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+          status:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+    subresources:
+      status: {}
+`
+
+const machineTestCRDYAML = `apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: machines.cluster.x-k8s.io
+spec:
+  group: cluster.x-k8s.io
+  names:
+    kind: Machine
+    listKind: MachineList
+    plural: machines
+    singular: machine
+  scope: Namespaced
+  versions:
+  - name: v1beta2
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+          status:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+    subresources:
+      status: {}
+`
 
 func TestControllers(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -50,24 +124,39 @@ var _ = BeforeSuite(func() {
 
 	ctx, cancel = context.WithCancel(context.TODO())
 
+	var err error
+	testCRDDir, err = os.MkdirTemp("", "controller-crds-*")
+	Expect(err).NotTo(HaveOccurred())
+
+	clusterConnectCRD, err := os.ReadFile(filepath.Join("..", "..", "config", "crd", "deps", "cluster.edge-orchestrator.intel.com_clusterconnects.yaml"))
+	Expect(err).NotTo(HaveOccurred())
+	Expect(os.WriteFile(filepath.Join(testCRDDir, "clusterconnects.yaml"), clusterConnectCRD, 0o600)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(testCRDDir, "clusters.v1beta2.yaml"), []byte(clusterTestCRDYAML), 0o600)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(testCRDDir, "machines.v1beta2.yaml"), []byte(machineTestCRDYAML), 0o600)).To(Succeed())
+
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
 			filepath.Join("..", "..", "config", "crd", "bases"),
-			filepath.Join("..", "..", "config", "crd", "deps"),
+			testCRDDir,
 		},
 		ErrorIfCRDPathMissing: true,
-
-		// The BinaryAssetsDirectory is only required if you want to run the tests directly
-		// without call the makefile target test. If not informed it will look for the
-		// default path defined in controller-runtime which is /usr/local/kubebuilder/.
-		// Note that you must have the required binaries setup under the bin directory to perform
-		// the tests directly. When we run make test it will be setup and used automatically.
-		BinaryAssetsDirectory: filepath.Join("..", "..", "bin", "k8s",
-			fmt.Sprintf("1.31.0-%s-%s", runtime.GOOS, runtime.GOARCH)),
 	}
 
-	var err error
+	// Prefer KUBEBUILDER_ASSETS when provided by make/envtest setup and fall back to the
+	// repository-local bin directory for direct test execution.
+	binaryAssetsDirectory := os.Getenv("KUBEBUILDER_ASSETS")
+	if binaryAssetsDirectory == "" {
+		binaryAssetsDirectory = filepath.Join("..", "..", "bin", "k8s",
+			fmt.Sprintf("1.31.0-%s-%s", runtime.GOOS, runtime.GOARCH))
+	} else if !filepath.IsAbs(binaryAssetsDirectory) {
+		binaryAssetsDirectory = filepath.Join("..", "..", binaryAssetsDirectory)
+	}
+	absoluteBinaryAssetsDirectory, absErr := filepath.Abs(binaryAssetsDirectory)
+	Expect(absErr).NotTo(HaveOccurred())
+	Expect(os.Setenv("KUBEBUILDER_ASSETS", absoluteBinaryAssetsDirectory)).To(Succeed())
+	testEnv.BinaryAssetsDirectory = absoluteBinaryAssetsDirectory
+
 	// cfg is defined in this file globally.
 	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
@@ -122,4 +211,7 @@ var _ = AfterSuite(func() {
 	cancel()
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
+	if testCRDDir != "" {
+		Expect(os.RemoveAll(testCRDDir)).To(Succeed())
+	}
 })

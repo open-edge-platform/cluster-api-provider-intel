@@ -16,20 +16,33 @@ const (
 type IntelClusterSpec struct {
 	// controlPlaneEndpoint represents the endpoint used to communicate with the control plane
 	// +optional
-	ControlPlaneEndpoint clusterv1.APIEndpoint `json:"controlPlaneEndpoint"`
+	ControlPlaneEndpoint clusterv1.APIEndpoint `json:"controlPlaneEndpoint,omitempty"`
 	// providerId represents the id the inventory manager assigns to the cluster at creation time
 	// +optional
 	ProviderId string `json:"providerId"`
 }
 
+// IntelClusterInitializationStatus tracks initialization milestones for the v1beta2 CAPI contract.
+type IntelClusterInitializationStatus struct {
+	// provisioned is true when the Intel cluster infrastructure is fully provisioned.
+	// This is part of the CAPI v1beta2 infrastructure contract.
+	// +optional
+	Provisioned *bool `json:"provisioned,omitempty"`
+}
+
 // IntelClusterStatus defines the observed state of IntelCluster
 type IntelClusterStatus struct {
 	// ready denotes that the Intel cluster infrastructure is fully provisioned
-	// NOTE: this field is part of the Cluster API contract and it is used to orchestrate provisioning.
+	// NOTE: this field is part of the Cluster API v1beta1 contract and is kept for backward compatibility.
 	// The value of this field is never updated after provisioning is completed. Please use conditions
 	// to check the operational state of the infa cluster.
 	// +optional
 	Ready bool `json:"ready"`
+
+	// initialization provides observations of the IntelCluster initialization process.
+	// This is part of the CAPI v1beta2 infrastructure contract.
+	// +optional
+	Initialization IntelClusterInitializationStatus `json:"initialization,omitempty"`
 
 	// conditions represents the observations of an IntelCluster's current state.
 	// Known condition types are Ready, Provisioned, Deleting, Paused.

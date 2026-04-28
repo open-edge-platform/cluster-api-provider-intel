@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 )
 
@@ -23,7 +22,7 @@ func markConditionTrue(obj conditions.Setter, conditionType string) {
 }
 
 // markConditionFalse sets a condition to False status with a reason and message.
-func markConditionFalse(obj conditions.Setter, conditionType string, reason string, severity clusterv1.ConditionSeverity, messageFormat string, messageArgs ...interface{}) {
+func markConditionFalse(obj conditions.Setter, conditionType string, reason string, messageFormat string, messageArgs ...interface{}) {
 	conditions.Set(obj, metav1.Condition{
 		Type:    conditionType,
 		Status:  metav1.ConditionFalse,
