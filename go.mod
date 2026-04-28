@@ -22,7 +22,7 @@ require (
 	github.com/open-edge-platform/infra-core/inventory/v2 v2.34.5
 	github.com/open-edge-platform/orch-library/go v0.6.3
 	github.com/open-policy-agent/opa v1.15.0
-	github.com/rs/zerolog v1.34.0
+	github.com/rs/zerolog v1.35.1
 	github.com/stretchr/testify v1.11.1
 	github.com/undefinedlabs/go-mpatch v1.0.7
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.67.0
