@@ -5,6 +5,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "intel-infra-provider.fullname" . }}-manager
+  namespace: {{ .Values.manager.Namespace }}
   labels:
     {{- include "intel-infra-provider.managerLabels" . | nindent 4 }}
 spec:

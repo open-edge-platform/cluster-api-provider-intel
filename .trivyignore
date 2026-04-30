@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# Ignore KSV-0125 false positives for trusted internal registry in Helm templates.
+KSV-0125
+
+# KSV-0013: Image tag ":latest" - This is a kustomize placeholder, replaced at build time
+KSV-0013
+
+# DS026: No HEALTHCHECK defined
+# Suppressed for distroless images - health checks can be handled by Kubernetes probes
+DS026
