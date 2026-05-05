@@ -4,6 +4,11 @@
 scan:
   skip-files:
     - deployment/charts/intel-infra-provider/templates/role.yaml
+    - "vendor/**"
+    - "**/vendor/**"    
+  skip-dirs:
+    - "vendor"
+    - "**/vendor"
 
 vulnerability:
   ignore-unfixed: true

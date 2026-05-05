@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"github.com/labstack/echo/v4"
 	"github.com/naughtygopher/errors"
@@ -21,6 +22,39 @@ import (
 var (
 	errGeneralErr = errors.New("general error")
 )
+
+func makeBearerToken(t *testing.T, claims jwt.MapClaims) string {
+	t.Helper()
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signedToken, err := token.SignedString([]byte("test-signing-key"))
+	if err != nil {
+		t.Fatalf("sign token: %v", err)
+	}
+
+	return "Bearer " + signedToken
+}
+
+func makeValidAuthHeader(t *testing.T) string {
+	t.Helper()
+
+	return makeBearerToken(t, jwt.MapClaims{
+		"sub": "test-user",
+	})
+}
+
+func makeResourceAuthHeader(t *testing.T) string {
+	t.Helper()
+
+	return makeBearerToken(t, jwt.MapClaims{
+		"sub": "test-user",
+		"resource_access": map[string]interface{}{
+			"test-client": map[string]interface{}{
+				"roles": []interface{}{rbac.RoleRancherReadOnly},
+			},
+		},
+	})
+}
 
 func unpatchAll(t *testing.T, pList []*mpatch.Patch) {
 	for _, p := range pList {
@@ -77,7 +111,7 @@ func TestAuthenticationInterceptor(t *testing.T) {
 	}{
 		{
 			name:          "Valid Token",
-			authHeader:    "Bearer eyJhbGciOiJQUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI2SDl2QWllQlg2cEVDZHktSzJJVVAwdzBhNXNlbXdQelJ1YWU2YWIyNDNRIn0.eyJleHAiOjE3MDIzNjY4OTMsImlhdCI6MTcwMjM2MzI5MywianRpIjoiZWRhNjA5ZTktNDc0Zi00NTNmLTgxMTctYjJkYzA3ODJiZjUzIiwiaXNzIjoiaHR0cHM6Ly9rZXljbG9hay5raW5kLmludGVybmFsL3JlYWxtcy9tYXN0ZXIiLCJzdWIiOiIyNmM3MjY5MC04YzRjLTQ2ZWMtYmJlYi1mYjc3YjJiZmI5MWYiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJsZWRnZS1wYXJrLXN5c3RlbSIsInNlc3Npb25fc3RhdGUiOiJmZWZhOTNkYS01N2M3LTRiOGQtYjRkMC0wYWRkZWJjYjcyMTQiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsibHAtcmVhZC1vbmx5LXJvbGUiLCJkZWZhdWx0LXJvbGVzLW1hc3RlciIsIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iXX0sInJlc291cmNlX2FjY2VzcyI6eyJsZWRnZS1wYXJrLXJhbmNoZXIiOnsicm9sZXMiOlsicmFuY2hlci1yZWFkLW9ubHkiXX0sImxlZGdlLXBhcmstZ3JhZmFuYSI6eyJyb2xlcyI6WyJ2aWV3ZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoib3BlbmlkIHJvbGVzIHByb2ZpbGUgZW1haWwiLCJzaWQiOiJmZWZhOTNkYS01N2M3LTRiOGQtYjRkMC0wYWRkZWJjYjcyMTQiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsIm5hbWUiOiJSZWFkT25seSBVc2VyIiwicHJlZmVycmVkX3VzZXJuYW1lIjoibHAtcmVhZC1vbmx5LXVzZXIiLCJnaXZlbl9uYW1lIjoiUmVhZE9ubHkiLCJmYW1pbHlfbmFtZSI6IlVzZXIiLCJlbWFpbCI6InJlYWRvbmx5QGxwLmNvbSJ9.MyJRbDN7p2XDdKtm0qsaeUZujShBs6MbjV0VP1p4S0kl8xScBdB8Suw39uouosPFPxDTzEnN0N8tzRMhC30zMznPKZH0oZHFtQxqFYmoTCUMhiznqJZghleCaFnE1QlHHrh677sqwaHQLcH5oluQOuStXKj0Mqfadrbnjjb5k9G_1uecV3O_5D68LPHITTo8BlXP3VIxDjWosF-tPoidsY8S9oP1qDLzUB9dr9lt4-eQio6we1oNaaprGITg7sNPz8cCkqb7sMBgkkjOj4ye5jXQh4WZgt_Gtzhx2w8XK2st5P0jnluhR-0mwN28HZDRRbQxyfxPUQQaJ5zhghxSNTl4ucihnlutvkhgi1A3lNr85-vYrgd8RQusfkZXyvu_QmNS0J1rvblRs7cKj26Xh3hf2muDkJME-ei7kcAR9pnIqL_8xTNcXo6oPlubTLzDRuqteFWK0VDIBiD74MG85e2LoYpIwqSVMq_wuQ2VfZfVE2ok0rz2ZTIr9c76Fp_XlcbFRGa4I6fjzh9p-DMH2hh7Cl700gYNmzPzz9owFDExvpggtickSMKG8QnZxIJvD2NGXsrQhL5p5MG2nQnBbU9xRbR1aIgAsATCzz5WU8tQH7eOlNXtUiacSEaEUp6ecOBfpDwfn_jgjqeUbRXMNdd-8zxePxpIrwy-5bRS030",
+			authHeader:    makeValidAuthHeader(t),
 			expectedError: "",
 			funcBeforeTest: func() []*mpatch.Patch {
 				rbac.Policies, _ = rbac.New(rbacRealmDirectory)
@@ -101,7 +135,7 @@ func TestAuthenticationInterceptor(t *testing.T) {
 		},
 		{
 			name:          "Invalid Token",
-			authHeader:    "Bearer eyJhbGciOiJQUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI2SDl2QWllQlg2cEVDZHktSzJJVVAwdzBhNXNlbXdQelJ1YWU2YWIyNDNRIn0",
+			authHeader:    "Bearer invalid-token",
 			expectedError: "code=403, message=Forbidden",
 			funcBeforeTest: func() []*mpatch.Patch {
 				rbac.Policies, _ = rbac.New(rbacRealmDirectory)
@@ -113,7 +147,7 @@ func TestAuthenticationInterceptor(t *testing.T) {
 		},
 		{
 			name:          "Invalid schema",
-			authHeader:    "dsf eyJhbGciOiJQUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI2SDl2QWllQlg2cEVDZHktSzJJVVAwdzBhNXNlbXdQelJ1YWU2YWIyNDNRIn0",
+			authHeader:    "dsf invalid-token",
 			expectedError: "code=401, message=wrong Authorization header definition, internal=wrong Authorization header definition. Expecting \"Bearer\" Scheme to be sent",
 			funcBeforeTest: func() []*mpatch.Patch {
 				rbac.Policies, _ = rbac.New(rbacRealmDirectory)
@@ -125,7 +159,7 @@ func TestAuthenticationInterceptor(t *testing.T) {
 		},
 		{
 			name:          "RBAC policy file is empty",
-			authHeader:    "dsf eyJhbGciOiJQUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI2SDl2QWllQlg2cEVDZHktSzJJVVAwdzBhNXNlbXdQelJ1YWU2YWIyNDNRIn0",
+			authHeader:    "dsf invalid-token",
 			expectedError: "code=403, message=Can't upload RBAC realm policies to OPA package",
 			funcBeforeTest: func() []*mpatch.Patch {
 				rbac.Policies, _ = rbac.New("")
@@ -149,7 +183,7 @@ func TestAuthenticationInterceptor(t *testing.T) {
 		},
 		{
 			name:          "Valid Token with resouce verification",
-			authHeader:    "Bearer eyJhbGciOiJQUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI2SDl2QWllQlg2cEVDZHktSzJJVVAwdzBhNXNlbXdQelJ1YWU2YWIyNDNRIn0.eyJleHAiOjE3MDIzNjY4OTMsImlhdCI6MTcwMjM2MzI5MywianRpIjoiZWRhNjA5ZTktNDc0Zi00NTNmLTgxMTctYjJkYzA3ODJiZjUzIiwiaXNzIjoiaHR0cHM6Ly9rZXljbG9hay5raW5kLmludGVybmFsL3JlYWxtcy9tYXN0ZXIiLCJzdWIiOiIyNmM3MjY5MC04YzRjLTQ2ZWMtYmJlYi1mYjc3YjJiZmI5MWYiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJsZWRnZS1wYXJrLXN5c3RlbSIsInNlc3Npb25fc3RhdGUiOiJmZWZhOTNkYS01N2M3LTRiOGQtYjRkMC0wYWRkZWJjYjcyMTQiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsibHAtcmVhZC1vbmx5LXJvbGUiLCJkZWZhdWx0LXJvbGVzLW1hc3RlciIsIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iXX0sInJlc291cmNlX2FjY2VzcyI6eyJsZWRnZS1wYXJrLXJhbmNoZXIiOnsicm9sZXMiOlsicmFuY2hlci1yZWFkLW9ubHkiXX0sImxlZGdlLXBhcmstZ3JhZmFuYSI6eyJyb2xlcyI6WyJ2aWV3ZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoib3BlbmlkIHJvbGVzIHByb2ZpbGUgZW1haWwiLCJzaWQiOiJmZWZhOTNkYS01N2M3LTRiOGQtYjRkMC0wYWRkZWJjYjcyMTQiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsIm5hbWUiOiJSZWFkT25seSBVc2VyIiwicHJlZmVycmVkX3VzZXJuYW1lIjoibHAtcmVhZC1vbmx5LXVzZXIiLCJnaXZlbl9uYW1lIjoiUmVhZE9ubHkiLCJmYW1pbHlfbmFtZSI6IlVzZXIiLCJlbWFpbCI6InJlYWRvbmx5QGxwLmNvbSJ9.MyJRbDN7p2XDdKtm0qsaeUZujShBs6MbjV0VP1p4S0kl8xScBdB8Suw39uouosPFPxDTzEnN0N8tzRMhC30zMznPKZH0oZHFtQxqFYmoTCUMhiznqJZghleCaFnE1QlHHrh677sqwaHQLcH5oluQOuStXKj0Mqfadrbnjjb5k9G_1uecV3O_5D68LPHITTo8BlXP3VIxDjWosF-tPoidsY8S9oP1qDLzUB9dr9lt4-eQio6we1oNaaprGITg7sNPz8cCkqb7sMBgkkjOj4ye5jXQh4WZgt_Gtzhx2w8XK2st5P0jnluhR-0mwN28HZDRRbQxyfxPUQQaJ5zhghxSNTl4ucihnlutvkhgi1A3lNr85-vYrgd8RQusfkZXyvu_QmNS0J1rvblRs7cKj26Xh3hf2muDkJME-ei7kcAR9pnIqL_8xTNcXo6oPlubTLzDRuqteFWK0VDIBiD74MG85e2LoYpIwqSVMq_wuQ2VfZfVE2ok0rz2ZTIr9c76Fp_XlcbFRGa4I6fjzh9p-DMH2hh7Cl700gYNmzPzz9owFDExvpggtickSMKG8QnZxIJvD2NGXsrQhL5p5MG2nQnBbU9xRbR1aIgAsATCzz5WU8tQH7eOlNXtUiacSEaEUp6ecOBfpDwfn_jgjqeUbRXMNdd-8zxePxpIrwy-5bRS030",
+			authHeader:    makeResourceAuthHeader(t),
 			expectedError: "",
 			funcBeforeTest: func() []*mpatch.Patch {
 				rbac.Policies, _ = rbac.New(rbacRealmDirectory)

@@ -46,7 +46,8 @@ manager:
     capabilities:
       drop:
       - ALL
-    # runAsUser: 1000
+    runAsUser: 65532
+    runAsGroup: 65532
 
   resources: 
     limits:
@@ -112,7 +113,8 @@ southboundApi:
     capabilities:
       drop:
       - ALL
-    # runAsUser: 1000
+    runAsUser: 65532
+    runAsGroup: 65532
 
   resources: 
     limits:
