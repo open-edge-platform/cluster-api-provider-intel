@@ -35,9 +35,7 @@ type IntelClusterTemplateList struct {
 	Items           []IntelClusterTemplate `json:"items"`
 }
 
-func init() {
-	SchemeBuilder.Register(&IntelClusterTemplate{}, &IntelClusterTemplateList{})
-}
+// init registration is handled centrally in groupversion_info.go
 
 type IntelClusterTemplateResource struct {
 	// Standard object's metadata

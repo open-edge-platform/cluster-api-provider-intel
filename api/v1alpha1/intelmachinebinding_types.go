@@ -50,6 +50,4 @@ type IntelMachineBindingList struct {
 	Items           []IntelMachineBinding `json:"items"`
 }
 
-func init() {
-	SchemeBuilder.Register(&IntelMachineBinding{}, &IntelMachineBindingList{})
-}
+// init registration is handled centrally in groupversion_info.go

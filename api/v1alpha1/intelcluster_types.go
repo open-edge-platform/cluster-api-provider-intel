@@ -92,6 +92,4 @@ type IntelClusterList struct {
 	Items           []IntelCluster `json:"items"`
 }
 
-func init() {
-	SchemeBuilder.Register(&IntelCluster{}, &IntelClusterList{})
-}
+// init registration is handled centrally in groupversion_info.go

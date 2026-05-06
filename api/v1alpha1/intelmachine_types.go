@@ -108,6 +108,4 @@ type IntelMachineList struct {
 	Items           []IntelMachine `json:"items"`
 }
 
-func init() {
-	SchemeBuilder.Register(&IntelMachine{}, &IntelMachineList{})
-}
+// init registration is handled centrally in groupversion_info.go

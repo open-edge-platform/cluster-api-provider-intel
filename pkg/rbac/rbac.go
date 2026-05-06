@@ -8,17 +8,16 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	"github.com/open-edge-platform/orch-library/go/pkg/auth"
-
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"github.com/naughtygopher/errors"
+	"github.com/open-edge-platform/orch-library/go/pkg/auth"
 	grpcauth "github.com/open-edge-platform/orch-library/go/pkg/grpc/auth"
 	"github.com/open-policy-agent/opa/v1/rego"
-	"k8s.io/utils/strings/slices"
 
 	"github.com/open-edge-platform/cluster-api-provider-intel/pkg/logging"
 	"github.com/rs/zerolog"
