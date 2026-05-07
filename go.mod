@@ -17,7 +17,7 @@ require (
 	github.com/naughtygopher/errors v1.3.1
 	github.com/oapi-codegen/echo-middleware v1.0.2
 	github.com/onsi/ginkgo/v2 v2.28.1
-	github.com/onsi/gomega v1.39.1
+	github.com/onsi/gomega v1.40.0
 	github.com/open-edge-platform/cluster-connect-gateway v1.2.8
 	github.com/open-edge-platform/infra-core/inventory/v2 v2.35.0
 	github.com/open-edge-platform/orch-library/go v0.6.3
