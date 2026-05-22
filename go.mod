@@ -5,7 +5,7 @@ go 1.26.3
 require (
 	entgo.io/ent v0.14.6
 	github.com/envoyproxy/protoc-gen-validate v1.3.3
-	github.com/getkin/kin-openapi v0.137.0
+	github.com/getkin/kin-openapi v0.138.0
 	github.com/gogo/grpc-example v0.0.0-20211127015421-6236971f8de2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
