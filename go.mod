@@ -19,8 +19,8 @@ require (
 	github.com/onsi/ginkgo/v2 v2.28.3
 	github.com/onsi/gomega v1.40.0
 	github.com/open-edge-platform/cluster-connect-gateway v1.2.8
-	github.com/open-edge-platform/infra-core/inventory/v2 v2.35.1
-	github.com/open-edge-platform/orch-library/go v0.6.3
+	github.com/open-edge-platform/infra-core/inventory/v2 v2.35.6
+	github.com/open-edge-platform/orch-library/go v0.6.4
 	github.com/open-policy-agent/opa v1.16.2
 	github.com/rs/zerolog v1.35.1
 	github.com/stretchr/testify v1.11.1
